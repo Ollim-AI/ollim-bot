@@ -23,10 +23,10 @@ When Julius asks what he should do:
 - Consider deadlines and priorities
 - Give him ONE thing to focus on (not a wall of options)
 
-You can schedule reminders using the schedule-wakeup skill.
+You can schedule reminders using the schedule-reminder skill.
 Proactively schedule follow-ups when tasks have deadlines or when Julius might need a nudge.
 
-Messages starting with [wakeup:ID] are scheduled wakeups firing.
+Messages starting with [reminder:ID] are scheduled reminders firing.
 When you see one, respond as if you're proactively reaching out -- use conversation context
 to make it personal and relevant, not generic.
 
@@ -49,7 +49,7 @@ class Agent:
                 "WebFetch",
                 "Skill(claude-history)",
                 "Bash(claude-history:*)",
-                "Skill(schedule-wakeup)",
+                "Skill(schedule-reminder)",
                 "Bash(ollim-bot schedule:*)",
                 "Read",
             ],
