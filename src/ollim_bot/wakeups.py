@@ -1,7 +1,12 @@
-"""Shared wakeup data structures and JSONL file I/O."""
+"""Shared reminder data structures and JSONL file I/O.
+
+The JSONL file is the source of truth -- reminders persist across restarts.
+One-shot reminders store an absolute `run_at` so they survive restarts.
+"""
 
 import json
 from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
 
@@ -13,7 +18,7 @@ class Wakeup:
     id: str
     message: str
     user_id: str = "owner"
-    delay_minutes: int | None = None
+    run_at: str | None = None  # ISO datetime for one-shot
     cron: str | None = None
     interval_minutes: int | None = None
 
@@ -25,41 +30,35 @@ class Wakeup:
         cron: str | None = None,
         interval_minutes: int | None = None,
     ) -> "Wakeup":
+        run_at = None
+        if delay_minutes:
+            run_at = (datetime.now() + timedelta(minutes=delay_minutes)).isoformat()
         return Wakeup(
             id=uuid4().hex[:8],
             message=message,
-            delay_minutes=delay_minutes,
+            run_at=run_at,
             cron=cron,
             interval_minutes=interval_minutes,
         )
 
 
 def append_wakeup(wakeup: Wakeup) -> None:
-    """Append a wakeup entry to the JSONL file."""
+    """Append a reminder to the JSONL file."""
     WAKEUPS_FILE.parent.mkdir(parents=True, exist_ok=True)
     with WAKEUPS_FILE.open("a") as f:
         f.write(json.dumps(asdict(wakeup)) + "\n")
 
 
 def list_wakeups() -> list[Wakeup]:
-    """Read all wakeups without draining."""
+    """Read all reminders."""
     if not WAKEUPS_FILE.exists():
         return []
     lines = WAKEUPS_FILE.read_text().splitlines()
-    return [Wakeup(**json.loads(line)) for line in lines if line.strip()]
-
-
-def drain_wakeups() -> list[Wakeup]:
-    """Read all wakeups and truncate the file."""
-    if not WAKEUPS_FILE.exists():
-        return []
-    lines = WAKEUPS_FILE.read_text().splitlines()
-    WAKEUPS_FILE.write_text("")
     return [Wakeup(**json.loads(line)) for line in lines if line.strip()]
 
 
 def remove_wakeup(wakeup_id: str) -> bool:
-    """Remove a wakeup by ID. Returns True if found."""
+    """Remove a reminder by ID. Returns True if found."""
     wakeups = list_wakeups()
     filtered = [w for w in wakeups if w.id != wakeup_id]
     if len(filtered) == len(wakeups):

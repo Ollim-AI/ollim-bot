@@ -1,7 +1,7 @@
 """Proactive reminders and check-ins via APScheduler.
 
 All scheduled events route through the agent for contextual responses.
-Dynamic wakeups are polled from ~/.ollim-bot/wakeups.jsonl.
+Reminders persist in ~/.ollim-bot/wakeups.jsonl and survive restarts.
 """
 
 from datetime import datetime, timedelta
@@ -12,10 +12,11 @@ from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
-from ollim_bot.wakeups import Wakeup, drain_wakeups
+from ollim_bot.wakeups import Wakeup, list_wakeups, remove_wakeup
 
 
 _owner_id: str | None = None
+_registered: set[str] = set()
 
 
 async def _resolve_owner_id(bot: discord.Client) -> str:
@@ -45,35 +46,56 @@ def _register_wakeup(
     wakeup: Wakeup,
 ):
     """Turn a Wakeup into a live APScheduler job."""
+    if wakeup.id in _registered:
+        return
+    _registered.add(wakeup.id)
+
     prompt = f"[reminder:{wakeup.id}] {wakeup.message}"
 
-    async def fire():
-        uid = await _resolve_owner_id(bot)
-        await _send_agent_dm(bot, agent, uid, prompt)
+    if wakeup.run_at:
+        run_at = datetime.fromisoformat(wakeup.run_at)
+        if run_at < datetime.now():
+            # Expired one-shot -- fire immediately then clean up
+            run_at = datetime.now() + timedelta(seconds=5)
 
-    if wakeup.delay_minutes:
-        trigger = DateTrigger(
-            run_date=datetime.now() + timedelta(minutes=wakeup.delay_minutes)
-        )
+        async def fire_oneshot():
+            uid = await _resolve_owner_id(bot)
+            await _send_agent_dm(bot, agent, uid, prompt)
+            remove_wakeup(wakeup.id)
+            _registered.discard(wakeup.id)
+
+        scheduler.add_job(fire_oneshot, DateTrigger(run_date=run_at), id=f"r_{wakeup.id}")
+
     elif wakeup.cron:
         parts = wakeup.cron.split()
-        trigger = CronTrigger(
-            minute=parts[0],
-            hour=parts[1],
-            day=parts[2],
-            month=parts[3],
-            day_of_week=parts[4],
-        )
-    elif wakeup.interval_minutes:
-        trigger = IntervalTrigger(minutes=wakeup.interval_minutes)
-    else:
-        return
 
-    scheduler.add_job(fire, trigger, id=f"wakeup_{wakeup.id}")
+        async def fire_cron():
+            uid = await _resolve_owner_id(bot)
+            await _send_agent_dm(bot, agent, uid, prompt)
+
+        scheduler.add_job(
+            fire_cron,
+            CronTrigger(
+                minute=parts[0], hour=parts[1], day=parts[2],
+                month=parts[3], day_of_week=parts[4],
+            ),
+            id=f"r_{wakeup.id}",
+        )
+
+    elif wakeup.interval_minutes:
+        async def fire_interval():
+            uid = await _resolve_owner_id(bot)
+            await _send_agent_dm(bot, agent, uid, prompt)
+
+        scheduler.add_job(
+            fire_interval,
+            IntervalTrigger(minutes=wakeup.interval_minutes),
+            id=f"r_{wakeup.id}",
+        )
 
 
 def setup_scheduler(bot: discord.Client, agent) -> AsyncIOScheduler:
-    """Create scheduler with agent-powered static jobs + wakeup polling."""
+    """Create scheduler with agent-powered static jobs + reminder sync."""
     scheduler = AsyncIOScheduler(timezone="America/Los_Angeles")
 
     # -- Morning standup (9 AM PT) --
@@ -108,10 +130,10 @@ def setup_scheduler(bot: discord.Client, agent) -> AsyncIOScheduler:
                 "[reminder:focus] Quick check-in: still on the same task, or did something pull you away?",
             )
 
-    # -- Drain wakeup queue (every 10s) --
+    # -- Sync reminders from file (every 10s) --
     @scheduler.scheduled_job(IntervalTrigger(seconds=10))
-    async def drain_wakeup_queue():
-        for wakeup in drain_wakeups():
+    async def sync_reminders():
+        for wakeup in list_wakeups():
             _register_wakeup(scheduler, bot, agent, wakeup)
 
     return scheduler
