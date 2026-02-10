@@ -45,7 +45,7 @@ def _register_wakeup(
     wakeup: Wakeup,
 ):
     """Turn a Wakeup into a live APScheduler job."""
-    prompt = f"[wakeup:{wakeup.id}] {wakeup.message}"
+    prompt = f"[reminder:{wakeup.id}] {wakeup.message}"
 
     async def fire():
         uid = await _resolve_owner_id(bot)
@@ -82,7 +82,7 @@ def setup_scheduler(bot: discord.Client, agent) -> AsyncIOScheduler:
         uid = await _resolve_owner_id(bot)
         await _send_agent_dm(
             bot, agent, uid,
-            "[wakeup:morning] Good morning! What are your top 3 priorities today?",
+            "[reminder:morning] Good morning! What are your top 3 priorities today?",
         )
 
     # -- Evening review (6 PM PT) --
@@ -91,7 +91,7 @@ def setup_scheduler(bot: discord.Client, agent) -> AsyncIOScheduler:
         uid = await _resolve_owner_id(bot)
         await _send_agent_dm(
             bot, agent, uid,
-            "[wakeup:evening] Wrapping up. What did you get done today? What carries over?",
+            "[reminder:evening] Wrapping up. What did you get done today? What carries over?",
         )
 
     # -- Focus check-in (every 90 min during work hours) --
@@ -105,7 +105,7 @@ def setup_scheduler(bot: discord.Client, agent) -> AsyncIOScheduler:
             uid = await _resolve_owner_id(bot)
             await _send_agent_dm(
                 bot, agent, uid,
-                "[wakeup:focus] Quick check-in: still on the same task, or did something pull you away?",
+                "[reminder:focus] Quick check-in: still on the same task, or did something pull you away?",
             )
 
     # -- Drain wakeup queue (every 10s) --
