@@ -3,10 +3,17 @@
 ADHD-friendly Discord bot with proactive reminders, powered by Claude.
 
 ## Architecture
-- `bot.py` -- Discord interface (responds to DMs and @mentions)
-- `agent.py` -- Claude-powered brain (conversation + tool use)
+- `bot.py` -- Discord interface (responds to DMs and @mentions, guards duplicate on_ready)
+- `agent.py` -- Claude Agent SDK brain (persistent per-user sessions via ClaudeSDKClient)
+- `scheduler.py` -- Proactive reminders via APScheduler (morning standup, evening review, focus check-ins)
 - `tasks.py` -- Google Tasks API integration (TODO)
-- `scheduler.py` -- Proactive reminders via APScheduler (TODO)
+
+## Agent SDK config
+- Auth: Claude Code OAuth (no API key needed)
+- `ClaudeSDKClient` per user for persistent conversation with auto-compaction
+- `setting_sources=["user"]` to load skills from `~/.claude/skills/`
+- Skills grant their own tool permissions via SKILL.md frontmatter (e.g. `Bash(claude-history:*)`)
+- `ResultMessage.result` is a fallback — don't double-count with `AssistantMessage` text blocks
 
 ## Dev commands
 ```bash
