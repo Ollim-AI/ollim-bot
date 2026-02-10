@@ -1,8 +1,12 @@
 """Claude Agent SDK wrapper -- the brain of the bot."""
 
-import os
-
-from anthropic import Anthropic
+from claude_agent_sdk import (
+    AssistantMessage,
+    ClaudeAgentOptions,
+    ClaudeSDKClient,
+    ResultMessage,
+    TextBlock,
+)
 
 SYSTEM_PROMPT = """You are Julius's personal ADHD-friendly task assistant on Discord.
 
@@ -14,40 +18,69 @@ Your personality:
 When Julius tells you about a task:
 - Extract the task title, due date (if any), and priority
 - Confirm what you understood
-- Add it to Google Tasks
 
 When Julius asks what he should do:
-- Look at his task list
 - Consider deadlines and priorities
 - Give him ONE thing to focus on (not a wall of options)
+
+You can schedule reminders using the schedule-wakeup skill.
+Proactively schedule follow-ups when tasks have deadlines or when Julius might need a nudge.
+
+Messages starting with [wakeup:ID] are scheduled wakeups firing.
+When you see one, respond as if you're proactively reaching out -- use conversation context
+to make it personal and relevant, not generic.
 
 Keep responses short. Discord isn't the place for essays."""
 
 
 class Agent:
-    """Thin wrapper around Anthropic API. Will migrate to Claude Agent SDK with tools."""
+    """Wraps the Claude Agent SDK with persistent per-user sessions.
+
+    Each user gets a ClaudeSDKClient that maintains conversation context
+    indefinitely. Auto-compaction is handled by Claude Code CLI when
+    the context window fills up.
+    """
 
     def __init__(self):
-        self.client = Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
-        # Per-user conversation history (in-memory for now)
-        self.conversations: dict[str, list[dict]] = {}
+        self.options = ClaudeAgentOptions(
+            system_prompt=SYSTEM_PROMPT,
+            allowed_tools=[
+                "WebSearch",
+                "WebFetch",
+                "Skill(claude-history)",
+                "Bash(claude-history:*)",
+                "Skill(schedule-wakeup)",
+                "Bash(ollim-bot schedule:*)",
+                "Read",
+            ],
+            permission_mode="default",
+            setting_sources=["user"],
+        )
+        self._clients: dict[str, ClaudeSDKClient] = {}
+
+    async def _get_client(self, user_id: str) -> ClaudeSDKClient:
+        if user_id not in self._clients:
+            client = ClaudeSDKClient(self.options)
+            await client.connect()
+            self._clients[user_id] = client
+        return self._clients[user_id]
 
     async def chat(self, message: str, user_id: str) -> str:
-        history = self.conversations.setdefault(user_id, [])
-        history.append({"role": "user", "content": message})
+        client = await self._get_client(user_id)
+        await client.query(message)
 
-        # Keep last 20 messages to avoid token bloat
-        if len(history) > 20:
-            history[:] = history[-20:]
+        parts: list[str] = []
+        result_text: str | None = None
+        async for msg in client.receive_response():
+            if isinstance(msg, AssistantMessage):
+                for block in msg.content:
+                    if isinstance(block, TextBlock):
+                        parts.append(block.text)
+            elif isinstance(msg, ResultMessage) and msg.result:
+                result_text = msg.result
 
-        response = self.client.messages.create(
-            model="claude-sonnet-4-5-20250929",
-            max_tokens=1024,
-            system=SYSTEM_PROMPT,
-            messages=history,
-        )
+        # Use ResultMessage.result only as fallback when no text blocks found
+        if not parts and result_text:
+            parts.append(result_text)
 
-        assistant_text = response.content[0].text
-        history.append({"role": "assistant", "content": assistant_text})
-
-        return assistant_text
+        return "\n".join(parts) or "hmm, I didn't have a response for that."

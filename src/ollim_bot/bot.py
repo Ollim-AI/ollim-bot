@@ -4,6 +4,7 @@ import discord
 from discord.ext import commands
 
 from ollim_bot.agent import Agent
+from ollim_bot.scheduler import setup_scheduler
 
 
 def create_bot() -> commands.Bot:
@@ -12,10 +13,31 @@ def create_bot() -> commands.Bot:
 
     bot = commands.Bot(command_prefix="!", intents=intents)
     agent = Agent()
+    _ready_fired = False
 
     @bot.event
     async def on_ready():
+        nonlocal _ready_fired
         print(f"ollim-bot online as {bot.user}")
+
+        # Guard against duplicate on_ready from reconnects
+        if _ready_fired:
+            return
+        _ready_fired = True
+
+        # Start the scheduler
+        scheduler = setup_scheduler(bot, agent)
+        scheduler.start()
+        print(f"scheduler started: {len(scheduler.get_jobs())} jobs")
+
+        # DM the bot owner on startup
+        app_info = await bot.application_info()
+        owner = app_info.owner
+        if owner:
+            dm = await owner.create_dm()
+            await dm.send(
+                "hey julius, ollim-bot is online. what's on your plate today?"
+            )
 
     @bot.event
     async def on_message(message: discord.Message):
