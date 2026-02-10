@@ -1,0 +1,20 @@
+[project]
+name = "ollim-bot"
+version = "0.1.0"
+description = "ADHD-friendly Discord bot with proactive reminders, powered by Claude"
+requires-python = ">=3.11"
+dependencies = [
+    "discord.py>=2.4.0",
+    "claude-agent-sdk>=0.1.0",
+    "google-api-python-client>=2.100.0",
+    "google-auth-oauthlib>=1.2.0",
+    "apscheduler>=3.10.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.scripts]
+ollim-bot = "ollim_bot.main:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
