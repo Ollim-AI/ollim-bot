@@ -69,7 +69,7 @@ async def _send_agent_dm(bot: discord.Client, agent, user_id: str, prompt: str):
     if not owner:
         return
     dm = await owner.create_dm()
-    async with dm.typing():
+    async with agent.lock(user_id):
         await stream_to_channel(dm, agent.stream_chat(prompt, user_id))
 
 
