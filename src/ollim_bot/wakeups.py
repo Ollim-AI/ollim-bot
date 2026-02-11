@@ -5,10 +5,15 @@ One-shot reminders store an absolute `run_at` so they survive restarts.
 """
 
 import json
+import os
+import tempfile
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
+from zoneinfo import ZoneInfo
+
+TZ = ZoneInfo("America/Los_Angeles")
 
 WAKEUPS_FILE = Path.home() / ".ollim-bot" / "wakeups.jsonl"
 
@@ -31,8 +36,8 @@ class Wakeup:
         interval_minutes: int | None = None,
     ) -> "Wakeup":
         run_at = None
-        if delay_minutes:
-            run_at = (datetime.now() + timedelta(minutes=delay_minutes)).isoformat()
+        if delay_minutes is not None:
+            run_at = (datetime.now(TZ) + timedelta(minutes=delay_minutes)).isoformat()
         return Wakeup(
             id=uuid4().hex[:8],
             message=message,
@@ -58,12 +63,18 @@ def list_wakeups() -> list[Wakeup]:
 
 
 def remove_wakeup(wakeup_id: str) -> bool:
-    """Remove a reminder by ID. Returns True if found."""
+    """Remove a reminder by ID. Returns True if found.
+
+    Uses atomic write (temp file + rename) to avoid data loss
+    if a concurrent subprocess appends while we rewrite.
+    """
     wakeups = list_wakeups()
     filtered = [w for w in wakeups if w.id != wakeup_id]
     if len(filtered) == len(wakeups):
         return False
-    WAKEUPS_FILE.write_text(
-        "".join(json.dumps(asdict(w)) + "\n" for w in filtered)
-    )
+    content = "".join(json.dumps(asdict(w)) + "\n" for w in filtered)
+    fd, tmp = tempfile.mkstemp(dir=WAKEUPS_FILE.parent, suffix=".tmp")
+    os.write(fd, content.encode())
+    os.close(fd)
+    os.replace(tmp, WAKEUPS_FILE)
     return True
