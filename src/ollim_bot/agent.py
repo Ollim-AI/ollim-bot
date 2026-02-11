@@ -10,6 +10,7 @@ from claude_agent_sdk import (
     ClaudeAgentOptions,
     ClaudeSDKClient,
     ResultMessage,
+    SystemMessage,
     TextBlock,
 )
 from claude_agent_sdk.types import StreamEvent
@@ -74,19 +75,44 @@ class Agent:
             await client.disconnect()
         delete_session_id(user_id)
 
+    async def set_model(self, user_id: str, model: str) -> None:
+        """Switch model by reconnecting with updated options."""
+        self.options = replace(self.options, model=model)
+        client = self._clients.pop(user_id, None)
+        if client:
+            await client.disconnect()
+
     async def slash(self, user_id: str, command: str) -> str:
         """Send a slash command to the SDK and return the result."""
         client = await self._get_client(user_id)
         await client.query(command)
 
-        result = "done."
+        parts: list[str] = []
+        result_text: str | None = None
+        cost: float | None = None
         async for msg in client.receive_response():
-            if isinstance(msg, ResultMessage):
+            if isinstance(msg, SystemMessage):
+                # System messages carry slash command output (e.g. /cost)
+                data = msg.data or {}
+                if text := data.get("text") or data.get("message"):
+                    parts.append(text)
+            elif isinstance(msg, AssistantMessage):
+                for block in msg.content:
+                    if isinstance(block, TextBlock):
+                        parts.append(block.text)
+            elif isinstance(msg, ResultMessage):
                 if msg.result:
-                    result = msg.result
+                    result_text = msg.result
+                cost = msg.total_cost_usd
                 save_session_id(user_id, msg.session_id)
 
-        return result
+        if parts:
+            return "\n".join(parts)
+        if result_text:
+            return result_text
+        if cost is not None:
+            return f"session cost: ${cost:.4f}"
+        return "done."
 
     async def _get_client(self, user_id: str) -> ClaudeSDKClient:
         if user_id not in self._clients:
