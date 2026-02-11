@@ -29,6 +29,9 @@ def run_calendar_command(argv: list[str]) -> None:
     add_p.add_argument("--end", required=True, help="End: YYYY-MM-DDTHH:MM")
     add_p.add_argument("--description", help="Event description")
 
+    show_p = sub.add_parser("show", help="Show event details")
+    show_p.add_argument("id", help="Event ID")
+
     del_p = sub.add_parser("delete", help="Delete an event")
     del_p.add_argument("id", help="Event ID")
 
@@ -40,6 +43,8 @@ def run_calendar_command(argv: list[str]) -> None:
         _handle_events(days=args.days)
     elif args.action == "add":
         _handle_add(args)
+    elif args.action == "show":
+        _handle_show(args.id)
     elif args.action == "delete":
         _handle_delete(args.id)
     else:
@@ -99,6 +104,26 @@ def _parse_dt(value: str) -> str:
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=TZ)
     return dt.isoformat()
+
+
+def _handle_show(event_id: str) -> None:
+    service = _get_calendar_service()
+    e = service.events().get(calendarId="primary", eventId=event_id).execute()
+
+    print(f"title:       {e.get('summary', '(no title)')}")
+    print(f"when:        {_fmt_event(e)}")
+    if e.get("location"):
+        print(f"location:    {e['location']}")
+    if e.get("description"):
+        print(f"description: {e['description']}")
+    if e.get("htmlLink"):
+        print(f"link:        {e['htmlLink']}")
+    attendees = e.get("attendees", [])
+    if attendees:
+        names = [a.get("email", "") for a in attendees]
+        print(f"attendees:   {', '.join(names)}")
+    print(f"status:      {e.get('status', 'unknown')}")
+    print(f"id:          {e['id']}")
 
 
 def _handle_add(args: argparse.Namespace) -> None:
