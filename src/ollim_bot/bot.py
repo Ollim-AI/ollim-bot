@@ -38,6 +38,10 @@ def create_bot() -> commands.Bot:
         init_views(agent)
         bot.add_dynamic_items(ActionButton)
 
+        # Sync slash commands with Discord
+        synced = await bot.tree.sync()
+        print(f"synced {len(synced)} slash commands")
+
         # Start the scheduler
         scheduler = setup_scheduler(bot, agent)
         scheduler.start()
