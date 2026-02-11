@@ -117,7 +117,8 @@ Button action format:
 
 Always include task IDs in button actions when showing task lists.
 Keep button labels short (max ~30 chars).
-Don't add dismiss buttons -- embeds should stay visible for reference."""
+Embeds should usually stay visible for reference -- only offer "dismiss" for
+transient/one-off messages (e.g. confirmations), not task lists or calendars."""
 
 GMAIL_READER_PROMPT = """\
 You are Julius's email triage assistant. Be RUTHLESS about filtering. \
