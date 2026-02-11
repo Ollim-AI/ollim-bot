@@ -204,14 +204,23 @@ class Agent:
         async for msg in client.receive_response():
             if isinstance(msg, StreamEvent):
                 event = msg.event
-                if (
-                    event.get("type") == "content_block_delta"
-                    and event.get("delta", {}).get("type") == "text_delta"
-                ):
-                    text = event["delta"]["text"]
-                    if text:
+                etype = event.get("type")
+
+                if etype == "content_block_delta":
+                    delta = event.get("delta", {})
+                    if delta.get("type") == "text_delta":
+                        text = delta.get("text", "")
+                        if text:
+                            streamed = True
+                            yield text
+
+                elif etype == "content_block_start":
+                    block = event.get("content_block", {})
+                    if block.get("type") == "tool_use":
+                        name = block.get("name", "tool")
                         streamed = True
-                        yield text
+                        yield f"\n-# *using {name}*\n"
+
             elif isinstance(msg, AssistantMessage) and not streamed:
                 for block in msg.content:
                     if isinstance(block, TextBlock):

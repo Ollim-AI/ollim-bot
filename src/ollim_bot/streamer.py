@@ -8,6 +8,9 @@ import discord
 # Discord allows ~5 edits per 5 seconds per channel.  0.5s gives a
 # responsive feel; discord.py handles any 429s transparently.
 EDIT_INTERVAL = 0.5
+# Short initial delay so the first message accumulates a meaningful
+# chunk of text instead of showing a single token like "I".
+FIRST_FLUSH_DELAY = 0.2
 MAX_MSG_LEN = 2000
 
 
@@ -45,6 +48,9 @@ async def stream_to_channel(
         stale = False
 
     async def editor():
+        # Short initial delay to buffer first message, then regular interval.
+        await asyncio.sleep(FIRST_FLUSH_DELAY)
+        await flush()
         while True:
             await asyncio.sleep(EDIT_INTERVAL)
             await flush()
@@ -54,8 +60,6 @@ async def stream_to_channel(
         async for text in deltas:
             buf += text
             stale = True
-            if msg is None:
-                await flush()
     finally:
         task.cancel()
 
