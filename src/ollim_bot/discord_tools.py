@@ -1,0 +1,43 @@
+"""MCP tools for Discord interactions (embeds, buttons)."""
+
+from typing import Any
+
+from claude_agent_sdk import create_sdk_mcp_server, tool
+
+from ollim_bot.views import build_embed, build_view
+
+# Module-level channel reference, set by bot.py before each stream_chat().
+# Safe because the per-user lock serializes access (single-user bot).
+_channel = None
+
+
+def set_channel(channel) -> None:
+    """Set the active Discord channel for tool handlers."""
+    global _channel
+    _channel = channel
+
+
+@tool(
+    "discord_embed",
+    "Send a rich embed message with optional action buttons to the Discord channel. "
+    "Use for task lists, calendar views, email digests, or any structured data.",
+    {
+        "title": str,
+        "description": str,
+        "color": str,
+        "fields": list,
+        "buttons": list,
+    },
+)
+async def discord_embed(args: dict[str, Any]) -> dict[str, Any]:
+    channel = _channel
+    if channel is None:
+        return {"content": [{"type": "text", "text": "Error: no active channel"}]}
+
+    embed = build_embed(args)
+    view = build_view(args.get("buttons", []))
+    await channel.send(embed=embed, view=view)
+    return {"content": [{"type": "text", "text": "Embed sent."}]}
+
+
+discord_server = create_sdk_mcp_server("discord", tools=[discord_embed])

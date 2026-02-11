@@ -10,19 +10,29 @@ SESSIONS_FILE = Path.home() / ".ollim-bot" / "sessions.json"
 
 def load_session_id(user_id: str) -> str | None:
     """Load persisted session ID for a user."""
-    if not SESSIONS_FILE.exists():
-        return None
-    data = json.loads(SESSIONS_FILE.read_text())
-    return data.get(user_id)
+    return _read().get(user_id)
 
 
 def save_session_id(user_id: str, session_id: str) -> None:
     """Persist session ID for a user (atomic write)."""
+    _write({**_read(), user_id: session_id})
+
+
+def delete_session_id(user_id: str) -> None:
+    """Remove a persisted session ID."""
+    data = _read()
+    data.pop(user_id, None)
+    _write(data)
+
+
+def _read() -> dict:
+    if not SESSIONS_FILE.exists():
+        return {}
+    return json.loads(SESSIONS_FILE.read_text())
+
+
+def _write(data: dict) -> None:
     SESSIONS_FILE.parent.mkdir(parents=True, exist_ok=True)
-    data = {}
-    if SESSIONS_FILE.exists():
-        data = json.loads(SESSIONS_FILE.read_text())
-    data[user_id] = session_id
     fd, tmp = tempfile.mkstemp(dir=SESSIONS_FILE.parent, suffix=".tmp")
     os.write(fd, json.dumps(data).encode())
     os.close(fd)

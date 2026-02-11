@@ -16,6 +16,7 @@ from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
+from ollim_bot.discord_tools import set_channel
 from ollim_bot.streamer import stream_to_channel
 from ollim_bot.wakeups import Wakeup, append_wakeup, list_wakeups, remove_wakeup
 
@@ -70,6 +71,7 @@ async def _send_agent_dm(bot: discord.Client, agent, user_id: str, prompt: str):
         return
     dm = await owner.create_dm()
     async with agent.lock(user_id):
+        set_channel(dm)
         await dm.typing()
         await stream_to_channel(dm, agent.stream_chat(prompt, user_id))
 

@@ -1,12 +1,17 @@
 """Discord bot that talks to Claude Agent SDK."""
 
+import contextlib
+
 import discord
 from discord.ext import commands
 
 from ollim_bot.agent import Agent
+from ollim_bot.discord_tools import set_channel
 from ollim_bot.scheduler import setup_scheduler
 from ollim_bot.sessions import load_session_id
 from ollim_bot.streamer import stream_to_channel
+from ollim_bot.views import ActionButton
+from ollim_bot.views import init as init_views
 
 
 def create_bot() -> commands.Bot:
@@ -28,6 +33,10 @@ def create_bot() -> commands.Bot:
         if _ready_fired:
             return
         _ready_fired = True
+
+        # Register persistent views and set up button callbacks
+        init_views(agent)
+        bot.add_dynamic_items(ActionButton)
 
         # Start the scheduler
         scheduler = setup_scheduler(bot, agent)
@@ -66,11 +75,29 @@ def create_bot() -> commands.Bot:
         )
 
         user_id = str(message.author.id)
+
+        # /clear -- reset conversation
+        if content == "/clear":
+            await agent.clear(user_id)
+            await message.channel.send("conversation cleared. fresh start.")
+            return
+
+        # Acknowledge immediately
+        await message.add_reaction("\N{EYES}")
+
+        # Interrupt if bot is already responding to this user
+        if agent.lock(user_id).locked():
+            await agent.interrupt(user_id)
+
         async with agent.lock(user_id):
+            set_channel(message.channel)
             await message.channel.typing()
             await stream_to_channel(
                 message.channel,
                 agent.stream_chat(content, user_id=user_id),
             )
+
+        with contextlib.suppress(discord.NotFound):
+            await message.remove_reaction("\N{EYES}", bot.user)
 
     return bot
