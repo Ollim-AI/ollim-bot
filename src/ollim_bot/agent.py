@@ -74,12 +74,12 @@ class Agent:
             await client.disconnect()
         delete_session_id(user_id)
 
-    async def compact(self, user_id: str) -> str:
-        """Compact conversation context via the SDK's native /compact."""
+    async def slash(self, user_id: str, command: str) -> str:
+        """Send a slash command to the SDK and return the result."""
         client = await self._get_client(user_id)
-        await client.query("/compact")
+        await client.query(command)
 
-        result = "context compacted."
+        result = "done."
         async for msg in client.receive_response():
             if isinstance(msg, ResultMessage):
                 if msg.result:
