@@ -67,7 +67,7 @@ def create_bot() -> commands.Bot:
 
         user_id = str(message.author.id)
         async with agent.lock(user_id):
-            await message.channel.trigger_typing()
+            await message.channel.typing()
             await stream_to_channel(
                 message.channel,
                 agent.stream_chat(content, user_id=user_id),

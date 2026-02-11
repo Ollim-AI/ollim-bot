@@ -68,7 +68,7 @@ async def stream_to_channel(
             elif msg is not None:
                 # No new content but response isn't done -- show typing
                 # during pauses (e.g. tool execution).
-                await channel.trigger_typing()
+                await channel.typing()
 
     task = asyncio.create_task(editor())
     try:
