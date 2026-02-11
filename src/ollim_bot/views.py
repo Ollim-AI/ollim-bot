@@ -1,6 +1,7 @@
 """Discord UI views and persistent button handlers."""
 
 import asyncio
+import re
 from uuid import uuid4
 
 import discord
@@ -43,11 +44,19 @@ def register_followup(prompt: str) -> str:
     return uid
 
 
+_EMOJI_RE = re.compile(
+    r"[\U0001f300-\U0001faff\u2600-\u27bf\u23e9-\u23fa\ufe0f\u200d]+\s*",
+)
+
+
 def build_embed(args: dict) -> discord.Embed:
     """Build a discord.Embed from tool args."""
     color = COLOR_MAP.get(args.get("color", "blue"), discord.Color.blue())
+    title = args.get("title")
+    if title:
+        title = _EMOJI_RE.sub("", title).strip()
     embed = discord.Embed(
-        title=args.get("title"),
+        title=title,
         description=args.get("description"),
         color=color,
     )
@@ -154,6 +163,8 @@ async def _handle_agent_followup(interaction: discord.Interaction, followup_id: 
     await interaction.response.defer()
     user_id = str(interaction.user.id)
     async with _agent.lock(user_id):
+        from ollim_bot.discord_tools import set_channel
+        set_channel(interaction.channel)
         await interaction.channel.typing()
         await stream_to_channel(
             interaction.channel,
