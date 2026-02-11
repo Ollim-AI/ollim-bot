@@ -12,7 +12,9 @@ def create_bot() -> commands.Bot:
     intents = discord.Intents.default()
     intents.message_content = True
 
-    bot = commands.Bot(command_prefix="!", intents=intents)
+    bot = commands.Bot(
+        command_prefix="!", intents=intents, status=discord.Status.online
+    )
     agent = Agent()
     _ready_fired = False
 
@@ -58,9 +60,10 @@ def create_bot() -> commands.Bot:
             else message.content.strip()
         )
 
-        await stream_to_channel(
-            message.channel,
-            agent.stream_chat(content, user_id=str(message.author.id)),
-        )
+        async with message.channel.typing():
+            await stream_to_channel(
+                message.channel,
+                agent.stream_chat(content, user_id=str(message.author.id)),
+            )
 
     return bot
