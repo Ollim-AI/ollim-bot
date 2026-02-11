@@ -4,29 +4,27 @@ ADHD-friendly Discord bot with proactive reminders, powered by Claude.
 
 ## Architecture
 - `bot.py` -- Discord interface (responds to DMs and @mentions, guards duplicate on_ready)
-- `agent.py` -- Claude Agent SDK brain (persistent per-user sessions via ClaudeSDKClient)
-- `scheduler.py` -- Proactive reminders via APScheduler (morning standup, evening review, focus check-ins)
-- `google_auth.py` -- Shared Google OAuth2 (Tasks + Calendar, extensible for new services)
+- `agent.py` -- Claude Agent SDK brain (persistent per-user sessions, all tool/subagent config in code)
+- `scheduler.py` -- Proactive reminders via APScheduler (seeds defaults into wakeups.jsonl, syncs every 10s)
+- `google_auth.py` -- Shared Google OAuth2 (Tasks + Calendar + Gmail)
 - `tasks_cmd.py` -- Google Tasks CLI (`ollim-bot tasks`)
 - `calendar_cmd.py` -- Google Calendar CLI (`ollim-bot cal`)
 - `gmail_cmd.py` -- Gmail CLI (`ollim-bot gmail`, read-only)
-- `.claude/skills/` -- Project-level skills (google-tasks, google-calendar)
-- `.claude/agents/` -- Project-level subagents (gmail-reader)
 
 ## Agent SDK config
 - Auth: Claude Code OAuth (no API key needed)
 - `ClaudeSDKClient` per user for persistent conversation with auto-compaction
-- `setting_sources=["user", "project"]` to load skills from `~/.claude/skills/` and `.claude/skills/`
-- Skills grant their own tool permissions via SKILL.md frontmatter (e.g. `Bash(ollim-bot tasks:*)`)
-- `Task(gmail-reader)` in allowed_tools lets the main agent spawn the Gmail subagent
-- Subagents defined in `.claude/agents/` are loaded automatically via `setting_sources`
+- No `setting_sources` -- all config is in code (no CLAUDE.md, skills, or settings.json loaded)
+- `permission_mode="dontAsk"` -- headless, auto-approves tools in `allowed_tools`
+- gmail-reader subagent defined programmatically via `AgentDefinition`
+- Tool instructions (tasks, cal, schedule, history) inlined in SYSTEM_PROMPT
 - `ResultMessage.result` is a fallback — don't double-count with `AssistantMessage` text blocks
 
 ## Google integration
 - OAuth credentials: `~/.ollim-bot/credentials.json` (from Google Cloud Console)
 - Token: `~/.ollim-bot/token.json` (auto-generated on first auth)
-- Gmail is read-only (`gmail.readonly` scope), accessed via the gmail-reader subagent (not a skill)
-- Add new Google services: add scope to `google_auth.py`, create `*_cmd.py`, add skill/subagent
+- Gmail is read-only (`gmail.readonly` scope), accessed via the gmail-reader subagent
+- Add new Google services: add scope to `google_auth.py`, create `*_cmd.py`, add commands to SYSTEM_PROMPT
 
 ## Dev commands
 ```bash
