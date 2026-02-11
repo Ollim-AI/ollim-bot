@@ -122,10 +122,7 @@ def setup_scheduler(bot: discord.Client, agent) -> AsyncIOScheduler:
         )
 
     # -- Focus check-in (every 90 min during work hours) --
-    @scheduler.scheduled_job(
-        IntervalTrigger(minutes=90),
-        next_run_time=None,
-    )
+    @scheduler.scheduled_job(IntervalTrigger(minutes=90))
     async def focus_checkin():
         hour = datetime.now(TZ).hour
         if 9 <= hour < 18:
