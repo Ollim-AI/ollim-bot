@@ -5,8 +5,9 @@ from collections.abc import AsyncGenerator
 
 import discord
 
-# Edit at most once per second (Discord allows ~5 edits / 5 seconds).
-EDIT_INTERVAL = 1.0
+# Discord allows ~5 edits per 5 seconds per channel.  0.5s gives a
+# responsive feel; discord.py handles any 429s transparently.
+EDIT_INTERVAL = 0.5
 MAX_MSG_LEN = 2000
 
 
@@ -16,35 +17,50 @@ async def stream_to_channel(
 ) -> None:
     """Consume text deltas and stream them into a Discord channel.
 
-    Sends a Discord message on the first delta, then edits it at a
-    throttled rate as more text arrives.  When the buffer exceeds
-    2 000 chars the first message is frozen and overflow is sent as
-    additional messages at the end.
+    A background task edits the message at a fixed interval, so
+    updates appear even during pauses (e.g. tool execution).
+    Overflow (>2000 chars) finalizes the current message and starts
+    a new one.
     """
     buf = ""
     msg: discord.Message | None = None
-    last_edit = 0.0
+    msg_start = 0  # index into buf where the current message begins
+    stale = False  # True when buf has unflushed content
 
-    async for text in deltas:
-        buf += text
-        now = asyncio.get_event_loop().time()
+    async def flush():
+        nonlocal msg, msg_start, stale
+        chunk = buf[msg_start:]
+        if not chunk or not stale:
+            return
+        if msg is None:
+            msg = await channel.send(chunk[:MAX_MSG_LEN])
+        else:
+            await msg.edit(content=chunk[:MAX_MSG_LEN])
+        # Overflow: finalize current message, start new ones
+        while len(buf) - msg_start > MAX_MSG_LEN:
+            msg_start += MAX_MSG_LEN
+            remaining = buf[msg_start:]
+            if remaining:
+                msg = await channel.send(remaining[:MAX_MSG_LEN])
+        stale = False
 
-        if msg is None and buf:
-            msg = await channel.send(buf[:MAX_MSG_LEN])
-            last_edit = now
-        elif msg and len(buf) <= MAX_MSG_LEN and now - last_edit >= EDIT_INTERVAL:
-            await msg.edit(content=buf)
-            last_edit = now
+    async def editor():
+        while True:
+            await asyncio.sleep(EDIT_INTERVAL)
+            await flush()
 
-    # Final flush
+    task = asyncio.create_task(editor())
+    try:
+        async for text in deltas:
+            buf += text
+            stale = True
+            if msg is None:
+                await flush()
+    finally:
+        task.cancel()
+
+    stale = True
+    await flush()
+
     if not buf:
         await channel.send("hmm, I didn't have a response for that.")
-        return
-
-    if msg:
-        await msg.edit(content=buf[:MAX_MSG_LEN])
-        for i in range(MAX_MSG_LEN, len(buf), MAX_MSG_LEN):
-            await channel.send(buf[i : i + MAX_MSG_LEN])
-    else:
-        for i in range(0, len(buf), MAX_MSG_LEN):
-            await channel.send(buf[i : i + MAX_MSG_LEN])
