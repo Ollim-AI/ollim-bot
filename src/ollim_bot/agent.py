@@ -70,17 +70,25 @@ class Agent:
 
     async def clear(self, user_id: str) -> None:
         """Reset conversation -- disconnect client and remove persisted session."""
-        client = self._clients.pop(user_id, None)
-        if client:
-            await client.disconnect()
+        await self._drop_client(user_id)
         delete_session_id(user_id)
 
     async def set_model(self, user_id: str, model: str) -> None:
         """Switch model by reconnecting with updated options."""
         self.options = replace(self.options, model=model)
+        await self._drop_client(user_id)
+
+    async def _drop_client(self, user_id: str) -> None:
+        """Interrupt and remove a user's client.
+
+        We intentionally skip disconnect() -- anyio forbids calling it from
+        a different task context, and awaiting it in the same task can hang.
+        The CLI subprocess is cleaned up when the object is garbage collected.
+        """
         client = self._clients.pop(user_id, None)
-        if client:
-            await client.disconnect()
+        if not client:
+            return
+        await client.interrupt()
 
     async def slash(self, user_id: str, command: str) -> str:
         """Send a slash command to the SDK and return the result."""
@@ -104,7 +112,8 @@ class Agent:
                 if msg.result:
                     result_text = msg.result
                 cost = msg.total_cost_usd
-                save_session_id(user_id, msg.session_id)
+                if self._clients.get(user_id) is client:
+                    save_session_id(user_id, msg.session_id)
 
         if parts:
             return "\n".join(parts)
@@ -161,7 +170,8 @@ class Agent:
             elif isinstance(msg, ResultMessage):
                 if msg.result:
                     result_text = msg.result
-                save_session_id(user_id, msg.session_id)
+                if self._clients.get(user_id) is client:
+                    save_session_id(user_id, msg.session_id)
 
         if not streamed:
             if fallback_parts:
@@ -183,7 +193,8 @@ class Agent:
             elif isinstance(msg, ResultMessage):
                 if msg.result:
                     result_text = msg.result
-                save_session_id(user_id, msg.session_id)
+                if self._clients.get(user_id) is client:
+                    save_session_id(user_id, msg.session_id)
 
         # Use ResultMessage.result only as fallback when no text blocks found
         if not parts and result_text:
