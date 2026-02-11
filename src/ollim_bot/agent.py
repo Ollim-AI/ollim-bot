@@ -1,5 +1,6 @@
 """Claude Agent SDK wrapper -- the brain of the bot."""
 
+import asyncio
 from collections.abc import AsyncGenerator
 from dataclasses import replace
 
@@ -185,6 +186,13 @@ class Agent:
             },
         )
         self._clients: dict[str, ClaudeSDKClient] = {}
+        self._locks: dict[str, asyncio.Lock] = {}
+
+    def lock(self, user_id: str) -> asyncio.Lock:
+        """Per-user lock to serialize access to the shared ClaudeSDKClient."""
+        if user_id not in self._locks:
+            self._locks[user_id] = asyncio.Lock()
+        return self._locks[user_id]
 
     async def _get_client(self, user_id: str) -> ClaudeSDKClient:
         if user_id not in self._clients:
