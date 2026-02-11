@@ -3,8 +3,11 @@
 ADHD-friendly Discord bot with proactive reminders, powered by Claude.
 
 ## Architecture
-- `bot.py` -- Discord interface (responds to DMs and @mentions, guards duplicate on_ready)
-- `agent.py` -- Claude Agent SDK brain (persistent per-user sessions, all tool/subagent config in code)
+- `bot.py` -- Discord interface (DMs and @mentions, reaction ack, /clear, interrupt-on-new-message)
+- `agent.py` -- Claude Agent SDK brain (persistent sessions, MCP tools, subagents)
+- `prompts.py` -- System prompts for agent and subagents (extracted from agent.py)
+- `discord_tools.py` -- `discord_embed` MCP tool (Claude sends rich embeds + buttons via tool use)
+- `views.py` -- Button handlers via `DynamicItem` (task_done, task_del, event_del, agent followup)
 - `scheduler.py` -- Proactive reminders via APScheduler (seeds defaults into wakeups.jsonl, syncs every 10s)
 - `google_auth.py` -- Shared Google OAuth2 (Tasks + Calendar + Gmail)
 - `tasks_cmd.py` -- Google Tasks CLI (`ollim-bot tasks`)
@@ -19,11 +22,20 @@ ADHD-friendly Discord bot with proactive reminders, powered by Claude.
 - No `setting_sources` -- all config is in code (no CLAUDE.md, skills, or settings.json loaded)
 - `permission_mode="dontAsk"` -- headless, auto-approves tools in `allowed_tools`
 - gmail-reader subagent defined programmatically via `AgentDefinition`
-- Tool instructions (tasks, cal, schedule, history) inlined in SYSTEM_PROMPT
+- Tool instructions (tasks, cal, schedule, embeds, history) inlined in SYSTEM_PROMPT
 - `ResultMessage.result` is a fallback — don't double-count with `AssistantMessage` text blocks
 - `include_partial_messages=True` -- enables `StreamEvent` for real-time streaming
 - `StreamEvent` imported from `claude_agent_sdk.types` (not in `__init__.__all__`)
 - Session IDs persisted to `~/.ollim-bot/sessions.json`; `resume=session_id` on reconnect
+
+## Discord embeds & buttons
+- `discord_embed` MCP tool via `create_sdk_mcp_server` — Claude controls when to send embeds
+- Channel reference stored in module-level `_channel` (discord_tools.py), set before each stream_chat()
+- Button actions encoded in `custom_id`: `act:<action>:<data>` pattern
+- Direct actions (task_done, task_del, event_del): call Google API directly, ephemeral response
+- Agent followup (agent:<uuid>): stored prompts, route back through agent.stream_chat()
+- `DynamicItem[Button]` for persistent buttons across restarts
+- Followup prompts expire on restart (ephemeral "expired" message)
 
 ## Google integration
 - OAuth credentials: `~/.ollim-bot/credentials.json` (from Google Cloud Console)
