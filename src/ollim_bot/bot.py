@@ -5,6 +5,7 @@ from discord.ext import commands
 
 from ollim_bot.agent import Agent
 from ollim_bot.scheduler import setup_scheduler
+from ollim_bot.streamer import stream_to_channel
 
 
 def create_bot() -> commands.Bot:
@@ -57,11 +58,9 @@ def create_bot() -> commands.Bot:
             else message.content.strip()
         )
 
-        async with message.channel.typing():
-            response = await agent.chat(content, user_id=str(message.author.id))
-
-        # Discord has a 2000 char limit
-        for i in range(0, len(response), 2000):
-            await message.channel.send(response[i : i + 2000])
+        await stream_to_channel(
+            message.channel,
+            agent.stream_chat(content, user_id=str(message.author.id)),
+        )
 
     return bot

@@ -1,5 +1,7 @@
 """Claude Agent SDK wrapper -- the brain of the bot."""
 
+from collections.abc import AsyncGenerator
+
 from claude_agent_sdk import (
     AgentDefinition,
     AssistantMessage,
@@ -8,6 +10,7 @@ from claude_agent_sdk import (
     ResultMessage,
     TextBlock,
 )
+from claude_agent_sdk.types import StreamEvent
 
 SYSTEM_PROMPT = """\
 You are Julius's personal ADHD-friendly task assistant on Discord.
@@ -157,6 +160,7 @@ class Agent:
 
     def __init__(self):
         self.options = ClaudeAgentOptions(
+            include_partial_messages=True,
             system_prompt=SYSTEM_PROMPT,
             allowed_tools=[
                 "Bash(ollim-bot tasks *)",
@@ -185,6 +189,41 @@ class Agent:
             await client.connect()
             self._clients[user_id] = client
         return self._clients[user_id]
+
+    async def stream_chat(
+        self, message: str, user_id: str
+    ) -> AsyncGenerator[str, None]:
+        """Yield text deltas as they stream in from Claude."""
+        client = await self._get_client(user_id)
+        await client.query(message)
+
+        streamed = False
+        fallback_parts: list[str] = []
+        result_text: str | None = None
+
+        async for msg in client.receive_response():
+            if isinstance(msg, StreamEvent):
+                event = msg.event
+                if (
+                    event.get("type") == "content_block_delta"
+                    and event.get("delta", {}).get("type") == "text_delta"
+                ):
+                    text = event["delta"]["text"]
+                    if text:
+                        streamed = True
+                        yield text
+            elif isinstance(msg, AssistantMessage) and not streamed:
+                for block in msg.content:
+                    if isinstance(block, TextBlock):
+                        fallback_parts.append(block.text)
+            elif isinstance(msg, ResultMessage) and msg.result:
+                result_text = msg.result
+
+        if not streamed:
+            if fallback_parts:
+                yield "\n".join(fallback_parts)
+            elif result_text:
+                yield result_text
 
     async def chat(self, message: str, user_id: str) -> str:
         client = await self._get_client(user_id)
