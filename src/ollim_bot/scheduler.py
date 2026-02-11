@@ -16,6 +16,7 @@ from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
+from ollim_bot.streamer import stream_to_channel
 from ollim_bot.wakeups import Wakeup, append_wakeup, list_wakeups, remove_wakeup
 
 TZ = ZoneInfo("America/Los_Angeles")
@@ -62,15 +63,13 @@ async def _resolve_owner_id(bot: discord.Client) -> str:
 
 
 async def _send_agent_dm(bot: discord.Client, agent, user_id: str, prompt: str):
-    """Inject a prompt into the agent session and DM the response."""
-    response = await agent.chat(prompt, user_id)
+    """Inject a prompt into the agent session and stream the response as a DM."""
     app_info = await bot.application_info()
     owner = app_info.owner
     if not owner:
         return
     dm = await owner.create_dm()
-    for i in range(0, len(response), 2000):
-        await dm.send(response[i : i + 2000])
+    await stream_to_channel(dm, agent.stream_chat(prompt, user_id))
 
 
 def _seed_defaults() -> None:
