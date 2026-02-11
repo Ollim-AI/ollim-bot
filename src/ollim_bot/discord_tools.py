@@ -22,11 +22,37 @@ def set_channel(channel) -> None:
     "Send a rich embed message with optional action buttons to the Discord channel. "
     "Use for task lists, calendar views, email digests, or any structured data.",
     {
-        "title": str,
-        "description": str,
-        "color": str,
-        "fields": list,
-        "buttons": list,
+        "type": "object",
+        "properties": {
+            "title": {"type": "string", "description": "Embed title"},
+            "description": {"type": "string", "description": "Embed body text"},
+            "color": {"type": "string", "description": "blue, green, red, or yellow"},
+            "fields": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string"},
+                        "value": {"type": "string"},
+                        "inline": {"type": "boolean"},
+                    },
+                    "required": ["name", "value"],
+                },
+            },
+            "buttons": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "label": {"type": "string"},
+                        "style": {"type": "string"},
+                        "action": {"type": "string"},
+                    },
+                    "required": ["label", "action"],
+                },
+            },
+        },
+        "required": ["title"],
     },
 )
 async def discord_embed(args: dict[str, Any]) -> dict[str, Any]:
