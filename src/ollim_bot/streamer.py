@@ -63,7 +63,12 @@ async def stream_to_channel(
             await _wait(EDIT_INTERVAL)
             if stop.is_set():
                 return
-            await flush()
+            if stale:
+                await flush()
+            elif msg is not None:
+                # No new content but response isn't done -- show typing
+                # during pauses (e.g. tool execution).
+                await channel.trigger_typing()
 
     task = asyncio.create_task(editor())
     try:
