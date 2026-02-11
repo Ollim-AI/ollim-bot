@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(ollim-bot *)",
-      "Bash(uv run ollim-bot *)",
-      "Bash(claude-history:*)"
-    ]
-  }
-}

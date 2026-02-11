@@ -159,20 +159,19 @@ class Agent:
         self.options = ClaudeAgentOptions(
             system_prompt=SYSTEM_PROMPT,
             allowed_tools=[
-                "Bash(ollim-bot *)",
+                "Bash(ollim-bot tasks *)",
+                "Bash(ollim-bot cal *)",
+                "Bash(ollim-bot schedule *)",
+                "Bash(ollim-bot help)",
                 "Bash(claude-history *)",
-                "Bash(claude-history:*)",
                 "Task",
-                "WebSearch",
-                "WebFetch",
-                "Read",
             ],
             permission_mode="dontAsk",
             agents={
                 "gmail-reader": AgentDefinition(
                     description="Email triage specialist. Reads Gmail, sorts through noise, surfaces important emails with suggested follow-up tasks.",
                     prompt=GMAIL_READER_PROMPT,
-                    tools=["Bash"],
+                    tools=["Bash(ollim-bot gmail *)"],
                     model="sonnet",
                 ),
             },
