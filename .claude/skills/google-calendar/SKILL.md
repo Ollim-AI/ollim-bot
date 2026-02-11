@@ -14,6 +14,7 @@ Manage calendar via `ollim-bot cal`.
 |---------|-------------|
 | `ollim-bot cal today` | Show today's events |
 | `ollim-bot cal upcoming [--days N]` | Show next N days (default 7) |
+| `ollim-bot cal show <id>` | Show event details (description, location, attendees) |
 | `ollim-bot cal add "<summary>" --start "YYYY-MM-DDTHH:MM" --end "YYYY-MM-DDTHH:MM" [--description "<text>"]` | Create event |
 | `ollim-bot cal delete <id>` | Delete an event |
 
