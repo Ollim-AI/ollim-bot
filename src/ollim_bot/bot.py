@@ -5,6 +5,7 @@ from discord.ext import commands
 
 from ollim_bot.agent import Agent
 from ollim_bot.scheduler import setup_scheduler
+from ollim_bot.sessions import load_session_id
 from ollim_bot.streamer import stream_to_channel
 
 
@@ -38,9 +39,13 @@ def create_bot() -> commands.Bot:
         owner = app_info.owner
         if owner:
             dm = await owner.create_dm()
-            await dm.send(
-                "hey julius, ollim-bot is online. what's on your plate today?"
-            )
+            resumed = load_session_id(str(owner.id)) is not None
+            if resumed:
+                await dm.send("hey, i'm back online. i remember where we left off.")
+            else:
+                await dm.send(
+                    "hey julius, ollim-bot is online. what's on your plate today?"
+                )
 
     @bot.event
     async def on_message(message: discord.Message):

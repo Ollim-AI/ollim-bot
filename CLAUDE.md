@@ -11,6 +11,7 @@ ADHD-friendly Discord bot with proactive reminders, powered by Claude.
 - `calendar_cmd.py` -- Google Calendar CLI (`ollim-bot cal`)
 - `gmail_cmd.py` -- Gmail CLI (`ollim-bot gmail`, read-only)
 - `streamer.py` -- Streams agent responses to Discord (throttled edits, 2000-char overflow)
+- `sessions.py` -- Persists Agent SDK session IDs for conversation resumption across restarts
 
 ## Agent SDK config
 - Auth: Claude Code OAuth (no API key needed)
@@ -22,6 +23,7 @@ ADHD-friendly Discord bot with proactive reminders, powered by Claude.
 - `ResultMessage.result` is a fallback — don't double-count with `AssistantMessage` text blocks
 - `include_partial_messages=True` -- enables `StreamEvent` for real-time streaming
 - `StreamEvent` imported from `claude_agent_sdk.types` (not in `__init__.__all__`)
+- Session IDs persisted to `~/.ollim-bot/sessions.json`; `resume=session_id` on reconnect
 
 ## Google integration
 - OAuth credentials: `~/.ollim-bot/credentials.json` (from Google Cloud Console)

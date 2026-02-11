@@ -1,6 +1,7 @@
 """Stream agent responses to Discord channels with progressive message editing."""
 
 import asyncio
+import contextlib
 from collections.abc import AsyncGenerator
 
 import discord
@@ -29,6 +30,7 @@ async def stream_to_channel(
     msg: discord.Message | None = None
     msg_start = 0  # index into buf where the current message begins
     stale = False  # True when buf has unflushed content
+    stop = asyncio.Event()
 
     async def flush():
         nonlocal msg, msg_start, stale
@@ -47,12 +49,20 @@ async def stream_to_channel(
                 msg = await channel.send(remaining[:MAX_MSG_LEN])
         stale = False
 
+    async def _wait(seconds: float) -> None:
+        """Sleep that can be interrupted by the stop event."""
+        with contextlib.suppress(asyncio.TimeoutError):
+            await asyncio.wait_for(stop.wait(), timeout=seconds)
+
     async def editor():
-        # Short initial delay to buffer first message, then regular interval.
-        await asyncio.sleep(FIRST_FLUSH_DELAY)
+        await _wait(FIRST_FLUSH_DELAY)
+        if stop.is_set():
+            return
         await flush()
-        while True:
-            await asyncio.sleep(EDIT_INTERVAL)
+        while not stop.is_set():
+            await _wait(EDIT_INTERVAL)
+            if stop.is_set():
+                return
             await flush()
 
     task = asyncio.create_task(editor())
@@ -61,7 +71,8 @@ async def stream_to_channel(
             buf += text
             stale = True
     finally:
-        task.cancel()
+        stop.set()
+        await task
 
     stale = True
     await flush()
