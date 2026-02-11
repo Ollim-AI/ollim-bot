@@ -109,7 +109,8 @@ def setup_scheduler(bot: discord.Client, agent) -> AsyncIOScheduler:
         uid = await _resolve_owner_id(bot)
         await _send_agent_dm(
             bot, agent, uid,
-            "[reminder:morning] Good morning! What are your top 3 priorities today?",
+            "[reminder:morning] Good morning! Check today's calendar and open tasks, "
+            "then suggest Julius's top 3 priorities for today.",
         )
 
     # -- Evening review (6 PM PT) --
@@ -118,7 +119,8 @@ def setup_scheduler(bot: discord.Client, agent) -> AsyncIOScheduler:
         uid = await _resolve_owner_id(bot)
         await _send_agent_dm(
             bot, agent, uid,
-            "[reminder:evening] Wrapping up. What did you get done today? What carries over?",
+            "[reminder:evening] Wrapping up. Check today's tasks -- what got done, "
+            "what carries over? Check tomorrow's calendar for anything to prep.",
         )
 
     # -- Focus check-in (every 90 min during work hours) --

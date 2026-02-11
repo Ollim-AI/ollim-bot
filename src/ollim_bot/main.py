@@ -20,13 +20,18 @@ commands:
   ollim-bot schedule add    Schedule a wakeup/reminder
   ollim-bot schedule list   Show pending wakeups
   ollim-bot schedule cancel Cancel a wakeup by ID
+  ollim-bot tasks list      List Google Tasks
+  ollim-bot tasks add       Add a task
+  ollim-bot tasks done      Mark task as completed
+  ollim-bot cal today       Show today's calendar events
+  ollim-bot cal upcoming    Show upcoming events
+  ollim-bot cal add         Create a calendar event
   ollim-bot help            Show this help message
 
 examples:
   ollim-bot schedule add --delay 30 -m "take a break"
-  ollim-bot schedule add --cron "0 9 * * 1-5" -m "morning standup"
-  ollim-bot schedule add --every 120 -m "focus check"
-  ollim-bot schedule cancel abc123
+  ollim-bot tasks add "Fix login bug" --due 2026-02-15
+  ollim-bot cal today
 """
 
 
@@ -52,6 +57,18 @@ def main():
         from ollim_bot.schedule_cmd import run_schedule_command
 
         run_schedule_command(sys.argv[2:])
+        return
+
+    if len(sys.argv) > 1 and sys.argv[1] == "tasks":
+        from ollim_bot.tasks_cmd import run_tasks_command
+
+        run_tasks_command(sys.argv[2:])
+        return
+
+    if len(sys.argv) > 1 and sys.argv[1] == "cal":
+        from ollim_bot.calendar_cmd import run_calendar_command
+
+        run_calendar_command(sys.argv[2:])
         return
 
     load_dotenv(PROJECT_DIR / ".env")
