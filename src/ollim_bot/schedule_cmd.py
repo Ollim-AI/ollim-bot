@@ -48,8 +48,15 @@ def run_schedule_command(argv: list[str]) -> None:
 
 
 def _handle_add(args: argparse.Namespace) -> None:
-    if args.delay is None and args.cron is None and args.every is None:
+    provided = sum(x is not None for x in (args.delay, args.cron, args.every))
+    if provided == 0:
         print("error: provide --delay, --cron, or --every")
+        sys.exit(1)
+    if provided > 1:
+        print("error: use only one of --delay, --cron, --every")
+        sys.exit(1)
+    if args.cron and len(args.cron.split()) != 5:
+        print("error: cron must be 5 fields (minute hour day month weekday)")
         sys.exit(1)
 
     wakeup = Wakeup.new(

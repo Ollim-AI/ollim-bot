@@ -4,6 +4,7 @@ The JSONL file is the source of truth -- reminders persist across restarts.
 One-shot reminders store an absolute `run_at` so they survive restarts.
 """
 
+import dataclasses
 import json
 import os
 import tempfile
@@ -18,11 +19,13 @@ TZ = ZoneInfo("America/Los_Angeles")
 WAKEUPS_FILE = Path.home() / ".ollim-bot" / "wakeups.jsonl"
 
 
+_WAKEUP_FIELDS: set[str] | None = None
+
+
 @dataclass
 class Wakeup:
     id: str
     message: str
-    user_id: str = "owner"
     run_at: str | None = None  # ISO datetime for one-shot
     cron: str | None = None
     interval_minutes: int | None = None
@@ -54,12 +57,26 @@ def append_wakeup(wakeup: Wakeup) -> None:
         f.write(json.dumps(asdict(wakeup)) + "\n")
 
 
+def _wakeup_fields() -> set[str]:
+    global _WAKEUP_FIELDS
+    if _WAKEUP_FIELDS is None:
+        _WAKEUP_FIELDS = {f.name for f in dataclasses.fields(Wakeup)}
+    return _WAKEUP_FIELDS
+
+
 def list_wakeups() -> list[Wakeup]:
-    """Read all reminders."""
+    """Read all reminders. Skips corrupt lines."""
     if not WAKEUPS_FILE.exists():
         return []
-    lines = WAKEUPS_FILE.read_text().splitlines()
-    return [Wakeup(**json.loads(line)) for line in lines if line.strip()]
+    fields = _wakeup_fields()
+    result: list[Wakeup] = []
+    for line in WAKEUPS_FILE.read_text().splitlines():
+        stripped = line.strip()
+        if not stripped or not stripped.startswith("{"):
+            continue
+        data = json.loads(stripped)
+        result.append(Wakeup(**{k: v for k, v in data.items() if k in fields}))
+    return result
 
 
 def remove_wakeup(wakeup_id: str) -> bool:

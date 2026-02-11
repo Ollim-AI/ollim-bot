@@ -1,5 +1,6 @@
 """Entry point for ollim-bot."""
 
+import atexit
 import asyncio
 import os
 import sys
@@ -39,6 +40,7 @@ def _check_already_running():
             print(f"ollim-bot is already running (pid {pid})")
             raise SystemExit(1)
     PID_FILE.write_text(str(os.getpid()))
+    atexit.register(PID_FILE.unlink, missing_ok=True)
 
 
 def main():
