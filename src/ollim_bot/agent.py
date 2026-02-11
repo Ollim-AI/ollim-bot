@@ -74,6 +74,20 @@ class Agent:
             await client.disconnect()
         delete_session_id(user_id)
 
+    async def compact(self, user_id: str) -> str:
+        """Compact conversation context via the SDK's native /compact."""
+        client = await self._get_client(user_id)
+        await client.query("/compact")
+
+        result = "context compacted."
+        async for msg in client.receive_response():
+            if isinstance(msg, ResultMessage):
+                if msg.result:
+                    result = msg.result
+                save_session_id(user_id, msg.session_id)
+
+        return result
+
     async def _get_client(self, user_id: str) -> ClaudeSDKClient:
         if user_id not in self._clients:
             session_id = load_session_id(user_id)

@@ -24,6 +24,20 @@ def create_bot() -> commands.Bot:
     agent = Agent()
     _ready_fired = False
 
+    @bot.tree.command(name="clear", description="Clear conversation and start fresh")
+    async def slash_clear(interaction: discord.Interaction):
+        user_id = str(interaction.user.id)
+        await agent.clear(user_id)
+        await interaction.response.send_message("conversation cleared. fresh start.")
+
+    @bot.tree.command(name="compact", description="Compress conversation context")
+    async def slash_compact(interaction: discord.Interaction):
+        user_id = str(interaction.user.id)
+        async with agent.lock(user_id):
+            await interaction.response.defer(thinking=True)
+            result = await agent.compact(user_id)
+            await interaction.followup.send(result)
+
     @bot.event
     async def on_ready():
         nonlocal _ready_fired
@@ -79,12 +93,6 @@ def create_bot() -> commands.Bot:
         )
 
         user_id = str(message.author.id)
-
-        # /clear -- reset conversation
-        if content == "/clear":
-            await agent.clear(user_id)
-            await message.channel.send("conversation cleared. fresh start.")
-            return
 
         # Acknowledge immediately
         await message.add_reaction("\N{EYES}")
