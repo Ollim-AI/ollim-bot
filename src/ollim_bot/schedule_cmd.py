@@ -48,7 +48,7 @@ def run_schedule_command(argv: list[str]) -> None:
 
 
 def _handle_add(args: argparse.Namespace) -> None:
-    if not (args.delay or args.cron or args.every):
+    if args.delay is None and args.cron is None and args.every is None:
         print("error: provide --delay, --cron, or --every")
         sys.exit(1)
 

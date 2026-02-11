@@ -5,6 +5,7 @@ Reminders persist in ~/.ollim-bot/wakeups.jsonl and survive restarts.
 """
 
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import discord
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -13,6 +14,8 @@ from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
 from ollim_bot.wakeups import Wakeup, list_wakeups, remove_wakeup
+
+TZ = ZoneInfo("America/Los_Angeles")
 
 
 _owner_id: str | None = None
@@ -54,9 +57,11 @@ def _register_wakeup(
 
     if wakeup.run_at:
         run_at = datetime.fromisoformat(wakeup.run_at)
-        if run_at < datetime.now():
-            # Expired one-shot -- fire immediately then clean up
-            run_at = datetime.now() + timedelta(seconds=5)
+        if run_at.tzinfo is None:
+            run_at = run_at.replace(tzinfo=TZ)
+        now = datetime.now(TZ)
+        if run_at < now:
+            run_at = now + timedelta(seconds=5)
 
         async def fire_oneshot():
             uid = await _resolve_owner_id(bot)
@@ -122,7 +127,7 @@ def setup_scheduler(bot: discord.Client, agent) -> AsyncIOScheduler:
         next_run_time=None,
     )
     async def focus_checkin():
-        hour = datetime.now().hour
+        hour = datetime.now(TZ).hour
         if 9 <= hour < 18:
             uid = await _resolve_owner_id(bot)
             await _send_agent_dm(
@@ -133,7 +138,17 @@ def setup_scheduler(bot: discord.Client, agent) -> AsyncIOScheduler:
     # -- Sync reminders from file (every 10s) --
     @scheduler.scheduled_job(IntervalTrigger(seconds=10))
     async def sync_reminders():
-        for wakeup in list_wakeups():
+        current = list_wakeups()
+        current_ids = {w.id for w in current}
+
+        for wakeup in current:
             _register_wakeup(scheduler, bot, agent, wakeup)
+
+        # Stop jobs for cancelled wakeups
+        for stale_id in _registered - current_ids:
+            job = scheduler.get_job(f"r_{stale_id}")
+            if job:
+                job.remove()
+            _registered.discard(stale_id)
 
     return scheduler
