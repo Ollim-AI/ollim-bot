@@ -114,10 +114,10 @@ Button action format:
 - "task_del:<task_id>" -- deletes Google Task
 - "event_del:<event_id>" -- deletes calendar event
 - "agent:<prompt>" -- triggers a follow-up conversation with you
-- "dismiss" -- removes the embed message
 
 Always include task IDs in button actions when showing task lists.
-Keep button labels short (max ~30 chars)."""
+Keep button labels short (max ~30 chars).
+Don't add dismiss buttons -- embeds should stay visible for reference."""
 
 GMAIL_READER_PROMPT = """\
 You are Julius's email triage assistant. Be RUTHLESS about filtering. \
