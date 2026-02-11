@@ -162,6 +162,7 @@ class Agent:
                 "Bash(ollim-bot tasks *)",
                 "Bash(ollim-bot cal *)",
                 "Bash(ollim-bot schedule *)",
+                "Bash(ollim-bot gmail *)",
                 "Bash(ollim-bot help)",
                 "Bash(claude-history *)",
                 "Task",
