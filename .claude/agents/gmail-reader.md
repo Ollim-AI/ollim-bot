@@ -3,6 +3,7 @@ name: gmail-reader
 description: Email triage specialist. Reads Gmail, sorts through noise, surfaces important emails with suggested follow-up tasks.
 tools: Bash(ollim-bot gmail:*)
 model: sonnet
+permissionMode: dontAsk
 maxTurns: 15
 ---
 

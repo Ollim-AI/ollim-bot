@@ -2,6 +2,9 @@
 
 All scheduled events route through the agent for contextual responses.
 Reminders persist in ~/.ollim-bot/wakeups.jsonl and survive restarts.
+
+Default reminders (morning standup, evening review, etc.) are seeded
+into wakeups.jsonl on first run and managed like any other reminder.
 """
 
 from datetime import datetime, timedelta
@@ -13,13 +16,41 @@ from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
-from ollim_bot.wakeups import Wakeup, list_wakeups, remove_wakeup
+from ollim_bot.wakeups import Wakeup, append_wakeup, list_wakeups, remove_wakeup
 
 TZ = ZoneInfo("America/Los_Angeles")
 
 
 _owner_id: str | None = None
 _registered: set[str] = set()
+
+# Default wakeups seeded on first run. Use stable IDs so they're
+# recognizable and won't be re-created if the user cancels them.
+DEFAULT_WAKEUPS = [
+    Wakeup(
+        id="email-dg",
+        message="Check recent emails for anything important. "
+        "Use the gmail-reader to triage the inbox and surface action items.",
+        cron="30 8 * * *",
+    ),
+    Wakeup(
+        id="morning",
+        message="Good morning! Check today's calendar and open tasks, "
+        "then suggest Julius's top 3 priorities for today.",
+        cron="0 9 * * *",
+    ),
+    Wakeup(
+        id="evening",
+        message="Wrapping up. Check today's tasks -- what got done, "
+        "what carries over? Check tomorrow's calendar for anything to prep.",
+        cron="0 18 * * *",
+    ),
+    Wakeup(
+        id="focus",
+        message="Quick check-in: still on the same task, or did something pull you away?",
+        cron="0 10,12,14,16 * * *",
+    ),
+]
 
 
 async def _resolve_owner_id(bot: discord.Client) -> str:
@@ -40,6 +71,14 @@ async def _send_agent_dm(bot: discord.Client, agent, user_id: str, prompt: str):
     dm = await owner.create_dm()
     for i in range(0, len(response), 2000):
         await dm.send(response[i : i + 2000])
+
+
+def _seed_defaults() -> None:
+    """Seed default wakeups on first run only (empty/missing wakeups.jsonl)."""
+    if list_wakeups():
+        return
+    for wakeup in DEFAULT_WAKEUPS:
+        append_wakeup(wakeup)
 
 
 def _register_wakeup(
@@ -100,51 +139,13 @@ def _register_wakeup(
 
 
 def setup_scheduler(bot: discord.Client, agent) -> AsyncIOScheduler:
-    """Create scheduler with agent-powered static jobs + reminder sync."""
+    """Create scheduler and seed default reminders into wakeups.jsonl."""
+    _seed_defaults()
+
     scheduler = AsyncIOScheduler(timezone="America/Los_Angeles")
 
-    # -- Email digest (8:30 AM PT, before morning standup) --
-    @scheduler.scheduled_job(CronTrigger(hour=8, minute=30))
-    async def email_digest():
-        uid = await _resolve_owner_id(bot)
-        await _send_agent_dm(
-            bot, agent, uid,
-            "[reminder:email-digest] Check recent emails for anything important. "
-            "Use the gmail-reader to triage the inbox and surface action items.",
-        )
-
-    # -- Morning standup (9 AM PT) --
-    @scheduler.scheduled_job(CronTrigger(hour=9, minute=0))
-    async def morning_standup():
-        uid = await _resolve_owner_id(bot)
-        await _send_agent_dm(
-            bot, agent, uid,
-            "[reminder:morning] Good morning! Check today's calendar and open tasks, "
-            "then suggest Julius's top 3 priorities for today.",
-        )
-
-    # -- Evening review (6 PM PT) --
-    @scheduler.scheduled_job(CronTrigger(hour=18, minute=0))
-    async def evening_review():
-        uid = await _resolve_owner_id(bot)
-        await _send_agent_dm(
-            bot, agent, uid,
-            "[reminder:evening] Wrapping up. Check today's tasks -- what got done, "
-            "what carries over? Check tomorrow's calendar for anything to prep.",
-        )
-
-    # -- Focus check-in (every 90 min during work hours) --
-    @scheduler.scheduled_job(IntervalTrigger(minutes=90))
-    async def focus_checkin():
-        hour = datetime.now(TZ).hour
-        if 9 <= hour < 18:
-            uid = await _resolve_owner_id(bot)
-            await _send_agent_dm(
-                bot, agent, uid,
-                "[reminder:focus] Quick check-in: still on the same task, or did something pull you away?",
-            )
-
-    # -- Sync reminders from file (every 10s) --
+    # Single sync loop -- all reminders (defaults + user-created) are
+    # managed uniformly through wakeups.jsonl.
     @scheduler.scheduled_job(IntervalTrigger(seconds=10))
     async def sync_reminders():
         current = list_wakeups()

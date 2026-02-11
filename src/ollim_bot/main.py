@@ -80,6 +80,7 @@ def main():
         run_gmail_command(sys.argv[2:])
         return
 
+
     load_dotenv(PROJECT_DIR / ".env")
 
     token = os.environ.get("DISCORD_TOKEN")
