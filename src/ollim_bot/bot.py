@@ -31,11 +31,35 @@ def create_bot() -> commands.Bot:
         await interaction.response.send_message("conversation cleared. fresh start.")
 
     @bot.tree.command(name="compact", description="Compress conversation context")
-    async def slash_compact(interaction: discord.Interaction):
+    @discord.app_commands.describe(instructions="Optional focus for the summary")
+    async def slash_compact(interaction: discord.Interaction, instructions: str | None = None):
+        user_id = str(interaction.user.id)
+        cmd = f"/compact {instructions}" if instructions else "/compact"
+        async with agent.lock(user_id):
+            await interaction.response.defer(thinking=True)
+            result = await agent.slash(user_id, cmd)
+            await interaction.followup.send(result)
+
+    @bot.tree.command(name="cost", description="Show token usage for this session")
+    async def slash_cost(interaction: discord.Interaction):
         user_id = str(interaction.user.id)
         async with agent.lock(user_id):
             await interaction.response.defer(thinking=True)
-            result = await agent.compact(user_id)
+            result = await agent.slash(user_id, "/cost")
+            await interaction.followup.send(result)
+
+    @bot.tree.command(name="model", description="Switch the AI model")
+    @discord.app_commands.describe(name="Model to use")
+    @discord.app_commands.choices(name=[
+        discord.app_commands.Choice(name="Opus (most capable)", value="opus"),
+        discord.app_commands.Choice(name="Sonnet (balanced)", value="sonnet"),
+        discord.app_commands.Choice(name="Haiku (fastest)", value="haiku"),
+    ])
+    async def slash_model(interaction: discord.Interaction, name: discord.app_commands.Choice[str]):
+        user_id = str(interaction.user.id)
+        async with agent.lock(user_id):
+            await interaction.response.defer(thinking=True)
+            result = await agent.slash(user_id, f"/model {name.value}")
             await interaction.followup.send(result)
 
     @bot.event
