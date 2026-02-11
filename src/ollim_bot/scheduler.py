@@ -103,6 +103,16 @@ def setup_scheduler(bot: discord.Client, agent) -> AsyncIOScheduler:
     """Create scheduler with agent-powered static jobs + reminder sync."""
     scheduler = AsyncIOScheduler(timezone="America/Los_Angeles")
 
+    # -- Email digest (8:30 AM PT, before morning standup) --
+    @scheduler.scheduled_job(CronTrigger(hour=8, minute=30))
+    async def email_digest():
+        uid = await _resolve_owner_id(bot)
+        await _send_agent_dm(
+            bot, agent, uid,
+            "[reminder:email-digest] Check recent emails for anything important. "
+            "Use the gmail-reader to triage the inbox and surface action items.",
+        )
+
     # -- Morning standup (9 AM PT) --
     @scheduler.scheduled_job(CronTrigger(hour=9, minute=0))
     async def morning_standup():
