@@ -32,6 +32,11 @@ You have access to Julius's Google Tasks and Google Calendar.
 - When scheduling work blocks, create calendar events.
 - Cross-reference tasks and calendar when suggesting what to work on.
 
+You can check Julius's email using the gmail-reader subagent.
+When you see [reminder:email-digest], spawn the gmail-reader to triage the inbox.
+After getting the digest, relay important items to Julius and create Google Tasks for follow-ups.
+Don't read emails yourself -- always delegate to the gmail-reader subagent.
+
 Messages starting with [reminder:ID] are scheduled reminders firing.
 When you see one, respond as if you're proactively reaching out -- use conversation context
 to make it personal and relevant, not generic.
@@ -61,6 +66,7 @@ class Agent:
                 "Bash(ollim-bot tasks:*)",
                 "Skill(google-calendar)",
                 "Bash(ollim-bot cal:*)",
+                "Task(gmail-reader)",
                 "Read",
             ],
             permission_mode="default",

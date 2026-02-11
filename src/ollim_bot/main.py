@@ -26,6 +26,9 @@ commands:
   ollim-bot cal today       Show today's calendar events
   ollim-bot cal upcoming    Show upcoming events
   ollim-bot cal add         Create a calendar event
+  ollim-bot gmail unread    List unread emails
+  ollim-bot gmail read      Read an email by ID
+  ollim-bot gmail search    Search emails
   ollim-bot help            Show this help message
 
 examples:
@@ -69,6 +72,12 @@ def main():
         from ollim_bot.calendar_cmd import run_calendar_command
 
         run_calendar_command(sys.argv[2:])
+        return
+
+    if len(sys.argv) > 1 and sys.argv[1] == "gmail":
+        from ollim_bot.gmail_cmd import run_gmail_command
+
+        run_gmail_command(sys.argv[2:])
         return
 
     load_dotenv(PROJECT_DIR / ".env")

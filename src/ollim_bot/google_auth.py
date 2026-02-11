@@ -14,6 +14,7 @@ from googleapiclient.discovery import build as _build
 SCOPES = [
     "https://www.googleapis.com/auth/tasks",
     "https://www.googleapis.com/auth/calendar.events",
+    "https://www.googleapis.com/auth/gmail.readonly",
 ]
 
 CONFIG_DIR = Path.home() / ".ollim-bot"
