@@ -1,6 +1,7 @@
 """Claude Agent SDK wrapper -- the brain of the bot."""
 
 from collections.abc import AsyncGenerator
+from dataclasses import replace
 
 from claude_agent_sdk import (
     AgentDefinition,
@@ -11,6 +12,8 @@ from claude_agent_sdk import (
     TextBlock,
 )
 from claude_agent_sdk.types import StreamEvent
+
+from ollim_bot.sessions import load_session_id, save_session_id
 
 SYSTEM_PROMPT = """\
 You are Julius's personal ADHD-friendly task assistant on Discord.
@@ -185,7 +188,9 @@ class Agent:
 
     async def _get_client(self, user_id: str) -> ClaudeSDKClient:
         if user_id not in self._clients:
-            client = ClaudeSDKClient(self.options)
+            session_id = load_session_id(user_id)
+            opts = replace(self.options, resume=session_id) if session_id else self.options
+            client = ClaudeSDKClient(opts)
             await client.connect()
             self._clients[user_id] = client
         return self._clients[user_id]
@@ -225,8 +230,10 @@ class Agent:
                 for block in msg.content:
                     if isinstance(block, TextBlock):
                         fallback_parts.append(block.text)
-            elif isinstance(msg, ResultMessage) and msg.result:
-                result_text = msg.result
+            elif isinstance(msg, ResultMessage):
+                if msg.result:
+                    result_text = msg.result
+                save_session_id(user_id, msg.session_id)
 
         if not streamed:
             if fallback_parts:
@@ -245,8 +252,10 @@ class Agent:
                 for block in msg.content:
                     if isinstance(block, TextBlock):
                         parts.append(block.text)
-            elif isinstance(msg, ResultMessage) and msg.result:
-                result_text = msg.result
+            elif isinstance(msg, ResultMessage):
+                if msg.result:
+                    result_text = msg.result
+                save_session_id(user_id, msg.session_id)
 
         # Use ResultMessage.result only as fallback when no text blocks found
         if not parts and result_text:
