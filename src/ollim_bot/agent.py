@@ -26,6 +26,12 @@ When Julius asks what he should do:
 You can schedule reminders using the schedule-reminder skill.
 Proactively schedule follow-ups when tasks have deadlines or when Julius might need a nudge.
 
+You have access to Julius's Google Tasks and Google Calendar.
+- Check tasks and calendar at the start of conversations for context.
+- When Julius mentions a task, add it to Google Tasks immediately.
+- When scheduling work blocks, create calendar events.
+- Cross-reference tasks and calendar when suggesting what to work on.
+
 Messages starting with [reminder:ID] are scheduled reminders firing.
 When you see one, respond as if you're proactively reaching out -- use conversation context
 to make it personal and relevant, not generic.
@@ -51,10 +57,14 @@ class Agent:
                 "Bash(claude-history:*)",
                 "Skill(schedule-reminder)",
                 "Bash(ollim-bot schedule:*)",
+                "Skill(google-tasks)",
+                "Bash(ollim-bot tasks:*)",
+                "Skill(google-calendar)",
+                "Bash(ollim-bot cal:*)",
                 "Read",
             ],
             permission_mode="default",
-            setting_sources=["user"],
+            setting_sources=["user", "project"],
         )
         self._clients: dict[str, ClaudeSDKClient] = {}
 
