@@ -2,9 +2,6 @@
 
 All scheduled events route through the agent for contextual responses.
 Reminders persist in ~/.ollim-bot/wakeups.jsonl and survive restarts.
-
-Default reminders (morning standup, evening review, etc.) are seeded
-into wakeups.jsonl on first run and managed like any other reminder.
 """
 
 from datetime import datetime, timedelta
@@ -18,41 +15,13 @@ from apscheduler.triggers.interval import IntervalTrigger
 
 from ollim_bot.discord_tools import set_channel
 from ollim_bot.streamer import stream_to_channel
-from ollim_bot.wakeups import Wakeup, append_wakeup, list_wakeups, remove_wakeup
+from ollim_bot.wakeups import Wakeup, list_wakeups, remove_wakeup
 
 TZ = ZoneInfo("America/Los_Angeles")
 
 
 _owner_id: str | None = None
 _registered: set[str] = set()
-
-# Default wakeups seeded on first run. Use stable IDs so they're
-# recognizable and won't be re-created if the user cancels them.
-DEFAULT_WAKEUPS = [
-    Wakeup(
-        id="email-dg",
-        message="Check recent emails for anything important. "
-        "Use the gmail-reader to triage the inbox and surface action items.",
-        cron="30 8 * * *",
-    ),
-    Wakeup(
-        id="morning",
-        message="Good morning! Check today's calendar and open tasks, "
-        "then suggest Julius's top 3 priorities for today.",
-        cron="0 9 * * *",
-    ),
-    Wakeup(
-        id="evening",
-        message="Wrapping up. Check today's tasks -- what got done, "
-        "what carries over? Check tomorrow's calendar for anything to prep.",
-        cron="0 18 * * *",
-    ),
-    Wakeup(
-        id="focus",
-        message="Quick check-in: still on the same task, or did something pull you away?",
-        cron="0 10,12,14,16 * * *",
-    ),
-]
 
 
 async def _resolve_owner_id(bot: discord.Client) -> str:
@@ -93,14 +62,6 @@ async def _run_background(
         set_channel(dm)
         async for _ in agent.stream_chat(prompt, user_id):
             pass  # discard text -- agent uses tools to alert
-
-
-def _seed_defaults() -> None:
-    """Seed default wakeups on first run only (empty/missing wakeups.jsonl)."""
-    if list_wakeups():
-        return
-    for wakeup in DEFAULT_WAKEUPS:
-        append_wakeup(wakeup)
 
 
 def _register_wakeup(
@@ -174,13 +135,9 @@ def _register_wakeup(
 
 
 def setup_scheduler(bot: discord.Client, agent) -> AsyncIOScheduler:
-    """Create scheduler and seed default reminders into wakeups.jsonl."""
-    _seed_defaults()
-
+    """Create scheduler and register reminders from wakeups.jsonl."""
     scheduler = AsyncIOScheduler(timezone="America/Los_Angeles")
 
-    # Single sync loop -- all reminders (defaults + user-created) are
-    # managed uniformly through wakeups.jsonl.
     @scheduler.scheduled_job(IntervalTrigger(seconds=10))
     async def sync_reminders():
         current = list_wakeups()

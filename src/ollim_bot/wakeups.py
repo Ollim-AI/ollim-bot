@@ -7,6 +7,7 @@ One-shot reminders store an absolute `run_at` so they survive restarts.
 import dataclasses
 import json
 import os
+import subprocess
 import tempfile
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
@@ -56,11 +57,29 @@ class Wakeup:
         )
 
 
+def _git_commit(message: str) -> None:
+    """Commit wakeups.jsonl if the directory is a git repo."""
+    repo = WAKEUPS_FILE.parent
+    if not (repo / ".git").is_dir():
+        return
+    subprocess.run(
+        ["git", "add", WAKEUPS_FILE.name],
+        cwd=repo,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "commit", "-m", message, "--", WAKEUPS_FILE.name],
+        cwd=repo,
+        capture_output=True,
+    )
+
+
 def append_wakeup(wakeup: Wakeup) -> None:
     """Append a reminder to the JSONL file."""
     WAKEUPS_FILE.parent.mkdir(parents=True, exist_ok=True)
     with WAKEUPS_FILE.open("a") as f:
         f.write(json.dumps(asdict(wakeup)) + "\n")
+    _git_commit(f"add {wakeup.id}")
 
 
 def _wakeup_fields() -> set[str]:
@@ -100,4 +119,5 @@ def remove_wakeup(wakeup_id: str) -> bool:
     os.write(fd, content.encode())
     os.close(fd)
     os.replace(tmp, WAKEUPS_FILE)
+    _git_commit(f"remove {wakeup_id}")
     return True
