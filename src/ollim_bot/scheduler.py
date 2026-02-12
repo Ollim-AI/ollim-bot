@@ -76,6 +76,25 @@ async def _send_agent_dm(bot: discord.Client, agent, user_id: str, prompt: str):
         await stream_to_channel(dm, agent.stream_chat(prompt, user_id))
 
 
+async def _run_background(
+    bot: discord.Client, agent, user_id: str, prompt: str, *, skip_if_busy: bool
+):
+    """Run agent silently -- output discarded, tools (ping_user/discord_embed) break through."""
+    app_info = await bot.application_info()
+    owner = app_info.owner
+    if not owner:
+        return
+    dm = await owner.create_dm()
+
+    if skip_if_busy and agent.lock(user_id).locked():
+        return
+
+    async with agent.lock(user_id):
+        set_channel(dm)
+        async for _ in agent.stream_chat(prompt, user_id):
+            pass  # discard text -- agent uses tools to alert
+
+
 def _seed_defaults() -> None:
     """Seed default wakeups on first run only (empty/missing wakeups.jsonl)."""
     if list_wakeups():
@@ -95,7 +114,25 @@ def _register_wakeup(
         return
     _registered.add(wakeup.id)
 
-    prompt = f"[reminder:{wakeup.id}] {wakeup.message}"
+    if wakeup.background:
+        prompt = (
+            f"[background:{wakeup.id}] "
+            "Your text output will be discarded. Use `ping_user` (MCP tool) to send "
+            "a plain text alert, or `discord_embed` for structured data. Only alert "
+            "if something genuinely warrants attention.\n\n"
+            f"{wakeup.message}"
+        )
+    else:
+        prompt = f"[reminder:{wakeup.id}] {wakeup.message}"
+
+    async def _fire():
+        uid = await _resolve_owner_id(bot)
+        if wakeup.background:
+            await _run_background(
+                bot, agent, uid, prompt, skip_if_busy=wakeup.skip_if_busy
+            )
+        else:
+            await _send_agent_dm(bot, agent, uid, prompt)
 
     if wakeup.run_at:
         run_at = datetime.fromisoformat(wakeup.run_at)
@@ -106,36 +143,31 @@ def _register_wakeup(
             run_at = now + timedelta(seconds=5)
 
         async def fire_oneshot():
-            uid = await _resolve_owner_id(bot)
-            await _send_agent_dm(bot, agent, uid, prompt)
+            await _fire()
             remove_wakeup(wakeup.id)
             _registered.discard(wakeup.id)
 
-        scheduler.add_job(fire_oneshot, DateTrigger(run_date=run_at), id=f"r_{wakeup.id}")
+        scheduler.add_job(
+            fire_oneshot, DateTrigger(run_date=run_at), id=f"r_{wakeup.id}"
+        )
 
     elif wakeup.cron:
         parts = wakeup.cron.split()
-
-        async def fire_cron():
-            uid = await _resolve_owner_id(bot)
-            await _send_agent_dm(bot, agent, uid, prompt)
-
         scheduler.add_job(
-            fire_cron,
+            _fire,
             CronTrigger(
-                minute=parts[0], hour=parts[1], day=parts[2],
-                month=parts[3], day_of_week=parts[4],
+                minute=parts[0],
+                hour=parts[1],
+                day=parts[2],
+                month=parts[3],
+                day_of_week=parts[4],
             ),
             id=f"r_{wakeup.id}",
         )
 
     elif wakeup.interval_minutes:
-        async def fire_interval():
-            uid = await _resolve_owner_id(bot)
-            await _send_agent_dm(bot, agent, uid, prompt)
-
         scheduler.add_job(
-            fire_interval,
+            _fire,
             IntervalTrigger(minutes=wakeup.interval_minutes),
             id=f"r_{wakeup.id}",
         )

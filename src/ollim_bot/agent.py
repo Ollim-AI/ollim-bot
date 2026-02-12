@@ -40,6 +40,7 @@ class Agent:
                 "Bash(ollim-bot help)",
                 "Bash(claude-history *)",
                 "mcp__discord__discord_embed",
+                "mcp__discord__ping_user",
                 "Task",
             ],
             permission_mode="dontAsk",

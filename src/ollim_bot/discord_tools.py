@@ -66,4 +66,28 @@ async def discord_embed(args: dict[str, Any]) -> dict[str, Any]:
     return {"content": [{"type": "text", "text": "Embed sent."}]}
 
 
-discord_server = create_sdk_mcp_server("discord", tools=[discord_embed])
+@tool(
+    "ping_user",
+    "Send a plain text message to Julius. Use in background mode when something "
+    "needs attention but an embed isn't necessary.",
+    {
+        "type": "object",
+        "properties": {
+            "message": {
+                "type": "string",
+                "description": "The message to send",
+            },
+        },
+        "required": ["message"],
+    },
+)
+async def ping_user(args: dict[str, Any]) -> dict[str, Any]:
+    channel = _channel
+    if channel is None:
+        return {"content": [{"type": "text", "text": "Error: no active channel"}]}
+
+    await channel.send(args["message"])
+    return {"content": [{"type": "text", "text": "Message sent."}]}
+
+
+discord_server = create_sdk_mcp_server("discord", tools=[discord_embed, ping_user])

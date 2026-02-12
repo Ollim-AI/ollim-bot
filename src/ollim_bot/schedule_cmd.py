@@ -8,12 +8,17 @@ from ollim_bot.wakeups import Wakeup, append_wakeup, list_wakeups, remove_wakeup
 
 def _fmt_schedule(w: Wakeup) -> str:
     if w.run_at:
-        return f"at {w.run_at[:16]}"
-    if w.cron:
-        return f"cron '{w.cron}'"
-    if w.interval_minutes:
-        return f"every {w.interval_minutes}min"
-    return "unknown"
+        sched = f"at {w.run_at[:16]}"
+    elif w.cron:
+        sched = f"cron '{w.cron}'"
+    elif w.interval_minutes:
+        sched = f"every {w.interval_minutes}min"
+    else:
+        sched = "unknown"
+    if w.background:
+        tag = "[bg,queue]" if not w.skip_if_busy else "[bg]"
+        sched = f"{tag} {sched}"
+    return sched
 
 
 def run_schedule_command(argv: list[str]) -> None:
@@ -26,6 +31,14 @@ def run_schedule_command(argv: list[str]) -> None:
     add_p.add_argument("--delay", type=int, help="One-shot: fire in N minutes")
     add_p.add_argument("--cron", help='Recurring: 5-field cron (e.g. "0 9 * * 1-5")')
     add_p.add_argument("--every", type=int, help="Interval: fire every N minutes")
+    add_p.add_argument(
+        "--background", action="store_true", help="Silent: only alert via tools"
+    )
+    add_p.add_argument(
+        "--no-skip",
+        action="store_true",
+        help="Always run even if user is busy (background only)",
+    )
 
     # -- list --
     sub.add_parser("list", help="Show pending reminders")
@@ -59,11 +72,14 @@ def _handle_add(args: argparse.Namespace) -> None:
         print("error: cron must be 5 fields (minute hour day month weekday)")
         sys.exit(1)
 
+    skip_if_busy = not args.no_skip
     wakeup = Wakeup.new(
         message=args.message,
         delay_minutes=args.delay,
         cron=args.cron,
         interval_minutes=args.every,
+        background=args.background,
+        skip_if_busy=skip_if_busy,
     )
     append_wakeup(wakeup)
     print(f"scheduled {wakeup.id}: {_fmt_schedule(wakeup)} -- {wakeup.message}")
