@@ -3,8 +3,8 @@
 ADHD-friendly Discord bot with proactive reminders, powered by Claude.
 
 ## Architecture
-- `bot.py` -- Discord interface (DMs and @mentions, reaction ack, /clear, interrupt-on-new-message)
-- `agent.py` -- Claude Agent SDK brain (persistent sessions, MCP tools, subagents)
+- `bot.py` -- Discord interface (DMs, @mentions, slash commands, reaction ack, interrupt-on-new-message)
+- `agent.py` -- Claude Agent SDK brain (persistent sessions, MCP tools, subagents, slash command routing)
 - `prompts.py` -- System prompts for agent and subagents (extracted from agent.py)
 - `discord_tools.py` -- `discord_embed` MCP tool (Claude sends rich embeds + buttons via tool use)
 - `views.py` -- Button handlers via `DynamicItem` (task_done, task_del, event_del, agent followup)
@@ -27,6 +27,17 @@ ADHD-friendly Discord bot with proactive reminders, powered by Claude.
 - `include_partial_messages=True` -- enables `StreamEvent` for real-time streaming
 - `StreamEvent` imported from `claude_agent_sdk.types` (not in `__init__.__all__`)
 - Session IDs persisted to `~/.ollim-bot/sessions.json`; `resume=session_id` on reconnect
+- `_drop_client()`: interrupt + drop reference, skip `disconnect()` (anyio cross-task limitation)
+- Race guard: `save_session_id` skipped if client was popped mid-stream by `/clear` or `/model`
+
+## Discord slash commands
+- `/clear` -- reset conversation (drop client + delete session ID)
+- `/compact [instructions]` -- compress context via SDK's native `/compact`
+- `/cost` -- show token usage via SDK's native `/cost`
+- `/model <opus|sonnet|haiku>` -- switch model (update options + drop client, next message reconnects)
+- `Agent.slash()` -- generic method routing SDK slash commands, captures SystemMessage + AssistantMessage + ResultMessage
+- `Agent.set_model()` -- uses `dataclasses.replace()` on shared options (single-user assumption)
+- Synced via `bot.tree.sync()` in `on_ready`
 
 ## Discord embeds & buttons
 - `discord_embed` MCP tool via `create_sdk_mcp_server` — Claude controls when to send embeds
