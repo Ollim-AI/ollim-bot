@@ -19,6 +19,7 @@ from ollim_bot.discord_tools import discord_server
 from ollim_bot.prompts import (
     GMAIL_READER_PROMPT,
     HISTORY_REVIEWER_PROMPT,
+    RESPONSIVENESS_REVIEWER_PROMPT,
     SYSTEM_PROMPT,
 )
 from ollim_bot.sessions import (
@@ -61,6 +62,15 @@ class Agent:
                     description="Session history reviewer. Scans recent Claude Code sessions for unfinished work, untracked tasks, and loose threads that need follow-up.",
                     prompt=HISTORY_REVIEWER_PROMPT,
                     tools=["Bash(claude-history *)"],
+                    model="sonnet",
+                ),
+                "responsiveness-reviewer": AgentDefinition(
+                    description="Reminder responsiveness analyst. Correlates reminder firings with user responses to measure engagement and suggest schedule optimizations.",
+                    prompt=RESPONSIVENESS_REVIEWER_PROMPT,
+                    tools=[
+                        "Bash(claude-history *)",
+                        "Bash(ollim-bot schedule *)",
+                    ],
                     model="sonnet",
                 ),
             },

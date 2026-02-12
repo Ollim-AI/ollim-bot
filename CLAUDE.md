@@ -8,7 +8,8 @@ ADHD-friendly Discord bot with proactive reminders, powered by Claude.
 - `prompts.py` -- System prompts for agent and subagents (extracted from agent.py)
 - `discord_tools.py` -- `discord_embed` MCP tool (Claude sends rich embeds + buttons via tool use)
 - `views.py` -- Button handlers via `DynamicItem` (task_done, task_del, event_del, agent followup)
-- `scheduler.py` -- Proactive reminders via APScheduler (seeds defaults into wakeups.jsonl, syncs every 10s)
+- `scheduler.py` -- Proactive reminders via APScheduler (syncs wakeups.jsonl every 10s)
+- `wakeups.py` -- Wakeup dataclass and JSONL I/O (auto-commits to `~/.ollim-bot/` git repo on every change)
 - `google_auth.py` -- Shared Google OAuth2 (Tasks + Calendar + Gmail)
 - `tasks_cmd.py` -- Google Tasks CLI (`ollim-bot tasks`)
 - `calendar_cmd.py` -- Google Calendar CLI (`ollim-bot cal`)
@@ -22,7 +23,7 @@ ADHD-friendly Discord bot with proactive reminders, powered by Claude.
 - `ClaudeSDKClient` per user for persistent conversation with auto-compaction
 - No `setting_sources` -- all config is in code (no CLAUDE.md, skills, or settings.json loaded)
 - `permission_mode="dontAsk"` -- headless, auto-approves tools in `allowed_tools`
-- Subagents defined programmatically via `AgentDefinition`: gmail-reader, history-reviewer
+- Subagents defined programmatically via `AgentDefinition`: gmail-reader, history-reviewer, responsiveness-reviewer
 - Tool instructions (tasks, cal, schedule, embeds) inlined in SYSTEM_PROMPT; history delegated to subagent
 - `ResultMessage.result` is a fallback — don't double-count with `AssistantMessage` text blocks
 - `include_partial_messages=True` -- enables `StreamEvent` for real-time streaming
@@ -54,6 +55,14 @@ ADHD-friendly Discord bot with proactive reminders, powered by Claude.
 - Token: `~/.ollim-bot/token.json` (auto-generated on first auth)
 - Gmail is read-only (`gmail.readonly` scope), accessed via the gmail-reader subagent
 - Add new Google services: add scope to `google_auth.py`, create `*_cmd.py`, add commands to SYSTEM_PROMPT
+
+## Wakeups & scheduling
+- All reminders live in `~/.ollim-bot/wakeups.jsonl` -- no hardcoded defaults
+- `~/.ollim-bot/` is a git repo; `wakeups.py` auto-commits on every add/remove
+- Scheduler polls `wakeups.jsonl` every 10s, registers/removes APScheduler jobs
+- Reminders created by the user or the bot via `ollim-bot schedule add`
+- Foreground reminders: `[reminder:ID]` tag, streamed as DM
+- Background reminders: `[background:ID]` tag, output discarded, agent uses tools to alert
 
 ## Dev commands
 ```bash
