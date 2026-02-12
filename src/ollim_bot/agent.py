@@ -21,7 +21,12 @@ from ollim_bot.prompts import (
     HISTORY_REVIEWER_PROMPT,
     SYSTEM_PROMPT,
 )
-from ollim_bot.sessions import delete_session_id, load_session_id, save_session_id
+from ollim_bot.sessions import (
+    SESSIONS_FILE,
+    delete_session_id,
+    load_session_id,
+    save_session_id,
+)
 
 
 class Agent:
@@ -29,6 +34,7 @@ class Agent:
 
     def __init__(self):
         self.options = ClaudeAgentOptions(
+            cwd=SESSIONS_FILE.parent,
             include_partial_messages=True,
             system_prompt=SYSTEM_PROMPT,
             mcp_servers={"discord": discord_server},
