@@ -16,7 +16,11 @@ from claude_agent_sdk import (
 from claude_agent_sdk.types import StreamEvent
 
 from ollim_bot.discord_tools import discord_server
-from ollim_bot.prompts import GMAIL_READER_PROMPT, SYSTEM_PROMPT
+from ollim_bot.prompts import (
+    GMAIL_READER_PROMPT,
+    HISTORY_REVIEWER_PROMPT,
+    SYSTEM_PROMPT,
+)
 from ollim_bot.sessions import delete_session_id, load_session_id, save_session_id
 
 
@@ -44,6 +48,12 @@ class Agent:
                     description="Email triage specialist. Reads Gmail, sorts through noise, surfaces important emails with suggested follow-up tasks.",
                     prompt=GMAIL_READER_PROMPT,
                     tools=["Bash(ollim-bot gmail *)"],
+                    model="sonnet",
+                ),
+                "history-reviewer": AgentDefinition(
+                    description="Session history reviewer. Scans recent Claude Code sessions for unfinished work, untracked tasks, and loose threads that need follow-up.",
+                    prompt=HISTORY_REVIEWER_PROMPT,
+                    tools=["Bash(claude-history *)"],
                     model="sonnet",
                 ),
             },
@@ -74,12 +84,7 @@ class Agent:
         await self._drop_client(user_id)
 
     async def _drop_client(self, user_id: str) -> None:
-        """Interrupt and remove a user's client.
-
-        We intentionally skip disconnect() -- anyio forbids calling it from
-        a different task context, and awaiting it in the same task can hang.
-        The CLI subprocess is cleaned up when the object is garbage collected.
-        """
+        """Interrupt and remove a user's client (skip disconnect -- anyio limitation)."""
         client = self._clients.pop(user_id, None)
         if not client:
             return
