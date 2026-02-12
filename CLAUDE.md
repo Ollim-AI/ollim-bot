@@ -15,6 +15,7 @@ ADHD-friendly Discord bot with proactive reminders, powered by Claude.
 - `gmail_cmd.py` -- Gmail CLI (`ollim-bot gmail`, read-only)
 - `streamer.py` -- Streams agent responses to Discord (throttled edits, 2000-char overflow)
 - `sessions.py` -- Persists Agent SDK session IDs for conversation resumption across restarts
+- `followups.py` -- Persists button followup prompts to `~/.ollim-bot/followups.json` (7-day TTL)
 
 ## Agent SDK config
 - Auth: Claude Code OAuth (no API key needed)
@@ -46,7 +47,7 @@ ADHD-friendly Discord bot with proactive reminders, powered by Claude.
 - Direct actions (task_done, task_del, event_del): call Google API directly, ephemeral response
 - Agent followup (agent:<uuid>): stored prompts, route back through agent.stream_chat()
 - `DynamicItem[Button]` for persistent buttons across restarts
-- Followup prompts expire on restart (ephemeral "expired" message)
+- Followup prompts persisted to `~/.ollim-bot/followups.json` (survive restarts, 7-day TTL)
 
 ## Google integration
 - OAuth credentials: `~/.ollim-bot/credentials.json` (from Google Cloud Console)
