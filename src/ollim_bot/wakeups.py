@@ -29,6 +29,8 @@ class Wakeup:
     run_at: str | None = None  # ISO datetime for one-shot
     cron: str | None = None
     interval_minutes: int | None = None
+    background: bool = False  # suppress output; agent uses tools to break through
+    skip_if_busy: bool = True  # skip when user is chatting (background only)
 
     @staticmethod
     def new(
@@ -37,6 +39,8 @@ class Wakeup:
         delay_minutes: int | None = None,
         cron: str | None = None,
         interval_minutes: int | None = None,
+        background: bool = False,
+        skip_if_busy: bool = True,
     ) -> "Wakeup":
         run_at = None
         if delay_minutes is not None:
@@ -47,6 +51,8 @@ class Wakeup:
             run_at=run_at,
             cron=cron,
             interval_minutes=interval_minutes,
+            background=background,
+            skip_if_busy=skip_if_busy,
         )
 
 
