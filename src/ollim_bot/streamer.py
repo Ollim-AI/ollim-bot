@@ -41,6 +41,12 @@ async def stream_to_channel(
             msg = await channel.send(chunk[:MAX_MSG_LEN])
         else:
             await msg.edit(content=chunk[:MAX_MSG_LEN])
+        # Only overflow when the snapshot itself exceeded the limit.
+        # If chunk < MAX_MSG_LEN, the message isn't full yet -- new text
+        # that arrived during the await will be picked up by the next flush.
+        if len(chunk) <= MAX_MSG_LEN:
+            stale = False
+            return
         # Overflow: finalize current message, start new ones
         while len(buf) - msg_start > MAX_MSG_LEN:
             msg_start += MAX_MSG_LEN

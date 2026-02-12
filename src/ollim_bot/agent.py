@@ -21,12 +21,7 @@ from ollim_bot.sessions import delete_session_id, load_session_id, save_session_
 
 
 class Agent:
-    """Wraps the Claude Agent SDK with persistent per-user sessions.
-
-    Each user gets a ClaudeSDKClient that maintains conversation context
-    indefinitely. Auto-compaction is handled by Claude Code CLI when
-    the context window fills up.
-    """
+    """Claude Agent SDK wrapper with persistent per-user sessions."""
 
     def __init__(self):
         self.options = ClaudeAgentOptions(
@@ -126,7 +121,9 @@ class Agent:
     async def _get_client(self, user_id: str) -> ClaudeSDKClient:
         if user_id not in self._clients:
             session_id = load_session_id(user_id)
-            opts = replace(self.options, resume=session_id) if session_id else self.options
+            opts = (
+                replace(self.options, resume=session_id) if session_id else self.options
+            )
             client = ClaudeSDKClient(opts)
             await client.connect()
             self._clients[user_id] = client
