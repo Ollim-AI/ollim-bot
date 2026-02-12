@@ -2,18 +2,16 @@
 
 import asyncio
 import re
-from uuid import uuid4
 
 import discord
 from discord.ui import Button, DynamicItem, View
 
+from ollim_bot import followups
 from ollim_bot.google_auth import get_service
 from ollim_bot.streamer import stream_to_channel
 
 # Module-level references, set by bot.py on startup via init()
 _agent = None
-
-_followup_prompts: dict[str, str] = {}
 
 STYLE_MAP = {
     "primary": discord.ButtonStyle.primary,
@@ -35,13 +33,6 @@ def init(agent) -> None:
     """Store agent reference for button callbacks. Call from bot.py on_ready."""
     global _agent
     _agent = agent
-
-
-def register_followup(prompt: str) -> str:
-    """Store a prompt for agent followup, return its short ID."""
-    uid = uuid4().hex[:8]
-    _followup_prompts[uid] = prompt
-    return uid
 
 
 _EMOJI_RE = re.compile(
@@ -76,24 +67,32 @@ def build_view(buttons: list[dict]) -> View | None:
     view = View(timeout=None)
     for btn in buttons[:25]:
         action = btn.get("action", "dismiss:_")
-        style = STYLE_MAP.get(btn.get("style", "secondary"), discord.ButtonStyle.secondary)
+        style = STYLE_MAP.get(
+            btn.get("style", "secondary"), discord.ButtonStyle.secondary
+        )
 
         # For agent followup, store the prompt and replace with uuid
         if action.startswith("agent:"):
-            uid = register_followup(action[6:])
+            uid = followups.register(action[6:])
             custom_id = f"act:agent:{uid}"
         elif ":" in action:
             custom_id = f"act:{action}"
         else:
             custom_id = f"act:{action}:_"
 
-        view.add_item(ActionButton(
-            discord.ui.Button(label=btn.get("label", ""), style=style, custom_id=custom_id),
-        ))
+        view.add_item(
+            ActionButton(
+                discord.ui.Button(
+                    label=btn.get("label", ""), style=style, custom_id=custom_id
+                ),
+            )
+        )
     return view
 
 
-class ActionButton(DynamicItem[Button], template=r"act:(?P<action>[a-z_]+):(?P<data>.+)"):
+class ActionButton(
+    DynamicItem[Button], template=r"act:(?P<action>[a-z_]+):(?P<data>.+)"
+):
     """Persistent button that dispatches to action handlers."""
 
     def __init__(self, button: Button):
@@ -125,17 +124,22 @@ class ActionButton(DynamicItem[Button], template=r"act:(?P<action>[a-z_]+):(?P<d
 
 def _complete_task(task_id: str) -> None:
     get_service("tasks", "v1").tasks().patch(
-        tasklist="@default", task=task_id, body={"status": "completed"},
+        tasklist="@default",
+        task=task_id,
+        body={"status": "completed"},
     ).execute()
 
 
 def _delete_task(task_id: str) -> None:
-    get_service("tasks", "v1").tasks().delete(tasklist="@default", task=task_id).execute()
+    get_service("tasks", "v1").tasks().delete(
+        tasklist="@default", task=task_id
+    ).execute()
 
 
 def _delete_event(event_id: str) -> None:
     get_service("calendar", "v3").events().delete(
-        calendarId="primary", eventId=event_id,
+        calendarId="primary",
+        eventId=event_id,
     ).execute()
 
 
@@ -155,15 +159,18 @@ async def _handle_event_delete(interaction: discord.Interaction, event_id: str):
 
 
 async def _handle_agent_followup(interaction: discord.Interaction, followup_id: str):
-    prompt = _followup_prompts.pop(followup_id, None)
+    prompt = followups.pop(followup_id)
     if not prompt:
-        await interaction.response.send_message("this button has expired.", ephemeral=True)
+        await interaction.response.send_message(
+            "this button has expired.", ephemeral=True
+        )
         return
 
     await interaction.response.defer()
     user_id = str(interaction.user.id)
     async with _agent.lock(user_id):
         from ollim_bot.discord_tools import set_channel
+
         set_channel(interaction.channel)
         await interaction.channel.typing()
         await stream_to_channel(
