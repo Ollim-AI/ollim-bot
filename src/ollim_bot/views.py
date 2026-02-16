@@ -2,38 +2,14 @@
 
 import asyncio
 import re
-from dataclasses import dataclass, field
 
 import discord
 from discord.ui import Button, DynamicItem, View
 
 from ollim_bot import followups
+from ollim_bot.embed_types import ButtonConfig, EmbedConfig
 from ollim_bot.google_auth import get_service
 from ollim_bot.streamer import stream_to_channel
-
-
-@dataclass(frozen=True, slots=True)
-class EmbedField:
-    name: str
-    value: str
-    inline: bool = True
-
-
-@dataclass(frozen=True, slots=True)
-class ButtonConfig:
-    label: str
-    action: str
-    style: str = "secondary"
-
-
-@dataclass(frozen=True, slots=True)
-class EmbedConfig:
-    title: str
-    description: str | None = None
-    color: str = "blue"
-    fields: list[EmbedField] = field(default_factory=list)
-    buttons: list[ButtonConfig] = field(default_factory=list)
-
 
 # Module-level references, set by bot.py on startup via init()
 _agent = None
