@@ -1,0 +1,109 @@
+"""Tests for reminders.py — Reminder dataclass with chain fields."""
+
+from datetime import datetime
+
+import pytest
+
+from ollim_bot.reminders import (
+    Reminder,
+    append_reminder,
+    list_reminders,
+    remove_reminder,
+)
+
+
+def test_reminder_new_computes_run_at():
+    reminder = Reminder.new(message="test", delay_minutes=30)
+
+    assert len(reminder.id) == 8
+    assert reminder.message == "test"
+    run_at = datetime.fromisoformat(reminder.run_at)
+    assert run_at.tzinfo is not None
+    assert reminder.chain_depth == 0
+    assert reminder.max_chain == 0
+    assert reminder.chain_parent is None
+
+
+def test_reminder_new_with_chain():
+    reminder = Reminder.new(message="check task", delay_minutes=60, max_chain=3)
+
+    assert reminder.max_chain == 3
+    assert reminder.chain_depth == 0
+    assert reminder.chain_parent == reminder.id  # auto-set to self
+
+
+def test_reminder_new_chain_with_explicit_parent():
+    reminder = Reminder.new(
+        message="follow-up",
+        delay_minutes=30,
+        max_chain=3,
+        chain_depth=1,
+        chain_parent="original",
+    )
+
+    assert reminder.chain_depth == 1
+    assert reminder.chain_parent == "original"
+
+
+def test_reminder_new_chain_depth_exceeds_max():
+    with pytest.raises(AssertionError, match="chain_depth.*>.*max_chain"):
+        Reminder.new(message="bad", delay_minutes=10, max_chain=2, chain_depth=3)
+
+
+def test_reminder_new_background():
+    reminder = Reminder.new(
+        message="silent", delay_minutes=15, background=True, skip_if_busy=False
+    )
+
+    assert reminder.background is True
+    assert reminder.skip_if_busy is False
+
+
+def test_append_and_list_reminders(data_dir):
+    r1 = Reminder.new(message="first", delay_minutes=10)
+    r2 = Reminder.new(message="second", delay_minutes=20)
+
+    append_reminder(r1)
+    append_reminder(r2)
+    result = list_reminders()
+
+    assert len(result) == 2
+    assert result[0].message == "first"
+    assert result[1].message == "second"
+
+
+def test_list_reminders_empty(data_dir):
+    assert list_reminders() == []
+
+
+def test_remove_reminder(data_dir):
+    r = Reminder.new(message="test", delay_minutes=5)
+    append_reminder(r)
+
+    removed = remove_reminder(r.id)
+
+    assert removed is True
+    assert list_reminders() == []
+
+
+def test_remove_reminder_not_found(data_dir):
+    assert remove_reminder("nonexistent") is False
+
+
+def test_chain_roundtrip_preserves_fields(data_dir):
+    original = Reminder.new(
+        message="chain test",
+        delay_minutes=60,
+        background=True,
+        max_chain=2,
+        chain_depth=1,
+        chain_parent="parent_id",
+    )
+    append_reminder(original)
+
+    loaded = list_reminders()[0]
+
+    assert loaded.chain_depth == 1
+    assert loaded.max_chain == 2
+    assert loaded.chain_parent == "parent_id"
+    assert loaded.background is True
