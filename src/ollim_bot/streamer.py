@@ -9,8 +9,6 @@ from typing import TYPE_CHECKING
 
 import discord
 
-from ollim_bot.discord_tools import set_channel
-
 if TYPE_CHECKING:
     from ollim_bot.agent import Agent
 
@@ -113,6 +111,8 @@ async def _resolve_owner_id(bot: discord.Client) -> str:
 
 async def send_agent_dm(bot: discord.Client, agent: Agent, user_id: str, prompt: str):
     """Inject a prompt into the agent session and stream the response as a DM."""
+    from ollim_bot.discord_tools import set_channel
+
     app_info = await bot.application_info()
     owner = app_info.owner
     if not owner:
@@ -133,6 +133,8 @@ async def run_agent_background(
     skip_if_busy: bool,
 ):
     """Run agent silently -- output discarded, tools (ping_user/discord_embed) break through."""
+    from ollim_bot.discord_tools import set_channel
+
     app_info = await bot.application_info()
     owner = app_info.owner
     if not owner:

@@ -4,13 +4,8 @@ from typing import Any
 
 from claude_agent_sdk import create_sdk_mcp_server, tool
 
-from ollim_bot.views import (
-    ButtonConfig,
-    EmbedConfig,
-    EmbedField,
-    build_embed,
-    build_view,
-)
+from ollim_bot.embed_types import ButtonConfig, EmbedConfig, EmbedField
+from ollim_bot.views import build_embed, build_view
 
 # Module-level channel reference, set by bot.py before each stream_chat().
 # Safe because the per-user lock serializes access (single-user bot).
