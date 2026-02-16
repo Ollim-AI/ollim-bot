@@ -1,7 +1,8 @@
-"""Proactive reminders and check-ins via APScheduler.
+"""Proactive routines and reminders via APScheduler.
 
-All scheduled events route through the agent for contextual responses.
-Reminders persist in ~/.ollim-bot/wakeups.jsonl and survive restarts.
+Polls routines.jsonl and reminders.jsonl every 10s, registers APScheduler jobs.
+Routines use CronTrigger, reminders use DateTrigger (one-shot, auto-removed).
+Chain reminders inject chain context so the agent can call follow_up_chain.
 """
 
 from datetime import datetime, timedelta
@@ -13,106 +14,169 @@ from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
-from ollim_bot.streamer import (
-    _resolve_owner_id,
-    run_agent_background,
-    send_agent_dm,
-)
-from ollim_bot.wakeups import Wakeup, list_wakeups, remove_wakeup
+from ollim_bot.discord_tools import ChainContext, set_chain_context
+from ollim_bot.reminders import Reminder, list_reminders, remove_reminder
+from ollim_bot.routines import Routine, list_routines
+from ollim_bot.streamer import _resolve_owner_id, run_agent_background, send_agent_dm
 
 TZ = ZoneInfo("America/Los_Angeles")
 
+_BG_PREAMBLE = (
+    "Your text output will be discarded. Use `ping_user` (MCP tool) to send "
+    "a plain text alert, or `discord_embed` for structured data. Only alert "
+    "if something genuinely warrants attention.\n\n"
+)
 
-_registered: set[str] = set()
+_registered_routines: set[str] = set()
+_registered_reminders: set[str] = set()
 
 
-def _register_wakeup(
-    scheduler: AsyncIOScheduler,
-    bot: discord.Client,
-    agent,
-    wakeup: Wakeup,
-):
-    """Turn a Wakeup into a live APScheduler job."""
-    if wakeup.id in _registered:
+def _build_routine_prompt(routine: Routine) -> str:
+    if routine.background:
+        return f"[routine-bg:{routine.id}] {_BG_PREAMBLE}{routine.message}"
+    return f"[routine:{routine.id}] {routine.message}"
+
+
+def _build_reminder_prompt(reminder: Reminder) -> str:
+    tag = (
+        f"reminder-bg:{reminder.id}"
+        if reminder.background
+        else f"reminder:{reminder.id}"
+    )
+    parts = [f"[{tag}]"]
+
+    if reminder.background:
+        parts.append(_BG_PREAMBLE.rstrip())
+
+    if reminder.max_chain > 0:
+        check_num = reminder.chain_depth + 1
+        total = reminder.max_chain + 1
+        if reminder.chain_depth < reminder.max_chain:
+            parts.append(
+                f"\nCHAIN CONTEXT: This is a follow-up chain reminder "
+                f"(check {check_num} of {total}). You have `follow_up_chain` "
+                f"available -- call follow_up_chain(minutes_from_now=N) to schedule "
+                f"another check. If the task is done or no longer needs follow-up, "
+                f"simply don't call it and the chain ends."
+            )
+        else:
+            parts.append(
+                f"\nCHAIN CONTEXT: This is the FINAL check in this follow-up chain "
+                f"(check {check_num} of {total}). `follow_up_chain` is NOT available "
+                f"-- this is your last chance to act on this reminder. If the task "
+                f"needs attention, ping the user now."
+            )
+
+    parts.append(f"\n{reminder.message}")
+    return "\n".join(parts)
+
+
+def _register_routine(
+    scheduler: AsyncIOScheduler, bot: discord.Client, agent, routine: Routine
+) -> None:
+    if routine.id in _registered_routines:
         return
-    _registered.add(wakeup.id)
+    _registered_routines.add(routine.id)
 
-    if wakeup.background:
-        prompt = (
-            f"[background:{wakeup.id}] "
-            "Your text output will be discarded. Use `ping_user` (MCP tool) to send "
-            "a plain text alert, or `discord_embed` for structured data. Only alert "
-            "if something genuinely warrants attention.\n\n"
-            f"{wakeup.message}"
-        )
-    else:
-        prompt = f"[reminder:{wakeup.id}] {wakeup.message}"
+    prompt = _build_routine_prompt(routine)
 
     async def _fire():
         uid = await _resolve_owner_id(bot)
-        if wakeup.background:
+        if routine.background:
             await run_agent_background(
-                bot, agent, uid, prompt, skip_if_busy=wakeup.skip_if_busy
+                bot, agent, uid, prompt, skip_if_busy=routine.skip_if_busy
             )
         else:
             await send_agent_dm(bot, agent, uid, prompt)
 
-    if wakeup.run_at:
-        run_at = datetime.fromisoformat(wakeup.run_at)
-        if run_at.tzinfo is None:
-            run_at = run_at.replace(tzinfo=TZ)
-        now = datetime.now(TZ)
-        if run_at < now:
-            run_at = now + timedelta(seconds=5)
+    parts = routine.cron.split()
+    scheduler.add_job(
+        _fire,
+        CronTrigger(
+            minute=parts[0],
+            hour=parts[1],
+            day=parts[2],
+            month=parts[3],
+            day_of_week=parts[4],
+        ),
+        id=f"routine_{routine.id}",
+    )
 
-        async def fire_oneshot():
-            await _fire()
-            remove_wakeup(wakeup.id)
-            _registered.discard(wakeup.id)
 
-        scheduler.add_job(
-            fire_oneshot, DateTrigger(run_date=run_at), id=f"r_{wakeup.id}"
-        )
+def _register_reminder(
+    scheduler: AsyncIOScheduler, bot: discord.Client, agent, reminder: Reminder
+) -> None:
+    if reminder.id in _registered_reminders:
+        return
+    _registered_reminders.add(reminder.id)
 
-    elif wakeup.cron:
-        parts = wakeup.cron.split()
-        scheduler.add_job(
-            _fire,
-            CronTrigger(
-                minute=parts[0],
-                hour=parts[1],
-                day=parts[2],
-                month=parts[3],
-                day_of_week=parts[4],
-            ),
-            id=f"r_{wakeup.id}",
-        )
+    prompt = _build_reminder_prompt(reminder)
 
-    elif wakeup.interval_minutes:
-        scheduler.add_job(
-            _fire,
-            IntervalTrigger(minutes=wakeup.interval_minutes),
-            id=f"r_{wakeup.id}",
-        )
+    async def fire_oneshot():
+        uid = await _resolve_owner_id(bot)
+
+        # Set chain context if this is a chain reminder (not at max depth)
+        if reminder.max_chain > 0 and reminder.chain_depth < reminder.max_chain:
+            set_chain_context(
+                ChainContext(
+                    reminder_id=reminder.id,
+                    message=reminder.message,
+                    chain_depth=reminder.chain_depth,
+                    max_chain=reminder.max_chain,
+                    chain_parent=reminder.chain_parent or reminder.id,
+                    background=reminder.background,
+                )
+            )
+
+        if reminder.background:
+            await run_agent_background(
+                bot, agent, uid, prompt, skip_if_busy=reminder.skip_if_busy
+            )
+        else:
+            await send_agent_dm(bot, agent, uid, prompt)
+
+        set_chain_context(None)
+        remove_reminder(reminder.id)
+        _registered_reminders.discard(reminder.id)
+
+    run_at = datetime.fromisoformat(reminder.run_at)
+    if run_at.tzinfo is None:
+        run_at = run_at.replace(tzinfo=TZ)
+    now = datetime.now(TZ)
+    if run_at < now:
+        run_at = now + timedelta(seconds=5)
+
+    scheduler.add_job(
+        fire_oneshot, DateTrigger(run_date=run_at), id=f"rem_{reminder.id}"
+    )
 
 
 def setup_scheduler(bot: discord.Client, agent) -> AsyncIOScheduler:
-    """Create scheduler and register reminders from wakeups.jsonl."""
+    """Create scheduler and register routines + reminders."""
     scheduler = AsyncIOScheduler(timezone="America/Los_Angeles")
 
     @scheduler.scheduled_job(IntervalTrigger(seconds=10))
-    async def sync_reminders():
-        current = list_wakeups()
-        current_ids = {w.id for w in current}
-
-        for wakeup in current:
-            _register_wakeup(scheduler, bot, agent, wakeup)
-
-        # Stop jobs for cancelled wakeups
-        for stale_id in _registered - current_ids:
-            job = scheduler.get_job(f"r_{stale_id}")
+    async def sync_all():
+        # Routines
+        current_routines = list_routines()
+        current_routine_ids = {r.id for r in current_routines}
+        for routine in current_routines:
+            _register_routine(scheduler, bot, agent, routine)
+        for stale_id in _registered_routines - current_routine_ids:
+            job = scheduler.get_job(f"routine_{stale_id}")
             if job:
                 job.remove()
-            _registered.discard(stale_id)
+            _registered_routines.discard(stale_id)
+
+        # Reminders
+        current_reminders = list_reminders()
+        current_reminder_ids = {r.id for r in current_reminders}
+        for reminder in current_reminders:
+            _register_reminder(scheduler, bot, agent, reminder)
+        for stale_id in _registered_reminders - current_reminder_ids:
+            job = scheduler.get_job(f"rem_{stale_id}")
+            if job:
+                job.remove()
+            _registered_reminders.discard(stale_id)
 
     return scheduler

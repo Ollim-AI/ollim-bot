@@ -1,5 +1,8 @@
-"""MCP tools for Discord interactions (embeds, buttons)."""
+"""MCP tools for Discord interactions (embeds, buttons, chain follow-ups)."""
 
+import subprocess
+import sys
+from dataclasses import dataclass
 from typing import Any
 
 from claude_agent_sdk import create_sdk_mcp_server, tool
@@ -16,6 +19,26 @@ def set_channel(channel) -> None:
     """Set the active Discord channel for tool handlers."""
     global _channel
     _channel = channel
+
+
+# Chain context, set by scheduler before firing a chain reminder.
+@dataclass(frozen=True, slots=True)
+class ChainContext:
+    reminder_id: str
+    message: str
+    chain_depth: int
+    max_chain: int
+    chain_parent: str
+    background: bool
+
+
+_chain_context: ChainContext | None = None
+
+
+def set_chain_context(ctx: ChainContext | None) -> None:
+    """Set/clear chain context for follow_up_chain tool."""
+    global _chain_context
+    _chain_context = ctx
 
 
 @tool(
@@ -98,4 +121,59 @@ async def ping_user(args: dict[str, Any]) -> dict[str, Any]:
     return {"content": [{"type": "text", "text": "Message sent."}]}
 
 
-discord_server = create_sdk_mcp_server("discord", tools=[discord_embed, ping_user])
+@tool(
+    "follow_up_chain",
+    "Schedule a follow-up check for this reminder. Call with minutes_from_now to "
+    "check again later. If the task is done or no follow-up needed, simply don't "
+    "call this tool and the chain ends.",
+    {
+        "type": "object",
+        "properties": {
+            "minutes_from_now": {
+                "type": "integer",
+                "description": "Minutes until the next check",
+            },
+        },
+        "required": ["minutes_from_now"],
+    },
+)
+async def follow_up_chain(args: dict[str, Any]) -> dict[str, Any]:
+    ctx = _chain_context
+    if ctx is None:
+        return {
+            "content": [{"type": "text", "text": "Error: no active reminder context"}]
+        }
+    if ctx.chain_depth >= ctx.max_chain:
+        return {"content": [{"type": "text", "text": "Error: follow-up limit reached"}]}
+
+    minutes = args["minutes_from_now"]
+    cmd = [
+        sys.executable,
+        "-m",
+        "ollim_bot",
+        "reminder",
+        "add",
+        "--delay",
+        str(minutes),
+        "-m",
+        ctx.message,
+        "--max-chain",
+        str(ctx.max_chain),
+        "--chain-depth",
+        str(ctx.chain_depth + 1),
+        "--chain-parent",
+        ctx.chain_parent,
+    ]
+    if ctx.background:
+        cmd.append("--background")
+    subprocess.run(cmd, capture_output=True)
+    return {
+        "content": [
+            {"type": "text", "text": f"Follow-up scheduled in {minutes} minutes"}
+        ]
+    }
+
+
+discord_server = create_sdk_mcp_server(
+    "discord", tools=[discord_embed, ping_user, follow_up_chain]
+)
