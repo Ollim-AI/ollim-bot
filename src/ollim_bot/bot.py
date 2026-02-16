@@ -2,8 +2,6 @@
 
 import base64
 import contextlib
-from datetime import datetime
-from zoneinfo import ZoneInfo
 
 import discord
 from discord.ext import commands
@@ -117,15 +115,11 @@ def create_bot() -> commands.Bot:
         if not is_dm and not is_mentioned:
             return
 
-        now = datetime.now(ZoneInfo("America/Los_Angeles"))
-        timestamp = now.strftime("[%Y-%m-%d %a %I:%M %p PT]")
-
-        raw = (
+        content = (
             message.content.replace(f"<@{bot.user.id}>", "").strip()
             if bot.user
             else message.content.strip()
         )
-        content = f"{timestamp} {raw}" if raw else timestamp
 
         # Extract image attachments
         image_types = {"image/jpeg", "image/png", "image/gif", "image/webp"}

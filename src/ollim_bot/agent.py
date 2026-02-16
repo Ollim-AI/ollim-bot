@@ -3,6 +3,8 @@
 import asyncio
 from collections.abc import AsyncGenerator
 from dataclasses import replace
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from claude_agent_sdk import (
     AgentDefinition,
@@ -151,6 +153,11 @@ class Agent:
             self._clients[user_id] = client
         return self._clients[user_id]
 
+    @staticmethod
+    def _timestamp() -> str:
+        now = datetime.now(ZoneInfo("America/Los_Angeles"))
+        return now.strftime("[%Y-%m-%d %a %I:%M %p PT]")
+
     async def stream_chat(
         self,
         message: str,
@@ -159,6 +166,7 @@ class Agent:
         images: list[dict[str, str]] | None = None,
     ) -> AsyncGenerator[str, None]:
         """Yield text deltas as they stream in from Claude."""
+        message = f"{self._timestamp()} {message}" if message else self._timestamp()
         client = await self._get_client(user_id)
 
         if images:
@@ -229,6 +237,7 @@ class Agent:
                 yield result_text
 
     async def chat(self, message: str, user_id: str) -> str:
+        message = f"{self._timestamp()} {message}" if message else self._timestamp()
         client = await self._get_client(user_id)
         await client.query(message)
 
