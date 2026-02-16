@@ -1,10 +1,18 @@
 """Stream agent responses to Discord channels with progressive message editing."""
 
+from __future__ import annotations
+
 import asyncio
 import contextlib
 from collections.abc import AsyncGenerator
+from typing import TYPE_CHECKING
 
 import discord
+
+from ollim_bot.discord_tools import set_channel
+
+if TYPE_CHECKING:
+    from ollim_bot.agent import Agent
 
 # Discord allows ~5 edits per 5 seconds per channel.  0.5s gives a
 # responsive feel; discord.py handles any 429s transparently.
@@ -90,3 +98,51 @@ async def stream_to_channel(
 
     if not buf:
         await channel.send("hmm, I didn't have a response for that.")
+
+
+_owner_id: str | None = None
+
+
+async def _resolve_owner_id(bot: discord.Client) -> str:
+    global _owner_id
+    if _owner_id is None:
+        app_info = await bot.application_info()
+        _owner_id = str(app_info.owner.id) if app_info.owner else "unknown"
+    return _owner_id
+
+
+async def send_agent_dm(bot: discord.Client, agent: Agent, user_id: str, prompt: str):
+    """Inject a prompt into the agent session and stream the response as a DM."""
+    app_info = await bot.application_info()
+    owner = app_info.owner
+    if not owner:
+        return
+    dm = await owner.create_dm()
+    async with agent.lock(user_id):
+        set_channel(dm)
+        await dm.typing()
+        await stream_to_channel(dm, agent.stream_chat(prompt, user_id))
+
+
+async def run_agent_background(
+    bot: discord.Client,
+    agent: Agent,
+    user_id: str,
+    prompt: str,
+    *,
+    skip_if_busy: bool,
+):
+    """Run agent silently -- output discarded, tools (ping_user/discord_embed) break through."""
+    app_info = await bot.application_info()
+    owner = app_info.owner
+    if not owner:
+        return
+    dm = await owner.create_dm()
+
+    if skip_if_busy and agent.lock(user_id).locked():
+        return
+
+    async with agent.lock(user_id):
+        set_channel(dm)
+        async for _ in agent.stream_chat(prompt, user_id):
+            pass  # discard text -- agent uses tools to alert
