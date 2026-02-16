@@ -13,55 +13,17 @@ from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
-from ollim_bot.discord_tools import set_channel
-from ollim_bot.streamer import stream_to_channel
+from ollim_bot.streamer import (
+    _resolve_owner_id,
+    run_agent_background,
+    send_agent_dm,
+)
 from ollim_bot.wakeups import Wakeup, list_wakeups, remove_wakeup
 
 TZ = ZoneInfo("America/Los_Angeles")
 
 
-_owner_id: str | None = None
 _registered: set[str] = set()
-
-
-async def _resolve_owner_id(bot: discord.Client) -> str:
-    global _owner_id
-    if _owner_id is None:
-        app_info = await bot.application_info()
-        _owner_id = str(app_info.owner.id) if app_info.owner else "unknown"
-    return _owner_id
-
-
-async def _send_agent_dm(bot: discord.Client, agent, user_id: str, prompt: str):
-    """Inject a prompt into the agent session and stream the response as a DM."""
-    app_info = await bot.application_info()
-    owner = app_info.owner
-    if not owner:
-        return
-    dm = await owner.create_dm()
-    async with agent.lock(user_id):
-        set_channel(dm)
-        await dm.typing()
-        await stream_to_channel(dm, agent.stream_chat(prompt, user_id))
-
-
-async def _run_background(
-    bot: discord.Client, agent, user_id: str, prompt: str, *, skip_if_busy: bool
-):
-    """Run agent silently -- output discarded, tools (ping_user/discord_embed) break through."""
-    app_info = await bot.application_info()
-    owner = app_info.owner
-    if not owner:
-        return
-    dm = await owner.create_dm()
-
-    if skip_if_busy and agent.lock(user_id).locked():
-        return
-
-    async with agent.lock(user_id):
-        set_channel(dm)
-        async for _ in agent.stream_chat(prompt, user_id):
-            pass  # discard text -- agent uses tools to alert
 
 
 def _register_wakeup(
@@ -89,11 +51,11 @@ def _register_wakeup(
     async def _fire():
         uid = await _resolve_owner_id(bot)
         if wakeup.background:
-            await _run_background(
+            await run_agent_background(
                 bot, agent, uid, prompt, skip_if_busy=wakeup.skip_if_busy
             )
         else:
-            await _send_agent_dm(bot, agent, uid, prompt)
+            await send_agent_dm(bot, agent, uid, prompt)
 
     if wakeup.run_at:
         run_at = datetime.fromisoformat(wakeup.run_at)
