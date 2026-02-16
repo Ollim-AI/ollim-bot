@@ -1,5 +1,6 @@
 """Discord bot that talks to Claude Agent SDK."""
 
+import base64
 import contextlib
 
 import discord
@@ -32,7 +33,9 @@ def create_bot() -> commands.Bot:
 
     @bot.tree.command(name="compact", description="Compress conversation context")
     @discord.app_commands.describe(instructions="Optional focus for the summary")
-    async def slash_compact(interaction: discord.Interaction, instructions: str | None = None):
+    async def slash_compact(
+        interaction: discord.Interaction, instructions: str | None = None
+    ):
         user_id = str(interaction.user.id)
         cmd = f"/compact {instructions}" if instructions else "/compact"
         async with agent.lock(user_id):
@@ -50,12 +53,16 @@ def create_bot() -> commands.Bot:
 
     @bot.tree.command(name="model", description="Switch the AI model")
     @discord.app_commands.describe(name="Model to use")
-    @discord.app_commands.choices(name=[
-        discord.app_commands.Choice(name="opus", value="opus"),
-        discord.app_commands.Choice(name="sonnet", value="sonnet"),
-        discord.app_commands.Choice(name="haiku", value="haiku"),
-    ])
-    async def slash_model(interaction: discord.Interaction, name: discord.app_commands.Choice[str]):
+    @discord.app_commands.choices(
+        name=[
+            discord.app_commands.Choice(name="opus", value="opus"),
+            discord.app_commands.Choice(name="sonnet", value="sonnet"),
+            discord.app_commands.Choice(name="haiku", value="haiku"),
+        ]
+    )
+    async def slash_model(
+        interaction: discord.Interaction, name: discord.app_commands.Choice[str]
+    ):
         user_id = str(interaction.user.id)
         await agent.set_model(user_id, name.value)
         await interaction.response.send_message(f"switched to {name.value}.")
@@ -114,6 +121,20 @@ def create_bot() -> commands.Bot:
             else message.content.strip()
         )
 
+        # Extract image attachments
+        image_types = {"image/jpeg", "image/png", "image/gif", "image/webp"}
+        images = []
+        for att in message.attachments:
+            mime = (att.content_type or "").split(";")[0]
+            if mime in image_types:
+                data = await att.read()
+                images.append(
+                    {
+                        "media_type": mime,
+                        "data": base64.b64encode(data).decode(),
+                    }
+                )
+
         user_id = str(message.author.id)
 
         # Acknowledge immediately
@@ -128,7 +149,7 @@ def create_bot() -> commands.Bot:
             await message.channel.typing()
             await stream_to_channel(
                 message.channel,
-                agent.stream_chat(content, user_id=user_id),
+                agent.stream_chat(content, user_id=user_id, images=images or None),
             )
 
         with contextlib.suppress(discord.NotFound):

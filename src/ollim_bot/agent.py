@@ -152,11 +152,33 @@ class Agent:
         return self._clients[user_id]
 
     async def stream_chat(
-        self, message: str, user_id: str
+        self,
+        message: str,
+        user_id: str,
+        *,
+        images: list[dict[str, str]] | None = None,
     ) -> AsyncGenerator[str, None]:
         """Yield text deltas as they stream in from Claude."""
         client = await self._get_client(user_id)
-        await client.query(message)
+
+        if images:
+
+            async def _content():
+                for img in images:
+                    yield {
+                        "type": "image",
+                        "source": {
+                            "type": "base64",
+                            "media_type": img["media_type"],
+                            "data": img["data"],
+                        },
+                    }
+                if message:
+                    yield {"type": "text", "text": message}
+
+            await client.query(_content())
+        else:
+            await client.query(message)
 
         streamed = False
         fallback_parts: list[str] = []
