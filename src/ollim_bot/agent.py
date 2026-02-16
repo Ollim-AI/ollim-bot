@@ -2,7 +2,7 @@
 
 import asyncio
 from collections.abc import AsyncGenerator
-from dataclasses import dataclass, replace
+from dataclasses import replace
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -30,12 +30,6 @@ from ollim_bot.sessions import (
     load_session_id,
     save_session_id,
 )
-
-
-@dataclass(frozen=True, slots=True)
-class ImageAttachment:
-    media_type: str
-    data: str  # base64-encoded
 
 
 def _timestamp() -> str:
@@ -169,20 +163,23 @@ class Agent:
         message: str,
         user_id: str,
         *,
-        images: list[ImageAttachment] | None = None,
+        images: list[dict[str, str]] | None = None,
     ) -> AsyncGenerator[str, None]:
         """Yield text deltas as they stream in from Claude."""
         message = f"{_timestamp()} {message}" if message else _timestamp()
         client = await self._get_client(user_id)
 
         if images:
+            # SDK has no ImageBlock type -- images go through the raw
+            # streaming dict interface (AsyncIterable[dict]).  Content
+            # blocks use the Anthropic Messages API image format.
             blocks: list[dict] = [
                 {
                     "type": "image",
                     "source": {
                         "type": "base64",
-                        "media_type": img.media_type,
-                        "data": img.data,
+                        "media_type": img["media_type"],
+                        "data": img["data"],
                     },
                 }
                 for img in images
@@ -190,6 +187,8 @@ class Agent:
             if message:
                 blocks.append({"type": "text", "text": message})
 
+            # query() accepts AsyncIterable[dict] -- yield a full user
+            # message envelope so the SDK forwards it as-is.
             async def _user_message():
                 yield {
                     "type": "user",
