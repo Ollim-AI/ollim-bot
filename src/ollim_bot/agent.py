@@ -2,7 +2,7 @@
 
 import asyncio
 from collections.abc import AsyncGenerator
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -30,6 +30,17 @@ from ollim_bot.sessions import (
     load_session_id,
     save_session_id,
 )
+
+
+@dataclass(frozen=True, slots=True)
+class ImageAttachment:
+    media_type: str
+    data: str  # base64-encoded
+
+
+def _timestamp() -> str:
+    now = datetime.now(ZoneInfo("America/Los_Angeles"))
+    return now.strftime("[%Y-%m-%d %a %I:%M %p PT]")
 
 
 class Agent:
@@ -153,20 +164,15 @@ class Agent:
             self._clients[user_id] = client
         return self._clients[user_id]
 
-    @staticmethod
-    def _timestamp() -> str:
-        now = datetime.now(ZoneInfo("America/Los_Angeles"))
-        return now.strftime("[%Y-%m-%d %a %I:%M %p PT]")
-
     async def stream_chat(
         self,
         message: str,
         user_id: str,
         *,
-        images: list[dict[str, str]] | None = None,
+        images: list[ImageAttachment] | None = None,
     ) -> AsyncGenerator[str, None]:
         """Yield text deltas as they stream in from Claude."""
-        message = f"{self._timestamp()} {message}" if message else self._timestamp()
+        message = f"{_timestamp()} {message}" if message else _timestamp()
         client = await self._get_client(user_id)
 
         if images:
@@ -175,8 +181,8 @@ class Agent:
                     "type": "image",
                     "source": {
                         "type": "base64",
-                        "media_type": img["media_type"],
-                        "data": img["data"],
+                        "media_type": img.media_type,
+                        "data": img.data,
                     },
                 }
                 for img in images
@@ -237,7 +243,7 @@ class Agent:
                 yield result_text
 
     async def chat(self, message: str, user_id: str) -> str:
-        message = f"{self._timestamp()} {message}" if message else self._timestamp()
+        message = f"{_timestamp()} {message}" if message else _timestamp()
         client = await self._get_client(user_id)
         await client.query(message)
 
