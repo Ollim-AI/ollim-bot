@@ -2,6 +2,7 @@
 
 import asyncio
 import re
+from dataclasses import dataclass, field
 
 import discord
 from discord.ui import Button, DynamicItem, View
@@ -9,6 +10,30 @@ from discord.ui import Button, DynamicItem, View
 from ollim_bot import followups
 from ollim_bot.google_auth import get_service
 from ollim_bot.streamer import stream_to_channel
+
+
+@dataclass(frozen=True, slots=True)
+class EmbedField:
+    name: str
+    value: str
+    inline: bool = True
+
+
+@dataclass(frozen=True, slots=True)
+class ButtonConfig:
+    label: str
+    action: str
+    style: str = "secondary"
+
+
+@dataclass(frozen=True, slots=True)
+class EmbedConfig:
+    title: str
+    description: str | None = None
+    color: str = "blue"
+    fields: list[EmbedField] = field(default_factory=list)
+    buttons: list[ButtonConfig] = field(default_factory=list)
+
 
 # Module-level references, set by bot.py on startup via init()
 _agent = None
@@ -40,36 +65,28 @@ _EMOJI_RE = re.compile(
 )
 
 
-def build_embed(args: dict) -> discord.Embed:
-    """Build a discord.Embed from tool args."""
-    color = COLOR_MAP.get(args.get("color", "blue"), discord.Color.blue())
-    title = args.get("title")
-    if title:
-        title = _EMOJI_RE.sub("", title).strip()
+def build_embed(config: EmbedConfig) -> discord.Embed:
+    """Build a discord.Embed from an EmbedConfig."""
+    color = COLOR_MAP.get(config.color, discord.Color.blue())
+    title = _EMOJI_RE.sub("", config.title).strip() if config.title else None
     embed = discord.Embed(
         title=title,
-        description=args.get("description"),
+        description=config.description,
         color=color,
     )
-    for field in args.get("fields", []):
-        embed.add_field(
-            name=field.get("name", "\u200b"),
-            value=field.get("value", "\u200b"),
-            inline=field.get("inline", True),
-        )
+    for ef in config.fields:
+        embed.add_field(name=ef.name, value=ef.value, inline=ef.inline)
     return embed
 
 
-def build_view(buttons: list[dict]) -> View | None:
+def build_view(buttons: list[ButtonConfig]) -> View | None:
     """Build a persistent View from button configs."""
     if not buttons:
         return None
     view = View(timeout=None)
     for btn in buttons[:25]:
-        action = btn.get("action", "dismiss:_")
-        style = STYLE_MAP.get(
-            btn.get("style", "secondary"), discord.ButtonStyle.secondary
-        )
+        action = btn.action
+        style = STYLE_MAP.get(btn.style, discord.ButtonStyle.secondary)
 
         # For agent followup, store the prompt and replace with uuid
         if action.startswith("agent:"):
@@ -82,9 +99,7 @@ def build_view(buttons: list[dict]) -> View | None:
 
         view.add_item(
             ActionButton(
-                discord.ui.Button(
-                    label=btn.get("label", ""), style=style, custom_id=custom_id
-                ),
+                discord.ui.Button(label=btn.label, style=style, custom_id=custom_id),
             )
         )
     return view

@@ -4,7 +4,13 @@ from typing import Any
 
 from claude_agent_sdk import create_sdk_mcp_server, tool
 
-from ollim_bot.views import build_embed, build_view
+from ollim_bot.views import (
+    ButtonConfig,
+    EmbedConfig,
+    EmbedField,
+    build_embed,
+    build_view,
+)
 
 # Module-level channel reference, set by bot.py before each stream_chat().
 # Safe because the per-user lock serializes access (single-user bot).
@@ -60,8 +66,15 @@ async def discord_embed(args: dict[str, Any]) -> dict[str, Any]:
     if channel is None:
         return {"content": [{"type": "text", "text": "Error: no active channel"}]}
 
-    embed = build_embed(args)
-    view = build_view(args.get("buttons", []))
+    config = EmbedConfig(
+        title=args.get("title", ""),
+        description=args.get("description"),
+        color=args.get("color", "blue"),
+        fields=[EmbedField(**f) for f in args.get("fields", [])],
+        buttons=[ButtonConfig(**b) for b in args.get("buttons", [])],
+    )
+    embed = build_embed(config)
+    view = build_view(config.buttons)
     await channel.send(embed=embed, view=view)
     return {"content": [{"type": "text", "text": "Embed sent."}]}
 
