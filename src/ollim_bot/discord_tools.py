@@ -1,7 +1,6 @@
 """MCP tools for Discord interactions (embeds, buttons, chain follow-ups)."""
 
 import subprocess
-import sys
 from dataclasses import dataclass
 from typing import Any
 
@@ -148,9 +147,7 @@ async def follow_up_chain(args: dict[str, Any]) -> dict[str, Any]:
 
     minutes = args["minutes_from_now"]
     cmd = [
-        sys.executable,
-        "-m",
-        "ollim_bot",
+        "ollim-bot",
         "reminder",
         "add",
         "--delay",
@@ -166,7 +163,13 @@ async def follow_up_chain(args: dict[str, Any]) -> dict[str, Any]:
     ]
     if ctx.background:
         cmd.append("--background")
-    subprocess.run(cmd, capture_output=True)
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        return {
+            "content": [
+                {"type": "text", "text": f"Error scheduling follow-up: {result.stderr}"}
+            ]
+        }
     return {
         "content": [
             {"type": "text", "text": f"Follow-up scheduled in {minutes} minutes"}
