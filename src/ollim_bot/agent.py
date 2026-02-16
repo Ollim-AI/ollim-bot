@@ -162,21 +162,29 @@ class Agent:
         client = await self._get_client(user_id)
 
         if images:
+            blocks: list[dict] = [
+                {
+                    "type": "image",
+                    "source": {
+                        "type": "base64",
+                        "media_type": img["media_type"],
+                        "data": img["data"],
+                    },
+                }
+                for img in images
+            ]
+            if message:
+                blocks.append({"type": "text", "text": message})
 
-            async def _content():
-                for img in images:
-                    yield {
-                        "type": "image",
-                        "source": {
-                            "type": "base64",
-                            "media_type": img["media_type"],
-                            "data": img["data"],
-                        },
-                    }
-                if message:
-                    yield {"type": "text", "text": message}
+            async def _user_message():
+                yield {
+                    "type": "user",
+                    "session_id": "",
+                    "message": {"role": "user", "content": blocks},
+                    "parent_tool_use_id": None,
+                }
 
-            await client.query(_content())
+            await client.query(_user_message())
         else:
             await client.query(message)
 
