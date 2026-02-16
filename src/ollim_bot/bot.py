@@ -14,6 +14,22 @@ from ollim_bot.streamer import stream_to_channel
 from ollim_bot.views import ActionButton
 from ollim_bot.views import init as init_views
 
+_MAGIC = [
+    (b"\xff\xd8\xff", "image/jpeg"),
+    (b"\x89PNG\r\n\x1a\n", "image/png"),
+    (b"GIF8", "image/gif"),
+]
+
+
+def _detect_image_type(data: bytes) -> str | None:
+    """Sniff image type from magic bytes (Discord's content_type can lie)."""
+    for magic, mime in _MAGIC:
+        if data[: len(magic)] == magic:
+            return mime
+    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "image/webp"
+    return None
+
 
 def create_bot() -> commands.Bot:
     intents = discord.Intents.default()
@@ -121,17 +137,16 @@ def create_bot() -> commands.Bot:
             else message.content.strip()
         )
 
-        # Extract image attachments
-        image_types = {"image/jpeg", "image/png", "image/gif", "image/webp"}
+        # Extract image attachments (detect type from bytes, not content_type)
         images = []
         for att in message.attachments:
-            mime = (att.content_type or "").split(";")[0]
-            if mime in image_types:
-                data = await att.read()
+            raw = await att.read()
+            mime = _detect_image_type(raw)
+            if mime:
                 images.append(
                     ImageAttachment(
                         media_type=mime,
-                        data=base64.b64encode(data).decode(),
+                        data=base64.b64encode(raw).decode(),
                     )
                 )
 
