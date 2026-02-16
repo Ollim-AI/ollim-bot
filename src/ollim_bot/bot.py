@@ -6,7 +6,7 @@ import contextlib
 import discord
 from discord.ext import commands
 
-from ollim_bot.agent import Agent, ImageAttachment
+from ollim_bot.agent import Agent
 from ollim_bot.discord_tools import set_channel
 from ollim_bot.scheduler import setup_scheduler
 from ollim_bot.sessions import load_session_id
@@ -144,10 +144,10 @@ def create_bot() -> commands.Bot:
             mime = _detect_image_type(raw)
             if mime:
                 images.append(
-                    ImageAttachment(
-                        media_type=mime,
-                        data=base64.b64encode(raw).decode(),
-                    )
+                    {
+                        "media_type": mime,
+                        "data": base64.b64encode(raw).decode(),
+                    }
                 )
 
         user_id = str(message.author.id)
