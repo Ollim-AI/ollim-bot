@@ -1,7 +1,7 @@
 """Entry point for ollim-bot."""
 
-import atexit
 import asyncio
+import atexit
 import os
 import sys
 from pathlib import Path
@@ -16,23 +16,27 @@ HELP = """\
 ollim-bot -- ADHD-friendly Discord assistant powered by Claude
 
 commands:
-  ollim-bot                 Run the Discord bot
-  ollim-bot schedule add    Schedule a wakeup/reminder
-  ollim-bot schedule list   Show pending wakeups
-  ollim-bot schedule cancel Cancel a wakeup by ID
-  ollim-bot tasks list      List Google Tasks
-  ollim-bot tasks add       Add a task
-  ollim-bot tasks done      Mark task as completed
-  ollim-bot cal today       Show today's calendar events
-  ollim-bot cal upcoming    Show upcoming events
-  ollim-bot cal add         Create a calendar event
-  ollim-bot gmail unread    List unread emails
-  ollim-bot gmail read      Read an email by ID
-  ollim-bot gmail search    Search emails
-  ollim-bot help            Show this help message
+  ollim-bot                  Run the Discord bot
+  ollim-bot routine add      Add a recurring routine (cron)
+  ollim-bot routine list     Show all routines
+  ollim-bot routine cancel   Cancel a routine by ID
+  ollim-bot reminder add     Schedule a one-shot reminder
+  ollim-bot reminder list    Show pending reminders
+  ollim-bot reminder cancel  Cancel a reminder by ID
+  ollim-bot tasks list       List Google Tasks
+  ollim-bot tasks add        Add a task
+  ollim-bot tasks done       Mark task as completed
+  ollim-bot cal today        Show today's calendar events
+  ollim-bot cal upcoming     Show upcoming events
+  ollim-bot cal add          Create a calendar event
+  ollim-bot gmail unread     List unread emails
+  ollim-bot gmail read       Read an email by ID
+  ollim-bot gmail search     Search emails
+  ollim-bot help             Show this help message
 
 examples:
-  ollim-bot schedule add --delay 30 -m "take a break"
+  ollim-bot routine add --cron "30 8 * * *" -m "Morning briefing"
+  ollim-bot reminder add --delay 30 -m "take a break"
   ollim-bot tasks add "Fix login bug" --due 2026-02-15
   ollim-bot cal today
 """
@@ -44,7 +48,9 @@ def _check_already_running():
     if PID_FILE.exists():
         pid = int(PID_FILE.read_text().strip())
         proc_cmdline = Path(f"/proc/{pid}/cmdline")
-        if proc_cmdline.exists() and "ollim-bot" in proc_cmdline.read_bytes().decode(errors="replace"):
+        if proc_cmdline.exists() and "ollim-bot" in proc_cmdline.read_bytes().decode(
+            errors="replace"
+        ):
             print(f"ollim-bot is already running (pid {pid})")
             raise SystemExit(1)
     PID_FILE.write_text(str(os.getpid()))
@@ -56,10 +62,16 @@ def main():
         print(HELP)
         return
 
-    if len(sys.argv) > 1 and sys.argv[1] == "schedule":
-        from ollim_bot.schedule_cmd import run_schedule_command
+    if len(sys.argv) > 1 and sys.argv[1] == "routine":
+        from ollim_bot.routine_cmd import run_routine_command
 
-        run_schedule_command(sys.argv[2:])
+        run_routine_command(sys.argv[2:])
+        return
+
+    if len(sys.argv) > 1 and sys.argv[1] == "reminder":
+        from ollim_bot.reminder_cmd import run_reminder_command
+
+        run_reminder_command(sys.argv[2:])
         return
 
     if len(sys.argv) > 1 and sys.argv[1] == "tasks":
@@ -79,7 +91,6 @@ def main():
 
         run_gmail_command(sys.argv[2:])
         return
-
 
     load_dotenv(PROJECT_DIR / ".env")
 

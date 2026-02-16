@@ -6,7 +6,7 @@ import re
 import discord
 from discord.ui import Button, DynamicItem, View
 
-from ollim_bot import followups
+from ollim_bot import inquiries
 from ollim_bot.embed_types import ButtonConfig, EmbedConfig
 from ollim_bot.google_auth import get_service
 from ollim_bot.streamer import stream_to_channel
@@ -64,9 +64,9 @@ def build_view(buttons: list[ButtonConfig]) -> View | None:
         action = btn.action
         style = STYLE_MAP.get(btn.style, discord.ButtonStyle.secondary)
 
-        # For agent followup, store the prompt and replace with uuid
+        # For agent inquiry, store the prompt and replace with uuid
         if action.startswith("agent:"):
-            uid = followups.register(action[6:])
+            uid = inquiries.register(action[6:])
             custom_id = f"act:agent:{uid}"
         elif ":" in action:
             custom_id = f"act:{action}"
@@ -103,7 +103,7 @@ class ActionButton(
             "task_done": _handle_task_done,
             "task_del": _handle_task_delete,
             "event_del": _handle_event_delete,
-            "agent": _handle_agent_followup,
+            "agent": _handle_agent_inquiry,
             "dismiss": _handle_dismiss,
         }
         handler = handlers.get(self.action)
@@ -149,8 +149,8 @@ async def _handle_event_delete(interaction: discord.Interaction, event_id: str):
     await interaction.response.send_message("deleted", ephemeral=True)
 
 
-async def _handle_agent_followup(interaction: discord.Interaction, followup_id: str):
-    prompt = followups.pop(followup_id)
+async def _handle_agent_inquiry(interaction: discord.Interaction, inquiry_id: str):
+    prompt = inquiries.pop(inquiry_id)
     if not prompt:
         await interaction.response.send_message(
             "this button has expired.", ephemeral=True
