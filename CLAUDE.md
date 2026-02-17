@@ -86,3 +86,6 @@ uv run ollim-bot           # Run the bot
 
 ## Principles
 Read the python-principles skill.
+
+## Plan mode
+Before proposing the plan (ExitPlanMode), load the `python-principles` skill and re-review the plan to ensure it introduces no new violations.
