@@ -1,6 +1,7 @@
 """Claude Agent SDK wrapper -- the brain of the bot."""
 
 import asyncio
+import contextlib
 from collections.abc import AsyncGenerator
 from dataclasses import replace
 from datetime import datetime
@@ -59,7 +60,7 @@ class Agent:
                 "mcp__discord__follow_up_chain",
                 "Task",
             ],
-            permission_mode="dontAsk",
+            permission_mode="default",
             agents={
                 "gmail-reader": AgentDefinition(
                     description="Email triage specialist. Reads Gmail, sorts through noise, surfaces important emails with suggested follow-up tasks.",
@@ -106,16 +107,20 @@ class Agent:
         delete_session_id(user_id)
 
     async def set_model(self, user_id: str, model: str) -> None:
-        """Switch model by reconnecting with updated options."""
+        """Switch model in-session via SDK control request."""
         self.options = replace(self.options, model=model)
-        await self._drop_client(user_id)
+        client = self._clients.get(user_id)
+        if client:
+            await client.set_model(model)
 
     async def _drop_client(self, user_id: str) -> None:
-        """Interrupt and remove a user's client (skip disconnect -- anyio limitation)."""
+        """Interrupt, disconnect, and remove a user's client."""
         client = self._clients.pop(user_id, None)
         if not client:
             return
         await client.interrupt()
+        with contextlib.suppress(Exception):
+            await client.disconnect()
 
     async def slash(self, user_id: str, command: str) -> str:
         """Send a slash command to the SDK and return the result."""
@@ -195,7 +200,6 @@ class Agent:
             async def _user_message():
                 yield {
                     "type": "user",
-                    "session_id": "",
                     "message": {"role": "user", "content": blocks},
                     "parent_tool_use_id": None,
                 }

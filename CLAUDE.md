@@ -26,7 +26,7 @@ ADHD-friendly Discord bot with proactive reminders, powered by Claude.
 - Auth: Claude Code OAuth (no API key needed)
 - `ClaudeSDKClient` per user for persistent conversation with auto-compaction
 - No `setting_sources` -- all config is in code (no CLAUDE.md, skills, or settings.json loaded)
-- `permission_mode="dontAsk"` -- headless, auto-approves tools in `allowed_tools`
+- `permission_mode="default"` -- SDK default; tools gated by `allowed_tools`
 - Subagents defined programmatically via `AgentDefinition`: gmail-reader, history-reviewer, responsiveness-reviewer
 - Tool instructions (tasks, cal, routines, reminders, embeds) inlined in SYSTEM_PROMPT; history delegated to subagent
 - `ResultMessage.result` is a fallback — don't double-count with `AssistantMessage` text blocks
