@@ -30,6 +30,42 @@ _BG_PREAMBLE = (
 _registered_routines: set[str] = set()
 _registered_reminders: set[str] = set()
 
+# Standard cron: 0=Sunday. APScheduler CronTrigger: 0=Monday.
+# Convert numeric values to named days to avoid the mismatch.
+_CRON_DOW = {
+    "0": "sun",
+    "1": "mon",
+    "2": "tue",
+    "3": "wed",
+    "4": "thu",
+    "5": "fri",
+    "6": "sat",
+    "7": "sun",
+}
+
+
+def _convert_dow(dow: str) -> str:
+    """Convert standard cron day_of_week (0=Sun) to APScheduler names."""
+    if dow == "*" or dow.startswith("*/"):
+        return dow
+
+    parts = dow.split(",")
+    converted = []
+    for part in parts:
+        if "/" in part:
+            range_part, step = part.split("/", 1)
+            if "-" in range_part:
+                a, b = range_part.split("-", 1)
+                converted.append(f"{_CRON_DOW.get(a, a)}-{_CRON_DOW.get(b, b)}/{step}")
+            else:
+                converted.append(f"{_CRON_DOW.get(range_part, range_part)}/{step}")
+        elif "-" in part:
+            a, b = part.split("-", 1)
+            converted.append(f"{_CRON_DOW.get(a, a)}-{_CRON_DOW.get(b, b)}")
+        else:
+            converted.append(_CRON_DOW.get(part, part))
+    return ",".join(converted)
+
 
 def _build_routine_prompt(routine: Routine) -> str:
     if routine.background:
@@ -97,7 +133,7 @@ def _register_routine(
             hour=parts[1],
             day=parts[2],
             month=parts[3],
-            day_of_week=parts[4],
+            day_of_week=_convert_dow(parts[4]),
         ),
         id=f"routine_{routine.id}",
     )
