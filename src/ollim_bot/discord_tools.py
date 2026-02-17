@@ -1,7 +1,9 @@
 """MCP tools for Discord interactions (embeds, buttons, chain follow-ups, fork control)."""
 
 import json
+import os
 import subprocess
+import tempfile
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -213,10 +215,13 @@ def pop_fork_saved() -> bool:
 
 def _append_update(message: str) -> None:
     """Append a timestamped update to the pending updates file."""
+    _UPDATES_FILE.parent.mkdir(parents=True, exist_ok=True)
     updates = json.loads(_UPDATES_FILE.read_text()) if _UPDATES_FILE.exists() else []
     updates.append({"ts": datetime.now(_TZ).isoformat(), "message": message})
-    _UPDATES_FILE.parent.mkdir(parents=True, exist_ok=True)
-    _UPDATES_FILE.write_text(json.dumps(updates))
+    fd, tmp = tempfile.mkstemp(dir=_UPDATES_FILE.parent, suffix=".tmp")
+    os.write(fd, json.dumps(updates).encode())
+    os.close(fd)
+    os.replace(tmp, _UPDATES_FILE)
 
 
 def pop_pending_updates() -> list[str]:
