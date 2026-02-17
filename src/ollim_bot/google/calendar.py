@@ -3,6 +3,7 @@
 import argparse
 import sys
 from datetime import datetime, timedelta
+from typing import Any
 from zoneinfo import ZoneInfo
 
 from ollim_bot.google.auth import get_service
@@ -10,7 +11,7 @@ from ollim_bot.google.auth import get_service
 TZ = ZoneInfo("America/Los_Angeles")
 
 
-def _get_calendar_service():
+def _get_calendar_service() -> Any:
     return get_service("calendar", "v3")
 
 
@@ -102,7 +103,7 @@ def _fmt_event(event: dict) -> str:
 
 
 def _parse_dt(value: str) -> str:
-    """Normalize user input to RFC 3339 with timezone offset."""
+    """Naive datetimes are treated as PT; Google Calendar requires timezone-aware ISO 8601."""
     dt = datetime.fromisoformat(value)
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=TZ)
@@ -143,7 +144,12 @@ def _handle_add(args: argparse.Namespace) -> None:
     print(f"created {event['id']}: {args.summary}")
 
 
+def delete_event(event_id: str) -> None:
+    _get_calendar_service().events().delete(
+        calendarId="primary", eventId=event_id
+    ).execute()
+
+
 def _handle_delete(event_id: str) -> None:
-    service = _get_calendar_service()
-    service.events().delete(calendarId="primary", eventId=event_id).execute()
+    delete_event(event_id)
     print(f"deleted {event_id}")

@@ -19,7 +19,7 @@ MAX_AGE = 7 * 24 * 3600  # 7 days
 
 
 def register(prompt: str) -> str:
-    """Store a prompt for agent inquiry, return its 8-char ID."""
+    """IDs are 8 hex chars; short enough for custom_id but collision risk is negligible at this scale."""
     uid = uuid4().hex[:8]
     data = _read()
     data[uid] = {"prompt": prompt, "ts": time.time()}
@@ -28,7 +28,7 @@ def register(prompt: str) -> str:
 
 
 def pop(uid: str) -> str | None:
-    """Remove and return an inquiry prompt, or None if expired/missing."""
+    """Returns None for both expired and never-registered IDs."""
     data = _read()
     entry = data.pop(uid, None)
     if entry is None:

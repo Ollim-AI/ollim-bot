@@ -98,36 +98,35 @@ async def stream_to_channel(
         await channel.send("hmm, I didn't have a response for that.")
 
 
-_owner_id: str | None = None
+async def dispatch_agent_response(
+    agent: Agent,
+    channel: discord.abc.Messageable,
+    user_id: str,
+    prompt: str,
+    *,
+    images: list[dict[str, str]] | None = None,
+) -> None:
+    """set_channel → typing → stream. Caller must hold agent.lock(user_id)."""
+    from ollim_bot.discord_tools import set_channel
 
-
-async def _resolve_owner_id(bot: discord.Client) -> str:
-    global _owner_id
-    if _owner_id is None:
-        app_info = await bot.application_info()
-        _owner_id = str(app_info.owner.id) if app_info.owner else "unknown"
-    return _owner_id
+    set_channel(channel)
+    await channel.typing()
+    await stream_to_channel(
+        channel, agent.stream_chat(prompt, user_id=user_id, images=images)
+    )
 
 
 async def send_agent_dm(
-    bot: discord.Client, agent: Agent, user_id: str, prompt: str
+    owner: discord.User, agent: Agent, user_id: str, prompt: str
 ) -> None:
     """Inject a prompt into the agent session and stream the response as a DM."""
-    from ollim_bot.discord_tools import set_channel
-
-    app_info = await bot.application_info()
-    owner = app_info.owner
-    if not owner:
-        return
     dm = await owner.create_dm()
     async with agent.lock(user_id):
-        set_channel(dm)
-        await dm.typing()
-        await stream_to_channel(dm, agent.stream_chat(prompt, user_id))
+        await dispatch_agent_response(agent, dm, user_id, prompt)
 
 
 async def run_agent_background(
-    bot: discord.Client,
+    owner: discord.User,
     agent: Agent,
     user_id: str,
     prompt: str,
@@ -137,10 +136,6 @@ async def run_agent_background(
     """Run agent silently -- output discarded, tools (ping_user/discord_embed) break through."""
     from ollim_bot.discord_tools import set_channel
 
-    app_info = await bot.application_info()
-    owner = app_info.owner
-    if not owner:
-        return
     dm = await owner.create_dm()
 
     if skip_if_busy and agent.lock(user_id).locked():
@@ -149,4 +144,4 @@ async def run_agent_background(
     async with agent.lock(user_id):
         set_channel(dm)
         async for _ in agent.stream_chat(prompt, user_id):
-            pass  # discard text -- agent uses tools to alert
+            pass  # output discarded -- agent uses tools to alert

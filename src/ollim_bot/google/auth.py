@@ -24,10 +24,7 @@ TOKEN_FILE = CONFIG_DIR / "token.json"
 
 
 def get_credentials() -> Credentials:
-    """Load, refresh, or create Google OAuth2 credentials.
-
-    First run opens a browser for consent. Subsequent runs use token.json.
-    """
+    """First run opens a browser for consent. Subsequent runs use token.json."""
     creds = None
     if TOKEN_FILE.exists():
         creds = Credentials.from_authorized_user_file(str(TOKEN_FILE), SCOPES)
@@ -52,5 +49,5 @@ def get_credentials() -> Credentials:
 
 
 def get_service(api: str, version: str) -> Resource:
-    """Build a Google API service client (e.g. get_service("tasks", "v1"))."""
+    """Credentials are obtained (and refreshed) on every call via get_credentials()."""
     return _build(api, version, credentials=get_credentials())

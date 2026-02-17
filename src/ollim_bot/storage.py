@@ -17,7 +17,7 @@ T = TypeVar("T")
 
 
 def git_commit(filepath: Path, message: str) -> None:
-    """Commit a file if the parent directory is a git repo."""
+    """No-op when filepath.parent is not a git repo."""
     repo = filepath.parent
     if not (repo / ".git").is_dir():
         return
@@ -34,10 +34,7 @@ def git_commit(filepath: Path, message: str) -> None:
 
 
 def read_jsonl(filepath: Path, cls: type[T]) -> list[T]:
-    """Read all entries from a JSONL file into dataclass instances.
-
-    Skips corrupt lines and filters to known dataclass fields.
-    """
+    """Skips corrupt lines; filters to known dataclass fields for forward compatibility."""
     if not filepath.exists():
         return []
     fields = {f.name for f in dataclasses.fields(cls)}  # type: ignore[arg-type]
@@ -52,7 +49,6 @@ def read_jsonl(filepath: Path, cls: type[T]) -> list[T]:
 
 
 def append_jsonl(filepath: Path, item: T, commit_msg: str) -> None:
-    """Append a dataclass instance to a JSONL file and git-commit."""
     filepath.parent.mkdir(parents=True, exist_ok=True)
     with filepath.open("a") as f:
         f.write(json.dumps(asdict(item)) + "\n")  # type: ignore[call-overload]
@@ -60,10 +56,7 @@ def append_jsonl(filepath: Path, item: T, commit_msg: str) -> None:
 
 
 def remove_jsonl(filepath: Path, item_id: str, cls: type[T], commit_msg: str) -> bool:
-    """Remove an entry by ID. Returns True if found.
-
-    Uses atomic write (temp file + rename) to avoid data loss.
-    """
+    """Atomic write (temp file + rename) to prevent data loss on concurrent access."""
     items = read_jsonl(filepath, cls)
     filtered = [i for i in items if i.id != item_id]  # type: ignore[attr-defined]
     if len(filtered) == len(items):

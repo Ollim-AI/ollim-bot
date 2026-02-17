@@ -8,10 +8,9 @@ import discord
 from discord.ext import commands
 
 from ollim_bot.agent import Agent
-from ollim_bot.discord_tools import set_channel
 from ollim_bot.scheduling import setup_scheduler
 from ollim_bot.sessions import load_session_id
-from ollim_bot.streamer import stream_to_channel
+from ollim_bot.streamer import dispatch_agent_response
 from ollim_bot.views import ActionButton
 from ollim_bot.views import init as init_views
 
@@ -25,7 +24,7 @@ _MAGIC: list[tuple[bytes, _ImageMime]] = [
 
 
 def _detect_image_type(data: bytes) -> _ImageMime | None:
-    """Sniff image type from magic bytes (Discord's content_type can lie)."""
+    """Sniff image type from magic bytes -- Discord's content_type can lie."""
     for magic, mime in _MAGIC:
         if data[: len(magic)] == magic:
             return mime
@@ -34,13 +33,26 @@ def _detect_image_type(data: bytes) -> _ImageMime | None:
     return None
 
 
-def create_bot() -> commands.Bot:
-    """Wire up a Bot that responds to DMs and @mentions only.
+async def _read_images(
+    attachments: list[discord.Attachment],
+) -> list[dict[str, str]]:
+    """Detect MIME from magic bytes and base64-encode recognised image attachments."""
+    images: list[dict[str, str]] = []
+    for att in attachments:
+        raw = await att.read()
+        mime = _detect_image_type(raw)
+        if mime:
+            images.append(
+                {
+                    "media_type": mime,
+                    "data": base64.b64encode(raw).decode(),
+                }
+            )
+    return images
 
-    Startup sequence (on_ready): register persistent button views, sync slash
-    commands, start the APScheduler, and DM the bot owner. Image attachments
-    are sniffed by magic bytes rather than Discord's unreliable content_type.
-    """
+
+def create_bot() -> commands.Bot:
+    """Image attachments are sniffed by magic bytes rather than Discord's unreliable content_type."""
     intents = discord.Intents.default()
     intents.message_content = True
 
@@ -97,7 +109,7 @@ def create_bot() -> commands.Bot:
         nonlocal _ready_fired
         print(f"ollim-bot online as {bot.user}")
 
-        # Guard against duplicate on_ready from reconnects
+        # on_ready fires again on every reconnect; init must only happen once
         if _ready_fired:
             return
         _ready_fired = True
@@ -108,21 +120,24 @@ def create_bot() -> commands.Bot:
         synced = await bot.tree.sync()
         print(f"synced {len(synced)} slash commands")
 
-        scheduler = setup_scheduler(bot, agent)
+        app_info = await bot.application_info()
+        owner = app_info.owner
+        if not owner:
+            print("warning: no owner found; scheduler and DM disabled")
+            return
+
+        scheduler = setup_scheduler(bot, agent, owner)
         scheduler.start()
         print(f"scheduler started: {len(scheduler.get_jobs())} jobs")
 
-        app_info = await bot.application_info()
-        owner = app_info.owner
-        if owner:
-            dm = await owner.create_dm()
-            resumed = load_session_id(str(owner.id)) is not None
-            if resumed:
-                await dm.send("hey, i'm back online. i remember where we left off.")
-            else:
-                await dm.send(
-                    "hey julius, ollim-bot is online. what's on your plate today?"
-                )
+        dm = await owner.create_dm()
+        resumed = load_session_id(str(owner.id)) is not None
+        if resumed:
+            await dm.send("hey, i'm back online. i remember where we left off.")
+        else:
+            await dm.send(
+                "hey julius, ollim-bot is online. what's on your plate today?"
+            )
 
     @bot.event
     async def on_message(message: discord.Message):
@@ -141,33 +156,18 @@ def create_bot() -> commands.Bot:
             else message.content.strip()
         )
 
-        # Extract image attachments (detect type from bytes, not content_type)
-        images = []
-        for att in message.attachments:
-            raw = await att.read()
-            mime = _detect_image_type(raw)
-            if mime:
-                images.append(
-                    {
-                        "media_type": mime,
-                        "data": base64.b64encode(raw).decode(),
-                    }
-                )
-
+        images = await _read_images(message.attachments)
         user_id = str(message.author.id)
 
         await message.add_reaction("\N{EYES}")
 
-        # New message should preempt any in-flight response
+        # Interrupt so the user's new message gets a fresh response
         if agent.lock(user_id).locked():
             await agent.interrupt(user_id)
 
         async with agent.lock(user_id):
-            set_channel(message.channel)
-            await message.channel.typing()
-            await stream_to_channel(
-                message.channel,
-                agent.stream_chat(content, user_id=user_id, images=images or None),
+            await dispatch_agent_response(
+                agent, message.channel, user_id, content, images=images or None
             )
 
         with contextlib.suppress(discord.NotFound):

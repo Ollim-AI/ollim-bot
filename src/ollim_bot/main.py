@@ -42,8 +42,7 @@ examples:
 """
 
 
-def _check_already_running():
-    """Exit if another ollim-bot process is already running."""
+def _check_already_running() -> None:
     PID_FILE.parent.mkdir(parents=True, exist_ok=True)
     if PID_FILE.exists():
         pid = int(PID_FILE.read_text().strip())
@@ -57,7 +56,7 @@ def _check_already_running():
     atexit.register(PID_FILE.unlink, missing_ok=True)
 
 
-def main():
+def main() -> None:
     if len(sys.argv) > 1 and sys.argv[1] in ("help", "--help", "-h"):
         print(HELP)
         return
