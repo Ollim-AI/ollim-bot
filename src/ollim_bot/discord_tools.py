@@ -14,7 +14,7 @@ _channel = None
 
 
 def set_channel(channel) -> None:
-    """Set the active Discord channel for tool handlers."""
+    """Must be called before every stream_chat() or tools dispatch to a stale channel."""
     global _channel
     _channel = channel
 
