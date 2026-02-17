@@ -19,7 +19,7 @@ from claude_agent_sdk import (
 )
 from claude_agent_sdk.types import StreamEvent
 
-from ollim_bot.discord_tools import discord_server
+from ollim_bot.discord_tools import discord_server, pop_pending_updates
 from ollim_bot.prompts import (
     GMAIL_READER_PROMPT,
     HISTORY_REVIEWER_PROMPT,
@@ -41,6 +41,16 @@ def _timestamp() -> str:
     return now.strftime("[%Y-%m-%d %a %I:%M %p PT]")
 
 
+def _prepend_context(message: str) -> str:
+    """Prepend timestamp and any pending background updates to a user message."""
+    ts = _timestamp()
+    updates = pop_pending_updates()
+    if updates:
+        header = "RECENT BACKGROUND UPDATES:\n" + "\n".join(f"- {u}" for u in updates)
+        return f"{ts} {header}\n\n{message}"
+    return f"{ts} {message}" if message else ts
+
+
 class Agent:
     def __init__(self):
         self.options = ClaudeAgentOptions(
@@ -59,6 +69,8 @@ class Agent:
                 "mcp__discord__discord_embed",
                 "mcp__discord__ping_user",
                 "mcp__discord__follow_up_chain",
+                "mcp__discord__save_context",
+                "mcp__discord__report_updates",
                 "Task",
             ],
             permission_mode="default",
@@ -118,6 +130,41 @@ class Agent:
         await client.interrupt()
         with contextlib.suppress(Exception):
             await client.disconnect()
+
+    async def drop_client(self, user_id: str) -> None:
+        """Invalidate the cached interactive client.
+
+        Called after a forked session is promoted to main so the next
+        interactive message reconnects with the newly saved session ID.
+        """
+        await self._drop_client(user_id)
+
+    async def create_forked_client(self, user_id: str) -> ClaudeSDKClient:
+        """Create a disposable client that forks the current session.
+
+        Not stored in self._clients -- the caller disconnects it after use.
+        """
+        session_id = load_session_id(user_id)
+        if session_id:
+            opts = replace(self.options, resume=session_id, fork_session=True)
+        else:
+            opts = self.options
+        client = ClaudeSDKClient(opts)
+        await client.connect()
+        return client
+
+    async def run_on_client(self, client: ClaudeSDKClient, message: str) -> str:
+        """Send a message on an explicit client, discard output, return session_id."""
+        message = f"{_timestamp()} {message}" if message else _timestamp()
+        await client.query(message)
+
+        session_id: str | None = None
+        async for msg in client.receive_response():
+            if isinstance(msg, ResultMessage):
+                session_id = msg.session_id
+
+        assert session_id is not None, "No ResultMessage received from forked client"
+        return session_id
 
     async def slash(self, user_id: str, command: str) -> str:
         """Route a slash command and collect the response text.
@@ -179,7 +226,7 @@ class Agent:
         Falls back to AssistantMessage text blocks if no StreamEvent arrives,
         then to ResultMessage.result. Saves session ID on completion.
         """
-        message = f"{_timestamp()} {message}" if message else _timestamp()
+        message = _prepend_context(message)
         client = await self._get_client(user_id)
 
         if images:
@@ -257,7 +304,7 @@ class Agent:
         Falls back to ResultMessage.result when no AssistantMessage text blocks
         are found.
         """
-        message = f"{_timestamp()} {message}" if message else _timestamp()
+        message = _prepend_context(message)
         client = await self._get_client(user_id)
         await client.query(message)
 

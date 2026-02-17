@@ -141,7 +141,21 @@ Button action format:
 - "agent:<prompt>" -- triggers a follow-up conversation with you
 
 Always include task IDs in button actions when showing task lists.
-Keep button labels short (max ~30 chars)."""
+Keep button labels short (max ~30 chars).
+
+## Background Session Management
+
+Background prompts ([routine-bg:ID], [reminder-bg:ID]) run on forked sessions.
+By default the fork is discarded to keep the main conversation clean.
+
+| Tool | Effect |
+|------|--------|
+| `report_updates(message)` | Fork discarded, short summary injected into next main-session message |
+| `save_context` | Fork promoted to main session (full context preserved) |
+
+Use `report_updates` for lightweight findings (e.g. "2 emails triaged, created task for X").
+Use `save_context` only when the full conversation context is valuable.
+Call neither if nothing useful happened -- the fork vanishes silently."""
 
 HISTORY_REVIEWER_PROMPT = """\
 You are Julius's session history reviewer. Your job is to scan recent Claude Code \

@@ -1,8 +1,12 @@
-"""MCP tools for Discord interactions (embeds, buttons, chain follow-ups)."""
+"""MCP tools for Discord interactions (embeds, buttons, chain follow-ups, fork control)."""
 
+import json
 import subprocess
 from dataclasses import dataclass
+from datetime import datetime
+from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from claude_agent_sdk import create_sdk_mcp_server, tool
 
@@ -182,6 +186,110 @@ async def follow_up_chain(args: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+# --- Forked background session state ---
+# Set by run_agent_background before/after forked runs.
+# Safe because the per-user lock serializes access (single-user bot).
+_in_fork: bool = False
+_fork_saved: bool = False
+
+_UPDATES_FILE = Path.home() / ".ollim-bot" / "pending_updates.json"
+_TZ = ZoneInfo("America/Los_Angeles")
+
+
+def set_in_fork(active: bool) -> None:
+    """Enter or exit fork mode. Resets the saved flag on every transition."""
+    global _in_fork, _fork_saved
+    _in_fork = active
+    _fork_saved = False
+
+
+def pop_fork_saved() -> bool:
+    """Read and clear the fork-saved flag. Called by runner after stream completes."""
+    global _fork_saved
+    saved = _fork_saved
+    _fork_saved = False
+    return saved
+
+
+def _append_update(message: str) -> None:
+    """Append a timestamped update to the pending updates file."""
+    updates = json.loads(_UPDATES_FILE.read_text()) if _UPDATES_FILE.exists() else []
+    updates.append({"ts": datetime.now(_TZ).isoformat(), "message": message})
+    _UPDATES_FILE.parent.mkdir(parents=True, exist_ok=True)
+    _UPDATES_FILE.write_text(json.dumps(updates))
+
+
+def pop_pending_updates() -> list[str]:
+    """Read and clear all pending updates. Called by agent.py before main-session messages."""
+    if not _UPDATES_FILE.exists():
+        return []
+    updates = json.loads(_UPDATES_FILE.read_text())
+    _UPDATES_FILE.unlink()
+    return [u["message"] for u in updates]
+
+
+@tool(
+    "save_context",
+    "Signal that this background check produced useful context worth keeping in "
+    "the conversation. Call this when you found something noteworthy, sent an alert, "
+    "or made a decision the user should see in history. If you don't call this, "
+    "everything from this check is discarded.",
+    {
+        "type": "object",
+        "properties": {},
+    },
+)
+async def save_context(args: dict[str, Any]) -> dict[str, Any]:
+    if not _in_fork:
+        return {
+            "content": [
+                {"type": "text", "text": "Error: not in a forked background session"}
+            ]
+        }
+    global _fork_saved
+    _fork_saved = True
+    return {
+        "content": [
+            {"type": "text", "text": "Context saved -- this session will be preserved."}
+        ]
+    }
+
+
+@tool(
+    "report_updates",
+    "Report a short summary from this background check to the main conversation. "
+    "The fork is discarded but the summary is injected into the next main-session "
+    "message. Use for lightweight findings that don't need full context preservation.",
+    {
+        "type": "object",
+        "properties": {
+            "message": {
+                "type": "string",
+                "description": "Short summary of what was found",
+            },
+        },
+        "required": ["message"],
+    },
+)
+async def report_updates(args: dict[str, Any]) -> dict[str, Any]:
+    if not _in_fork:
+        return {
+            "content": [
+                {"type": "text", "text": "Error: not in a forked background session"}
+            ]
+        }
+    _append_update(args["message"])
+    return {
+        "content": [
+            {
+                "type": "text",
+                "text": "Update reported -- summary will appear in main session.",
+            }
+        ]
+    }
+
+
 discord_server = create_sdk_mcp_server(
-    "discord", tools=[discord_embed, ping_user, follow_up_chain]
+    "discord",
+    tools=[discord_embed, ping_user, follow_up_chain, save_context, report_updates],
 )
