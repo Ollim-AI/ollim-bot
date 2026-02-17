@@ -7,6 +7,7 @@ import discord
 from discord.ui import Button, DynamicItem, View
 
 from ollim_bot import inquiries
+from ollim_bot.discord_tools import set_channel
 from ollim_bot.embed_types import ButtonConfig, EmbedConfig
 from ollim_bot.google_auth import get_service
 from ollim_bot.streamer import stream_to_channel
@@ -160,8 +161,6 @@ async def _handle_agent_inquiry(interaction: discord.Interaction, inquiry_id: st
     await interaction.response.defer()
     user_id = str(interaction.user.id)
     async with _agent.lock(user_id):
-        from ollim_bot.discord_tools import set_channel
-
         set_channel(interaction.channel)
         await interaction.channel.typing()
         await stream_to_channel(
