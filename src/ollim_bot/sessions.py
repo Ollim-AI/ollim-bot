@@ -13,7 +13,7 @@ def load_session_id(user_id: str) -> str | None:
 
 
 def save_session_id(user_id: str, session_id: str) -> None:
-    """Persist session ID for a user (atomic write)."""
+    """Atomic write -- safe to call mid-stream without corrupting concurrent reads."""
     _write({**_read(), user_id: session_id})
 
 

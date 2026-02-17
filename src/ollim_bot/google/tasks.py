@@ -2,11 +2,12 @@
 
 import argparse
 import sys
+from typing import Any
 
 from ollim_bot.google.auth import get_service
 
 
-def _get_tasks_service():
+def _get_tasks_service() -> Any:
     return get_service("tasks", "v1")
 
 
@@ -95,19 +96,25 @@ def _handle_add(args: argparse.Namespace) -> None:
     print(f"added {task['id']}: {due} -- {args.title}")
 
 
-def _handle_done(task_id: str) -> None:
-    service = _get_tasks_service()
-    service.tasks().patch(
+def complete_task(task_id: str) -> None:
+    _get_tasks_service().tasks().patch(
         tasklist="@default",
         task=task_id,
         body={"status": "completed"},
     ).execute()
+
+
+def delete_task(task_id: str) -> None:
+    _get_tasks_service().tasks().delete(tasklist="@default", task=task_id).execute()
+
+
+def _handle_done(task_id: str) -> None:
+    complete_task(task_id)
     print(f"completed {task_id}")
 
 
 def _handle_delete(task_id: str) -> None:
-    service = _get_tasks_service()
-    service.tasks().delete(tasklist="@default", task=task_id).execute()
+    delete_task(task_id)
     print(f"deleted {task_id}")
 
 

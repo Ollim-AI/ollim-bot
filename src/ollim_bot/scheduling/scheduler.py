@@ -20,7 +20,7 @@ from apscheduler.triggers.interval import IntervalTrigger
 from ollim_bot.discord_tools import ChainContext, set_chain_context
 from ollim_bot.scheduling.reminders import Reminder, list_reminders, remove_reminder
 from ollim_bot.scheduling.routines import Routine, list_routines
-from ollim_bot.streamer import _resolve_owner_id, run_agent_background, send_agent_dm
+from ollim_bot.streamer import run_agent_background, send_agent_dm
 
 if TYPE_CHECKING:
     from ollim_bot.agent import Agent
@@ -115,22 +115,25 @@ def _build_reminder_prompt(reminder: Reminder) -> str:
 
 
 def _register_routine(
-    scheduler: AsyncIOScheduler, bot: discord.Client, agent: Agent, routine: Routine
+    scheduler: AsyncIOScheduler,
+    owner: discord.User,
+    agent: Agent,
+    routine: Routine,
 ) -> None:
     if routine.id in _registered_routines:
         return
     _registered_routines.add(routine.id)
 
     prompt = _build_routine_prompt(routine)
+    uid = str(owner.id)
 
-    async def _fire():
-        uid = await _resolve_owner_id(bot)
+    async def _fire() -> None:
         if routine.background:
             await run_agent_background(
-                bot, agent, uid, prompt, skip_if_busy=routine.skip_if_busy
+                owner, agent, uid, prompt, skip_if_busy=routine.skip_if_busy
             )
         else:
-            await send_agent_dm(bot, agent, uid, prompt)
+            await send_agent_dm(owner, agent, uid, prompt)
 
     parts = routine.cron.split()
     scheduler.add_job(
@@ -147,17 +150,19 @@ def _register_routine(
 
 
 def _register_reminder(
-    scheduler: AsyncIOScheduler, bot: discord.Client, agent: Agent, reminder: Reminder
+    scheduler: AsyncIOScheduler,
+    owner: discord.User,
+    agent: Agent,
+    reminder: Reminder,
 ) -> None:
     if reminder.id in _registered_reminders:
         return
     _registered_reminders.add(reminder.id)
 
     prompt = _build_reminder_prompt(reminder)
+    uid = str(owner.id)
 
-    async def fire_oneshot():
-        uid = await _resolve_owner_id(bot)
-
+    async def fire_oneshot() -> None:
         # follow_up_chain MCP tool reads this to schedule the next link
         if reminder.max_chain > 0 and reminder.chain_depth < reminder.max_chain:
             set_chain_context(
@@ -173,10 +178,10 @@ def _register_reminder(
 
         if reminder.background:
             await run_agent_background(
-                bot, agent, uid, prompt, skip_if_busy=reminder.skip_if_busy
+                owner, agent, uid, prompt, skip_if_busy=reminder.skip_if_busy
             )
         else:
-            await send_agent_dm(bot, agent, uid, prompt)
+            await send_agent_dm(owner, agent, uid, prompt)
 
         set_chain_context(None)
         remove_reminder(reminder.id)
@@ -194,16 +199,18 @@ def _register_reminder(
     )
 
 
-def setup_scheduler(bot: discord.Client, agent: Agent) -> AsyncIOScheduler:
+def setup_scheduler(
+    bot: discord.Client, agent: Agent, owner: discord.User
+) -> AsyncIOScheduler:
     """Polls routines/reminders every 10s, registering new and pruning stale jobs."""
     scheduler = AsyncIOScheduler(timezone="America/Los_Angeles")
 
     @scheduler.scheduled_job(IntervalTrigger(seconds=10))
-    async def sync_all():
+    async def sync_all() -> None:
         current_routines = list_routines()
         current_routine_ids = {r.id for r in current_routines}
         for routine in current_routines:
-            _register_routine(scheduler, bot, agent, routine)
+            _register_routine(scheduler, owner, agent, routine)
         for stale_id in _registered_routines - current_routine_ids:
             job = scheduler.get_job(f"routine_{stale_id}")
             if job:
@@ -213,7 +220,7 @@ def setup_scheduler(bot: discord.Client, agent: Agent) -> AsyncIOScheduler:
         current_reminders = list_reminders()
         current_reminder_ids = {r.id for r in current_reminders}
         for reminder in current_reminders:
-            _register_reminder(scheduler, bot, agent, reminder)
+            _register_reminder(scheduler, owner, agent, reminder)
         for stale_id in _registered_reminders - current_reminder_ids:
             job = scheduler.get_job(f"rem_{stale_id}")
             if job:

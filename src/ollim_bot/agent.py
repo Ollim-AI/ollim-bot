@@ -5,6 +5,7 @@ import contextlib
 from collections.abc import AsyncGenerator
 from dataclasses import replace
 from datetime import datetime
+from typing import Literal
 from zoneinfo import ZoneInfo
 
 from claude_agent_sdk import (
@@ -31,6 +32,8 @@ from ollim_bot.sessions import (
     load_session_id,
     save_session_id,
 )
+
+ModelName = Literal["opus", "sonnet", "haiku"]
 
 
 def _timestamp() -> str:
@@ -88,10 +91,8 @@ class Agent:
         self._locks: dict[str, asyncio.Lock] = {}
 
     def lock(self, user_id: str) -> asyncio.Lock:
-        """Per-user lock to serialize access to the shared ClaudeSDKClient."""
-        if user_id not in self._locks:
-            self._locks[user_id] = asyncio.Lock()
-        return self._locks[user_id]
+        """Lazily created on first access; cached for the lifetime of the agent."""
+        return self._locks.setdefault(user_id, asyncio.Lock())
 
     async def interrupt(self, user_id: str) -> None:
         client = self._clients.get(user_id)
@@ -99,19 +100,18 @@ class Agent:
             await client.interrupt()
 
     async def clear(self, user_id: str) -> None:
-        """Reset conversation -- disconnect client and remove persisted session."""
         await self._drop_client(user_id)
         delete_session_id(user_id)
 
-    async def set_model(self, user_id: str, model: str) -> None:
-        """Switch model in-session via SDK control request."""
+    async def set_model(self, user_id: str, model: ModelName) -> None:
+        """Updates shared options (affects future connections) and switches any live client in-place."""
         self.options = replace(self.options, model=model)
         client = self._clients.get(user_id)
         if client:
             await client.set_model(model)
 
     async def _drop_client(self, user_id: str) -> None:
-        """Interrupt, disconnect, and remove a user's client."""
+        """Suppresses disconnect errors -- anyio prohibits cross-task cancellation."""
         client = self._clients.pop(user_id, None)
         if not client:
             return
@@ -120,7 +120,11 @@ class Agent:
             await client.disconnect()
 
     async def slash(self, user_id: str, command: str) -> str:
-        """Fallback priority: SystemMessage parts > AssistantMessage text > ResultMessage.result > cost > "done."."""
+        """Route a slash command and collect the response text.
+
+        Returns the most informative response found: system message text,
+        then assistant text, then result fallback, then cost, then "done.".
+        """
         client = await self._get_client(user_id)
         await client.query(command)
 
@@ -219,12 +223,10 @@ class Agent:
                 etype = event.get("type")
 
                 if etype == "content_block_delta":
-                    delta = event.get("delta", {})
-                    if delta.get("type") == "text_delta":
-                        text = delta.get("text", "")
-                        if text:
-                            streamed = True
-                            yield text
+                    text = event.get("delta", {}).get("text", "")
+                    if text:
+                        streamed = True
+                        yield text
 
                 elif etype == "content_block_start":
                     block = event.get("content_block", {})
@@ -272,7 +274,7 @@ class Agent:
                 if self._clients.get(user_id) is client:
                     save_session_id(user_id, msg.session_id)
 
-        # Use ResultMessage.result only as fallback when no text blocks found
+        # result is a summary Claude writes when it has no assistant turn (e.g. pure tool runs)
         if not parts and result_text:
             parts.append(result_text)
 

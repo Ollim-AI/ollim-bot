@@ -11,7 +11,7 @@ ADHD-friendly Discord bot with proactive reminders, powered by Claude.
 - `storage.py` -- Shared JSONL I/O with git auto-commit (`~/.ollim-bot/` data repo)
 - `streamer.py` -- Streams agent responses to Discord (throttled edits, 2000-char overflow)
 - `sessions.py` -- Persists Agent SDK session IDs for conversation resumption across restarts
-- `embed_types.py` -- Dataclasses for embed/button config passed between discord_tools and views
+- `embeds.py` -- Embed/button types, builders, and maps (shared by discord_tools and views)
 - `inquiries.py` -- Persists button inquiry prompts to `~/.ollim-bot/inquiries.json` (7-day TTL)
 - `google/` -- Google API integration sub-package
   - `auth.py` -- Shared Google OAuth2 (Tasks + Calendar + Gmail)

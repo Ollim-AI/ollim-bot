@@ -5,6 +5,7 @@ import base64
 import re
 import sys
 from datetime import datetime
+from typing import Any
 from zoneinfo import ZoneInfo
 
 from ollim_bot.google.auth import get_service
@@ -12,7 +13,7 @@ from ollim_bot.google.auth import get_service
 TZ = ZoneInfo("America/Los_Angeles")
 
 
-def _get_gmail_service():
+def _get_gmail_service() -> Any:
     return get_service("gmail", "v1")
 
 
@@ -104,7 +105,6 @@ def _short_sender(from_header: str) -> str:
 
 
 def _decode_body(payload: dict, mime_type: str) -> str:
-    """Recursively find and decode a body part by MIME type."""
     mime = payload.get("mimeType", "")
 
     if mime == mime_type and payload.get("body", {}).get("data"):
@@ -121,10 +121,7 @@ def _decode_body(payload: dict, mime_type: str) -> str:
 
 
 def _extract_text_body(payload: dict) -> str:
-    """Extract readable text from a Gmail message payload.
-
-    Prefers text/plain; falls back to text/html with tags stripped.
-    """
+    """Prefers text/plain; falls back to text/html with inline styles and tags stripped."""
     text = _decode_body(payload, "text/plain")
     if text:
         return text
