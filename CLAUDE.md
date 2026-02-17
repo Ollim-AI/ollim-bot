@@ -80,6 +80,4 @@ uv run ollim-bot           # Run the bot
 ```
 
 ## Principles
-- Keep it simple. No over-engineering.
-- If a file exceeds 200 lines, it's too complex. Split it.
-- No sprint docs, no ADRs, no elaborate process. Just build.
+Read the python-principles skill.
