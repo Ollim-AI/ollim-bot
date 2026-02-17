@@ -7,6 +7,7 @@ Chain reminders inject chain context so the agent can call follow_up_chain.
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo
@@ -26,6 +27,7 @@ if TYPE_CHECKING:
     from ollim_bot.agent import Agent
 
 TZ = ZoneInfo("America/Los_Angeles")
+log = logging.getLogger(__name__)
 
 _BG_PREAMBLE = (
     "Your text output will be discarded. Use `ping_user` (MCP tool) to send "
@@ -134,12 +136,16 @@ def _register_routine(
     uid = str(owner.id)
 
     async def _fire() -> None:
-        if routine.background:
-            await run_agent_background(
-                owner, agent, uid, prompt, skip_if_busy=routine.skip_if_busy
-            )
-        else:
-            await send_agent_dm(owner, agent, uid, prompt)
+        try:
+            if routine.background:
+                await run_agent_background(
+                    owner, agent, uid, prompt, skip_if_busy=routine.skip_if_busy
+                )
+            else:
+                await send_agent_dm(owner, agent, uid, prompt)
+        except Exception:
+            log.exception("Routine %s failed", routine.id)
+            raise
 
     parts = routine.cron.split()
     scheduler.add_job(
@@ -182,16 +188,20 @@ def _register_reminder(
                 )
             )
 
-        if reminder.background:
-            await run_agent_background(
-                owner, agent, uid, prompt, skip_if_busy=reminder.skip_if_busy
-            )
-        else:
-            await send_agent_dm(owner, agent, uid, prompt)
-
-        set_chain_context(None)
-        remove_reminder(reminder.id)
-        _registered_reminders.discard(reminder.id)
+        try:
+            if reminder.background:
+                await run_agent_background(
+                    owner, agent, uid, prompt, skip_if_busy=reminder.skip_if_busy
+                )
+            else:
+                await send_agent_dm(owner, agent, uid, prompt)
+        except Exception:
+            log.exception("Reminder %s failed", reminder.id)
+            raise
+        finally:
+            set_chain_context(None)
+            remove_reminder(reminder.id)
+            _registered_reminders.discard(reminder.id)
 
     run_at = datetime.fromisoformat(reminder.run_at)
     now = datetime.now(TZ)
