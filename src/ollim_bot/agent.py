@@ -134,7 +134,7 @@ class Agent:
         async for msg in client.receive_response():
             if isinstance(msg, SystemMessage):
                 # System messages carry slash command output (e.g. /cost)
-                data = msg.data or {}
+                data = msg.data
                 if text := data.get("text") or data.get("message"):
                     parts.append(text)
             elif isinstance(msg, AssistantMessage):
@@ -223,15 +223,15 @@ class Agent:
                 etype = event.get("type")
 
                 if etype == "content_block_delta":
-                    text = event.get("delta", {}).get("text", "")
+                    text = event["delta"].get("text", "")
                     if text:
                         streamed = True
                         yield text
 
                 elif etype == "content_block_start":
-                    block = event.get("content_block", {})
-                    if block.get("type") == "tool_use":
-                        name = block.get("name", "tool")
+                    block = event["content_block"]
+                    if block["type"] == "tool_use":
+                        name = block["name"]
                         streamed = True
                         yield f"\n-# *using {name}*\n"
 

@@ -58,7 +58,7 @@ _EMOJI_RE = re.compile(
 
 def build_embed(config: EmbedConfig) -> discord.Embed:
     """Strips emoji from the title to keep Discord embed headings clean."""
-    color = COLOR_MAP.get(config.color, discord.Color.blue())
+    color = COLOR_MAP[config.color]
     title = _EMOJI_RE.sub("", config.title).strip() if config.title else None
     embed = discord.Embed(
         title=title,
@@ -80,7 +80,7 @@ def build_view(buttons: tuple[ButtonConfig, ...]) -> View | None:
     view = View(timeout=None)
     for btn in buttons[:25]:
         action = btn.action
-        style = STYLE_MAP.get(btn.style, discord.ButtonStyle.secondary)
+        style = STYLE_MAP[btn.style]
 
         # Persist prompt so the button survives bot restarts
         if action.startswith("agent:"):

@@ -89,7 +89,7 @@ async def discord_embed(args: dict[str, Any]) -> dict[str, Any]:
         return {"content": [{"type": "text", "text": "Error: no active channel"}]}
 
     config = EmbedConfig(
-        title=args.get("title", ""),
+        title=args["title"],
         description=args.get("description"),
         color=args.get("color", "blue"),
         fields=tuple(EmbedField(**f) for f in args.get("fields", [])),

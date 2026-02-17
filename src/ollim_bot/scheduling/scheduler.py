@@ -188,8 +188,6 @@ def _register_reminder(
         _registered_reminders.discard(reminder.id)
 
     run_at = datetime.fromisoformat(reminder.run_at)
-    if run_at.tzinfo is None:
-        run_at = run_at.replace(tzinfo=TZ)
     now = datetime.now(TZ)
     if run_at < now:
         run_at = now + timedelta(seconds=5)
