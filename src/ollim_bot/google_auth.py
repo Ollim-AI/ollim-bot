@@ -9,6 +9,7 @@ from pathlib import Path
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
+from googleapiclient.discovery import Resource
 from googleapiclient.discovery import build as _build
 
 SCOPES = [
@@ -50,6 +51,6 @@ def get_credentials() -> Credentials:
     return creds
 
 
-def get_service(api: str, version: str):
+def get_service(api: str, version: str) -> Resource:
     """Build a Google API service client (e.g. get_service("tasks", "v1"))."""
     return _build(api, version, credentials=get_credentials())

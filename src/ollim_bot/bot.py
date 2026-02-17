@@ -2,6 +2,7 @@
 
 import base64
 import contextlib
+from typing import Literal
 
 import discord
 from discord.ext import commands
@@ -14,14 +15,16 @@ from ollim_bot.streamer import stream_to_channel
 from ollim_bot.views import ActionButton
 from ollim_bot.views import init as init_views
 
-_MAGIC = [
+_ImageMime = Literal["image/jpeg", "image/png", "image/gif", "image/webp"]
+
+_MAGIC: list[tuple[bytes, _ImageMime]] = [
     (b"\xff\xd8\xff", "image/jpeg"),
     (b"\x89PNG\r\n\x1a\n", "image/png"),
     (b"GIF8", "image/gif"),
 ]
 
 
-def _detect_image_type(data: bytes) -> str | None:
+def _detect_image_type(data: bytes) -> _ImageMime | None:
     """Sniff image type from magic bytes (Discord's content_type can lie)."""
     for magic, mime in _MAGIC:
         if data[: len(magic)] == magic:
