@@ -1,8 +1,8 @@
 """Tests for scheduler.py prompt-building and cron conversion."""
 
-from ollim_bot.reminders import Reminder
-from ollim_bot.routines import Routine
-from ollim_bot.scheduler import (
+from ollim_bot.scheduling.reminders import Reminder
+from ollim_bot.scheduling.routines import Routine
+from ollim_bot.scheduling.scheduler import (
     _build_reminder_prompt,
     _build_routine_prompt,
     _convert_dow,

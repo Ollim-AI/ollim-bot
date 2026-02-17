@@ -3,8 +3,8 @@
 import io
 import sys
 
-from ollim_bot.reminder_cmd import run_reminder_command
-from ollim_bot.routine_cmd import run_routine_command
+from ollim_bot.scheduling.reminder_cmd import run_reminder_command
+from ollim_bot.scheduling.routine_cmd import run_routine_command
 
 
 def _capture_stdout(fn, *args):

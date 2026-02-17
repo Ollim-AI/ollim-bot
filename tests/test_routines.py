@@ -1,6 +1,11 @@
 """Tests for routines.py — Routine dataclass and CRUD."""
 
-from ollim_bot.routines import Routine, append_routine, list_routines, remove_routine
+from ollim_bot.scheduling.routines import (
+    Routine,
+    append_routine,
+    list_routines,
+    remove_routine,
+)
 
 
 def test_routine_new_generates_id():

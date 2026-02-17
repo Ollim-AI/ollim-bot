@@ -7,8 +7,8 @@ import pytest
 def data_dir(tmp_path, monkeypatch):
     """Redirect all data file paths to a temp directory."""
     import ollim_bot.inquiries as inquiries_mod
-    import ollim_bot.reminders as reminders_mod
-    import ollim_bot.routines as routines_mod
+    import ollim_bot.scheduling.reminders as reminders_mod
+    import ollim_bot.scheduling.routines as routines_mod
     import ollim_bot.storage as storage_mod
 
     monkeypatch.setattr(storage_mod, "DATA_DIR", tmp_path)

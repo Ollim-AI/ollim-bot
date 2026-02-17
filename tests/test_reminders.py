@@ -4,7 +4,7 @@ from datetime import datetime
 
 import pytest
 
-from ollim_bot.reminders import (
+from ollim_bot.scheduling.reminders import (
     Reminder,
     append_reminder,
     list_reminders,
