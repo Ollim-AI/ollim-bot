@@ -31,6 +31,12 @@ _BG_PREAMBLE = (
     "Your text output will be discarded. Use `ping_user` (MCP tool) to send "
     "a plain text alert, or `discord_embed` for structured data. Only alert "
     "if something genuinely warrants attention.\n\n"
+    "This runs on a forked session -- by default everything is discarded.\n"
+    "- Call `report_updates(message)` to pass a short summary to the main "
+    "session (fork discarded).\n"
+    "- Call `save_context` only if this check produced heavy context worth "
+    "preserving entirely.\n"
+    "- Call neither if nothing useful happened.\n\n"
 )
 
 _registered_routines: set[str] = set()

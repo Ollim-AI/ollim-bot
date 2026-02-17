@@ -1,11 +1,16 @@
-"""Tests for discord_tools.py — chain context and follow_up_chain tool."""
+"""Tests for discord_tools.py — chain context, follow_up_chain, fork tools."""
 
 import asyncio
 
 from ollim_bot.discord_tools import (
     ChainContext,
     follow_up_chain,
+    pop_fork_saved,
+    pop_pending_updates,
+    report_updates,
+    save_context,
     set_chain_context,
+    set_in_fork,
 )
 
 # @tool decorator wraps the function in SdkMcpTool; .handler is the raw async fn
@@ -72,3 +77,102 @@ def test_set_chain_context_roundtrip():
 
     result = _run(_follow_up({"minutes_from_now": 10}))
     assert "no active reminder context" in result["content"][0]["text"]
+
+
+# --- save_context tests ---
+
+_save_ctx = save_context.handler
+
+
+def test_save_context_not_in_fork():
+    set_in_fork(False)
+
+    result = _run(_save_ctx({}))
+
+    assert "Error" in result["content"][0]["text"]
+    assert "not in a forked background session" in result["content"][0]["text"]
+
+
+def test_save_context_sets_flag():
+    set_in_fork(True)
+
+    _run(_save_ctx({}))
+
+    assert pop_fork_saved() is True
+    set_in_fork(False)
+
+
+def test_fork_saved_cleared_after_pop():
+    set_in_fork(True)
+    _run(_save_ctx({}))
+    pop_fork_saved()
+
+    assert pop_fork_saved() is False
+    set_in_fork(False)
+
+
+def test_set_in_fork_resets_saved():
+    set_in_fork(True)
+    _run(_save_ctx({}))
+
+    set_in_fork(True)  # re-entering fork resets the saved flag
+
+    assert pop_fork_saved() is False
+    set_in_fork(False)
+
+
+# --- report_updates tests ---
+
+_report = report_updates.handler
+
+
+def test_report_updates_not_in_fork():
+    set_in_fork(False)
+
+    result = _run(_report({"message": "test"}))
+
+    assert "Error" in result["content"][0]["text"]
+    assert "not in a forked background session" in result["content"][0]["text"]
+
+
+def test_report_updates_appends_to_file():
+    pop_pending_updates()  # clear any stale state
+    set_in_fork(True)
+
+    _run(_report({"message": "Found 2 actionable emails"}))
+
+    updates = pop_pending_updates()
+    assert updates == ["Found 2 actionable emails"]
+    set_in_fork(False)
+
+
+def test_report_updates_does_not_save_fork():
+    set_in_fork(True)
+
+    _run(_report({"message": "minor update"}))
+
+    assert pop_fork_saved() is False
+    pop_pending_updates()  # cleanup
+    set_in_fork(False)
+
+
+def test_pop_pending_updates_clears_file():
+    pop_pending_updates()  # clear stale state
+    set_in_fork(True)
+    _run(_report({"message": "update"}))
+    pop_pending_updates()  # first pop clears
+
+    assert pop_pending_updates() == []
+    set_in_fork(False)
+
+
+def test_multiple_updates_accumulate():
+    pop_pending_updates()  # clear stale state
+    set_in_fork(True)
+
+    _run(_report({"message": "first finding"}))
+    _run(_report({"message": "second finding"}))
+
+    updates = pop_pending_updates()
+    assert updates == ["first finding", "second finding"]
+    set_in_fork(False)

@@ -133,8 +133,9 @@ async def run_agent_background(
     *,
     skip_if_busy: bool,
 ) -> None:
-    """Run agent silently -- output discarded, tools (ping_user/discord_embed) break through."""
-    from ollim_bot.discord_tools import set_channel
+    """Run agent on a forked session -- discard fork unless save_context is called."""
+    from ollim_bot.discord_tools import pop_fork_saved, set_channel, set_in_fork
+    from ollim_bot.sessions import save_session_id
 
     dm = await owner.create_dm()
 
@@ -143,5 +144,19 @@ async def run_agent_background(
 
     async with agent.lock(user_id):
         set_channel(dm)
-        async for _ in agent.stream_chat(prompt, user_id):
-            pass  # output discarded -- agent uses tools to alert
+        set_in_fork(True)
+
+        forked_session_id: str | None = None
+        client = await agent.create_forked_client(user_id)
+        try:
+            forked_session_id = await agent.run_on_client(client, prompt)
+        finally:
+            set_in_fork(False)
+            if forked_session_id is None:
+                pop_fork_saved()  # clear leaked flag on error
+            with contextlib.suppress(Exception):
+                await client.disconnect()
+
+        if pop_fork_saved():
+            save_session_id(user_id, forked_session_id)
+            await agent.drop_client(user_id)
