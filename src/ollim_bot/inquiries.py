@@ -5,7 +5,14 @@ import os
 import tempfile
 import time
 from pathlib import Path
+from typing import TypedDict
 from uuid import uuid4
+
+
+class _InquiryEntry(TypedDict):
+    prompt: str
+    ts: float
+
 
 INQUIRIES_FILE = Path.home() / ".ollim-bot" / "inquiries.json"
 MAX_AGE = 7 * 24 * 3600  # 7 days
@@ -30,7 +37,7 @@ def pop(uid: str) -> str | None:
     return entry["prompt"]
 
 
-def _read() -> dict:
+def _read() -> dict[str, _InquiryEntry]:
     if not INQUIRIES_FILE.exists():
         return {}
     data = json.loads(INQUIRIES_FILE.read_text())
@@ -38,7 +45,7 @@ def _read() -> dict:
     return {k: v for k, v in data.items() if v.get("ts", 0) > cutoff}
 
 
-def _write(data: dict) -> None:
+def _write(data: dict[str, _InquiryEntry]) -> None:
     INQUIRIES_FILE.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=INQUIRIES_FILE.parent, suffix=".tmp")
     os.write(fd, json.dumps(data).encode())

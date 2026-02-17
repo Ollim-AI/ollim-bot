@@ -5,7 +5,10 @@ Routines use CronTrigger, reminders use DateTrigger (one-shot, auto-removed).
 Chain reminders inject chain context so the agent can call follow_up_chain.
 """
 
+from __future__ import annotations
+
 from datetime import datetime, timedelta
+from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo
 
 import discord
@@ -18,6 +21,9 @@ from ollim_bot.discord_tools import ChainContext, set_chain_context
 from ollim_bot.reminders import Reminder, list_reminders, remove_reminder
 from ollim_bot.routines import Routine, list_routines
 from ollim_bot.streamer import _resolve_owner_id, run_agent_background, send_agent_dm
+
+if TYPE_CHECKING:
+    from ollim_bot.agent import Agent
 
 TZ = ZoneInfo("America/Los_Angeles")
 
@@ -52,6 +58,9 @@ def _convert_dow(dow: str) -> str:
     parts = dow.split(",")
     converted = []
     for part in parts:
+        if "/" not in part and "-" not in part:
+            converted.append(_CRON_DOW.get(part, part))
+            continue
         if "/" in part:
             range_part, step = part.split("/", 1)
             if "-" in range_part:
@@ -59,11 +68,9 @@ def _convert_dow(dow: str) -> str:
                 converted.append(f"{_CRON_DOW.get(a, a)}-{_CRON_DOW.get(b, b)}/{step}")
             else:
                 converted.append(f"{_CRON_DOW.get(range_part, range_part)}/{step}")
-        elif "-" in part:
-            a, b = part.split("-", 1)
-            converted.append(f"{_CRON_DOW.get(a, a)}-{_CRON_DOW.get(b, b)}")
-        else:
-            converted.append(_CRON_DOW.get(part, part))
+            continue
+        a, b = part.split("-", 1)
+        converted.append(f"{_CRON_DOW.get(a, a)}-{_CRON_DOW.get(b, b)}")
     return ",".join(converted)
 
 
@@ -108,7 +115,7 @@ def _build_reminder_prompt(reminder: Reminder) -> str:
 
 
 def _register_routine(
-    scheduler: AsyncIOScheduler, bot: discord.Client, agent, routine: Routine
+    scheduler: AsyncIOScheduler, bot: discord.Client, agent: Agent, routine: Routine
 ) -> None:
     if routine.id in _registered_routines:
         return
@@ -140,7 +147,7 @@ def _register_routine(
 
 
 def _register_reminder(
-    scheduler: AsyncIOScheduler, bot: discord.Client, agent, reminder: Reminder
+    scheduler: AsyncIOScheduler, bot: discord.Client, agent: Agent, reminder: Reminder
 ) -> None:
     if reminder.id in _registered_reminders:
         return
@@ -187,7 +194,7 @@ def _register_reminder(
     )
 
 
-def setup_scheduler(bot: discord.Client, agent) -> AsyncIOScheduler:
+def setup_scheduler(bot: discord.Client, agent: Agent) -> AsyncIOScheduler:
     """Create scheduler and register routines + reminders."""
     scheduler = AsyncIOScheduler(timezone="America/Los_Angeles")
 

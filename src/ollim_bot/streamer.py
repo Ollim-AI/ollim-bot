@@ -109,7 +109,9 @@ async def _resolve_owner_id(bot: discord.Client) -> str:
     return _owner_id
 
 
-async def send_agent_dm(bot: discord.Client, agent: Agent, user_id: str, prompt: str):
+async def send_agent_dm(
+    bot: discord.Client, agent: Agent, user_id: str, prompt: str
+) -> None:
     """Inject a prompt into the agent session and stream the response as a DM."""
     from ollim_bot.discord_tools import set_channel
 
@@ -131,7 +133,7 @@ async def run_agent_background(
     prompt: str,
     *,
     skip_if_busy: bool,
-):
+) -> None:
     """Run agent silently -- output discarded, tools (ping_user/discord_embed) break through."""
     from ollim_bot.discord_tools import set_channel
 

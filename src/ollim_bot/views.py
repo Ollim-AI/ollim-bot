@@ -1,7 +1,10 @@
 """Discord UI views and persistent button handlers."""
 
+from __future__ import annotations
+
 import asyncio
 import re
+from typing import TYPE_CHECKING
 
 import discord
 from discord.ui import Button, DynamicItem, View
@@ -12,8 +15,11 @@ from ollim_bot.embed_types import ButtonConfig, EmbedConfig
 from ollim_bot.google_auth import get_service
 from ollim_bot.streamer import stream_to_channel
 
+if TYPE_CHECKING:
+    from ollim_bot.agent import Agent
+
 # Module-level references, set by bot.py on startup via init()
-_agent = None
+_agent: Agent | None = None
 
 STYLE_MAP = {
     "primary": discord.ButtonStyle.primary,
@@ -31,7 +37,7 @@ COLOR_MAP = {
 }
 
 
-def init(agent) -> None:
+def init(agent: Agent) -> None:
     """Store agent reference for button callbacks. Call from bot.py on_ready."""
     global _agent
     _agent = agent
@@ -93,13 +99,18 @@ class ActionButton(
         self.data: str = ""
 
     @classmethod
-    async def from_custom_id(cls, interaction, item, match):
+    async def from_custom_id(
+        cls,
+        interaction: discord.Interaction,
+        item: Button,
+        match: re.Match[str],
+    ) -> ActionButton:
         inst = cls(item)
         inst.action = match.group("action")
         inst.data = match.group("data")
         return inst
 
-    async def callback(self, interaction: discord.Interaction):
+    async def callback(self, interaction: discord.Interaction) -> None:
         handlers = {
             "task_done": _handle_task_done,
             "task_del": _handle_task_delete,
@@ -135,22 +146,24 @@ def _delete_event(event_id: str) -> None:
     ).execute()
 
 
-async def _handle_task_done(interaction: discord.Interaction, task_id: str):
+async def _handle_task_done(interaction: discord.Interaction, task_id: str) -> None:
     await asyncio.to_thread(_complete_task, task_id)
     await interaction.response.send_message("done ✓", ephemeral=True)
 
 
-async def _handle_task_delete(interaction: discord.Interaction, task_id: str):
+async def _handle_task_delete(interaction: discord.Interaction, task_id: str) -> None:
     await asyncio.to_thread(_delete_task, task_id)
     await interaction.response.send_message("deleted", ephemeral=True)
 
 
-async def _handle_event_delete(interaction: discord.Interaction, event_id: str):
+async def _handle_event_delete(interaction: discord.Interaction, event_id: str) -> None:
     await asyncio.to_thread(_delete_event, event_id)
     await interaction.response.send_message("deleted", ephemeral=True)
 
 
-async def _handle_agent_inquiry(interaction: discord.Interaction, inquiry_id: str):
+async def _handle_agent_inquiry(
+    interaction: discord.Interaction, inquiry_id: str
+) -> None:
     prompt = inquiries.pop(inquiry_id)
     if not prompt:
         await interaction.response.send_message(
@@ -169,5 +182,5 @@ async def _handle_agent_inquiry(interaction: discord.Interaction, inquiry_id: st
         )
 
 
-async def _handle_dismiss(interaction: discord.Interaction, _data: str):
+async def _handle_dismiss(interaction: discord.Interaction, _data: str) -> None:
     await interaction.message.delete()

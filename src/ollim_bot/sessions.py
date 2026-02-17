@@ -20,18 +20,16 @@ def save_session_id(user_id: str, session_id: str) -> None:
 
 def delete_session_id(user_id: str) -> None:
     """Remove a persisted session ID."""
-    data = _read()
-    data.pop(user_id, None)
-    _write(data)
+    _write({k: v for k, v in _read().items() if k != user_id})
 
 
-def _read() -> dict:
+def _read() -> dict[str, str]:
     if not SESSIONS_FILE.exists():
         return {}
     return json.loads(SESSIONS_FILE.read_text())
 
 
-def _write(data: dict) -> None:
+def _write(data: dict[str, str]) -> None:
     SESSIONS_FILE.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=SESSIONS_FILE.parent, suffix=".tmp")
     os.write(fd, json.dumps(data).encode())
