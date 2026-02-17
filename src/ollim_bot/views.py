@@ -12,7 +12,7 @@ from discord.ui import Button, DynamicItem, View
 from ollim_bot import inquiries
 from ollim_bot.discord_tools import set_channel
 from ollim_bot.embed_types import ButtonConfig, EmbedConfig
-from ollim_bot.google_auth import get_service
+from ollim_bot.google import get_service
 from ollim_bot.streamer import stream_to_channel
 
 if TYPE_CHECKING:

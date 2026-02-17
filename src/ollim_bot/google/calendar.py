@@ -5,7 +5,7 @@ import sys
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from ollim_bot.google_auth import get_service
+from ollim_bot.google.auth import get_service
 
 TZ = ZoneInfo("America/Los_Angeles")
 

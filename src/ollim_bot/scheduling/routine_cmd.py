@@ -3,7 +3,12 @@
 import argparse
 import sys
 
-from ollim_bot.routines import Routine, append_routine, list_routines, remove_routine
+from ollim_bot.scheduling.routines import (
+    Routine,
+    append_routine,
+    list_routines,
+    remove_routine,
+)
 
 
 def _fmt_schedule(r: Routine) -> str:

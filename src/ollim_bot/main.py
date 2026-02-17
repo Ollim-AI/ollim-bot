@@ -63,31 +63,31 @@ def main():
         return
 
     if len(sys.argv) > 1 and sys.argv[1] == "routine":
-        from ollim_bot.routine_cmd import run_routine_command
+        from ollim_bot.scheduling.routine_cmd import run_routine_command
 
         run_routine_command(sys.argv[2:])
         return
 
     if len(sys.argv) > 1 and sys.argv[1] == "reminder":
-        from ollim_bot.reminder_cmd import run_reminder_command
+        from ollim_bot.scheduling.reminder_cmd import run_reminder_command
 
         run_reminder_command(sys.argv[2:])
         return
 
     if len(sys.argv) > 1 and sys.argv[1] == "tasks":
-        from ollim_bot.tasks_cmd import run_tasks_command
+        from ollim_bot.google.tasks import run_tasks_command
 
         run_tasks_command(sys.argv[2:])
         return
 
     if len(sys.argv) > 1 and sys.argv[1] == "cal":
-        from ollim_bot.calendar_cmd import run_calendar_command
+        from ollim_bot.google.calendar import run_calendar_command
 
         run_calendar_command(sys.argv[2:])
         return
 
     if len(sys.argv) > 1 and sys.argv[1] == "gmail":
-        from ollim_bot.gmail_cmd import run_gmail_command
+        from ollim_bot.google.gmail import run_gmail_command
 
         run_gmail_command(sys.argv[2:])
         return
