@@ -158,7 +158,7 @@ def _register_reminder(
     async def fire_oneshot():
         uid = await _resolve_owner_id(bot)
 
-        # Set chain context if this is a chain reminder (not at max depth)
+        # follow_up_chain MCP tool reads this to schedule the next link
         if reminder.max_chain > 0 and reminder.chain_depth < reminder.max_chain:
             set_chain_context(
                 ChainContext(
@@ -195,12 +195,11 @@ def _register_reminder(
 
 
 def setup_scheduler(bot: discord.Client, agent: Agent) -> AsyncIOScheduler:
-    """Create scheduler and register routines + reminders."""
+    """Polls routines/reminders every 10s, registering new and pruning stale jobs."""
     scheduler = AsyncIOScheduler(timezone="America/Los_Angeles")
 
     @scheduler.scheduled_job(IntervalTrigger(seconds=10))
     async def sync_all():
-        # Routines
         current_routines = list_routines()
         current_routine_ids = {r.id for r in current_routines}
         for routine in current_routines:
@@ -211,7 +210,6 @@ def setup_scheduler(bot: discord.Client, agent: Agent) -> AsyncIOScheduler:
                 job.remove()
             _registered_routines.discard(stale_id)
 
-        # Reminders
         current_reminders = list_reminders()
         current_reminder_ids = {r.id for r in current_reminders}
         for reminder in current_reminders:

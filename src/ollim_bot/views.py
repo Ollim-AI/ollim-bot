@@ -49,7 +49,7 @@ _EMOJI_RE = re.compile(
 
 
 def build_embed(config: EmbedConfig) -> discord.Embed:
-    """Build a discord.Embed from an EmbedConfig."""
+    """Strips emoji from the title to keep Discord embed headings clean."""
     color = COLOR_MAP.get(config.color, discord.Color.blue())
     title = _EMOJI_RE.sub("", config.title).strip() if config.title else None
     embed = discord.Embed(
@@ -63,7 +63,10 @@ def build_embed(config: EmbedConfig) -> discord.Embed:
 
 
 def build_view(buttons: list[ButtonConfig]) -> View | None:
-    """Build a persistent View from button configs."""
+    """Returns None when empty; caps at 25 buttons (Discord limit).
+
+    ``agent:`` actions persist their prompt via inquiries so buttons survive restarts.
+    """
     if not buttons:
         return None
     view = View(timeout=None)
@@ -71,7 +74,7 @@ def build_view(buttons: list[ButtonConfig]) -> View | None:
         action = btn.action
         style = STYLE_MAP.get(btn.style, discord.ButtonStyle.secondary)
 
-        # For agent inquiry, store the prompt and replace with uuid
+        # Persist prompt so the button survives bot restarts
         if action.startswith("agent:"):
             uid = inquiries.register(action[6:])
             custom_id = f"act:agent:{uid}"

@@ -39,8 +39,6 @@ def _timestamp() -> str:
 
 
 class Agent:
-    """Claude Agent SDK wrapper with persistent per-user sessions."""
-
     def __init__(self):
         self.options = ClaudeAgentOptions(
             cwd=SESSIONS_FILE.parent,
@@ -96,7 +94,6 @@ class Agent:
         return self._locks[user_id]
 
     async def interrupt(self, user_id: str) -> None:
-        """Interrupt the current response for a user."""
         client = self._clients.get(user_id)
         if client:
             await client.interrupt()
@@ -123,7 +120,7 @@ class Agent:
             await client.disconnect()
 
     async def slash(self, user_id: str, command: str) -> str:
-        """Send a slash command to the SDK and return the result."""
+        """Fallback priority: SystemMessage parts > AssistantMessage text > ResultMessage.result > cost > "done."."""
         client = await self._get_client(user_id)
         await client.query(command)
 
@@ -173,7 +170,11 @@ class Agent:
         *,
         images: list[dict[str, str]] | None = None,
     ) -> AsyncGenerator[str, None]:
-        """Yield text deltas as they stream in from Claude."""
+        """Yield text deltas, emitting ``-# *using {name}*`` markers on tool use.
+
+        Falls back to AssistantMessage text blocks if no StreamEvent arrives,
+        then to ResultMessage.result. Saves session ID on completion.
+        """
         message = f"{_timestamp()} {message}" if message else _timestamp()
         client = await self._get_client(user_id)
 
@@ -249,6 +250,11 @@ class Agent:
                 yield result_text
 
     async def chat(self, message: str, user_id: str) -> str:
+        """Non-streaming counterpart of stream_chat; accumulates full response.
+
+        Falls back to ResultMessage.result when no AssistantMessage text blocks
+        are found.
+        """
         message = f"{_timestamp()} {message}" if message else _timestamp()
         client = await self._get_client(user_id)
         await client.query(message)

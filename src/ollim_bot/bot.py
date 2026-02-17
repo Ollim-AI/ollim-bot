@@ -35,6 +35,12 @@ def _detect_image_type(data: bytes) -> _ImageMime | None:
 
 
 def create_bot() -> commands.Bot:
+    """Wire up a Bot that responds to DMs and @mentions only.
+
+    Startup sequence (on_ready): register persistent button views, sync slash
+    commands, start the APScheduler, and DM the bot owner. Image attachments
+    are sniffed by magic bytes rather than Discord's unreliable content_type.
+    """
     intents = discord.Intents.default()
     intents.message_content = True
 
@@ -96,20 +102,16 @@ def create_bot() -> commands.Bot:
             return
         _ready_fired = True
 
-        # Register persistent views and set up button callbacks
         init_views(agent)
         bot.add_dynamic_items(ActionButton)
 
-        # Sync slash commands with Discord
         synced = await bot.tree.sync()
         print(f"synced {len(synced)} slash commands")
 
-        # Start the scheduler
         scheduler = setup_scheduler(bot, agent)
         scheduler.start()
         print(f"scheduler started: {len(scheduler.get_jobs())} jobs")
 
-        # DM the bot owner on startup
         app_info = await bot.application_info()
         owner = app_info.owner
         if owner:
@@ -127,7 +129,6 @@ def create_bot() -> commands.Bot:
         if message.author.bot:
             return
 
-        # Respond to DMs or mentions in a channel
         is_dm = isinstance(message.channel, discord.DMChannel)
         is_mentioned = bot.user in message.mentions if bot.user else False
 
@@ -155,10 +156,9 @@ def create_bot() -> commands.Bot:
 
         user_id = str(message.author.id)
 
-        # Acknowledge immediately
         await message.add_reaction("\N{EYES}")
 
-        # Interrupt if bot is already responding to this user
+        # New message should preempt any in-flight response
         if agent.lock(user_id).locked():
             await agent.interrupt(user_id)
 

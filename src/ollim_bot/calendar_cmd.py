@@ -62,14 +62,18 @@ def _handle_events(days: int) -> None:
     page_token = None
 
     while True:
-        result = service.events().list(
-            calendarId="primary",
-            timeMin=time_min.isoformat(),
-            timeMax=time_max.isoformat(),
-            singleEvents=True,
-            orderBy="startTime",
-            pageToken=page_token,
-        ).execute()
+        result = (
+            service.events()
+            .list(
+                calendarId="primary",
+                timeMin=time_min.isoformat(),
+                timeMax=time_max.isoformat(),
+                singleEvents=True,
+                orderBy="startTime",
+                pageToken=page_token,
+            )
+            .execute()
+        )
         events.extend(result.get("items", []))
         page_token = result.get("nextPageToken")
         if not page_token:
@@ -93,7 +97,6 @@ def _fmt_event(event: dict) -> str:
         e = datetime.fromisoformat(end["dateTime"]) if "dateTime" in end else s
         return f"{s.strftime('%Y-%m-%d')}  {s.strftime('%H:%M')}-{e.strftime('%H:%M')}  {summary}"
 
-    # All-day event
     date = start.get("date", "????-??-??")
     return f"{date}  (all-day)     {summary}"
 

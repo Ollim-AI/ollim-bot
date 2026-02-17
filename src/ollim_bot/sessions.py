@@ -9,7 +9,6 @@ SESSIONS_FILE = Path.home() / ".ollim-bot" / "sessions.json"
 
 
 def load_session_id(user_id: str) -> str | None:
-    """Load persisted session ID for a user."""
     return _read().get(user_id)
 
 
@@ -19,7 +18,6 @@ def save_session_id(user_id: str, session_id: str) -> None:
 
 
 def delete_session_id(user_id: str) -> None:
-    """Remove a persisted session ID."""
     _write({k: v for k, v in _read().items() if k != user_id})
 
 
