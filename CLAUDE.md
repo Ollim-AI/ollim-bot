@@ -7,16 +7,16 @@ ADHD-friendly Discord bot with proactive reminders, powered by Claude.
 - `agent.py` -- Claude Agent SDK brain (persistent sessions, MCP tools, subagents, slash command routing)
 - `prompts.py` -- System prompts for agent and subagents (extracted from agent.py)
 - `discord_tools.py` -- MCP tools: `discord_embed`, `ping_user`, `follow_up_chain` (chain reminders)
-- `views.py` -- Button handlers via `DynamicItem` (task_done, task_del, event_del, agent inquiry)
+- `views.py` -- Persistent button handlers via `DynamicItem` (delegates to google/ and streamer)
 - `storage.py` -- Shared JSONL I/O with git auto-commit (`~/.ollim-bot/` data repo)
-- `streamer.py` -- Streams agent responses to Discord (throttled edits, 2000-char overflow)
+- `streamer.py` -- Streams agent responses to Discord (throttled edits, 2000-char overflow, `dispatch_agent_response`)
 - `sessions.py` -- Persists Agent SDK session IDs for conversation resumption across restarts
-- `embeds.py` -- Embed/button types, builders, and maps (shared by discord_tools and views)
+- `embeds.py` -- Embed/button types, builders, maps, and `build_embed`/`build_view` (shared by discord_tools and views)
 - `inquiries.py` -- Persists button inquiry prompts to `~/.ollim-bot/inquiries.json` (7-day TTL)
 - `google/` -- Google API integration sub-package
   - `auth.py` -- Shared Google OAuth2 (Tasks + Calendar + Gmail)
-  - `tasks.py` -- Google Tasks CLI (`ollim-bot tasks`)
-  - `calendar.py` -- Google Calendar CLI (`ollim-bot cal`)
+  - `tasks.py` -- Google Tasks CLI + API helpers (`complete_task`, `delete_task`)
+  - `calendar.py` -- Google Calendar CLI + API helpers (`delete_event`)
   - `gmail.py` -- Gmail CLI (`ollim-bot gmail`, read-only)
 - `scheduling/` -- Routines, reminders, and APScheduler sub-package
   - `routines.py` -- Routine dataclass and JSONL I/O (recurring crons, `routines.jsonl`)
@@ -52,8 +52,9 @@ ADHD-friendly Discord bot with proactive reminders, powered by Claude.
 - `discord_embed` MCP tool via `create_sdk_mcp_server` — Claude controls when to send embeds
 - Channel reference stored in module-level `_channel` (discord_tools.py), set before each stream_chat()
 - Button actions encoded in `custom_id`: `act:<action>:<data>` pattern
-- Direct actions (task_done, task_del, event_del): call Google API directly, ephemeral response
-- Agent inquiry (agent:<uuid>): stored prompts, route back through agent.stream_chat()
+- Direct actions (task_done, task_del, event_del): call google/ API helpers directly, ephemeral response
+- Agent inquiry (agent:<uuid>): stored prompts, route back through `dispatch_agent_response()`
+- `dispatch_agent_response()` in streamer.py: set_channel → typing → stream (used by bot.py and views.py)
 - `DynamicItem[Button]` for persistent buttons across restarts
 - Inquiry prompts persisted to `~/.ollim-bot/inquiries.json` (survive restarts, 7-day TTL)
 
@@ -68,6 +69,7 @@ ADHD-friendly Discord bot with proactive reminders, powered by Claude.
 - Reminders (one-shot, chainable): `~/.ollim-bot/reminders.jsonl`
 - `~/.ollim-bot/` is a git repo; `storage.py` auto-commits on every add/remove
 - Scheduler polls both files every 10s, registers/removes APScheduler jobs
+- Scheduler and streamer receive `owner: discord.User` (resolved once in bot.py `on_ready`)
 - Cron day-of-week: standard cron (0=Sun) converted to APScheduler names via `_convert_dow()`
 - Routines managed by Julius via `ollim-bot routine add|list|cancel`
 - Reminders created by user or bot via `ollim-bot reminder add|list|cancel`
