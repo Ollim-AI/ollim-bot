@@ -7,7 +7,6 @@ from typing import Any
 from claude_agent_sdk import create_sdk_mcp_server, tool
 
 from ollim_bot.embed_types import ButtonConfig, EmbedConfig, EmbedField
-from ollim_bot.views import build_embed, build_view
 
 # Module-level channel reference, set by bot.py before each stream_chat().
 # Safe because the per-user lock serializes access (single-user bot).
@@ -90,6 +89,8 @@ async def discord_embed(args: dict[str, Any]) -> dict[str, Any]:
         fields=[EmbedField(**f) for f in args.get("fields", [])],
         buttons=[ButtonConfig(**b) for b in args.get("buttons", [])],
     )
+    from ollim_bot.views import build_embed, build_view
+
     embed = build_embed(config)
     view = build_view(config.buttons)
     await channel.send(embed=embed, view=view)
