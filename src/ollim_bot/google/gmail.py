@@ -7,7 +7,7 @@ import sys
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from ollim_bot.google_auth import get_service
+from ollim_bot.google.auth import get_service
 
 TZ = ZoneInfo("America/Los_Angeles")
 
@@ -21,14 +21,18 @@ def run_gmail_command(argv: list[str]) -> None:
     sub = parser.add_subparsers(dest="action")
 
     unread_p = sub.add_parser("unread", help="List unread emails")
-    unread_p.add_argument("--max", type=int, default=20, help="Max results (default 20)")
+    unread_p.add_argument(
+        "--max", type=int, default=20, help="Max results (default 20)"
+    )
 
     read_p = sub.add_parser("read", help="Read an email by ID")
     read_p.add_argument("id", help="Message ID")
 
     search_p = sub.add_parser("search", help="Search emails")
     search_p.add_argument("query", help="Gmail search query")
-    search_p.add_argument("--max", type=int, default=20, help="Max results (default 20)")
+    search_p.add_argument(
+        "--max", type=int, default=20, help="Max results (default 20)"
+    )
 
     sub.add_parser("labels", help="List labels")
 
@@ -49,9 +53,16 @@ def run_gmail_command(argv: list[str]) -> None:
 
 def _handle_list(query: str, max_results: int) -> None:
     service = _get_gmail_service()
-    result = service.users().messages().list(
-        userId="me", q=query, maxResults=max_results,
-    ).execute()
+    result = (
+        service.users()
+        .messages()
+        .list(
+            userId="me",
+            q=query,
+            maxResults=max_results,
+        )
+        .execute()
+    )
 
     messages = result.get("messages", [])
     if not messages:
@@ -59,10 +70,17 @@ def _handle_list(query: str, max_results: int) -> None:
         return
 
     for msg_stub in messages:
-        msg = service.users().messages().get(
-            userId="me", id=msg_stub["id"], format="metadata",
-            metadataHeaders=["From", "Subject"],
-        ).execute()
+        msg = (
+            service.users()
+            .messages()
+            .get(
+                userId="me",
+                id=msg_stub["id"],
+                format="metadata",
+                metadataHeaders=["From", "Subject"],
+            )
+            .execute()
+        )
         headers = {h["name"]: h["value"] for h in msg["payload"].get("headers", [])}
         sender = _short_sender(headers.get("From", "(unknown)"))
         subject = headers.get("Subject", "(no subject)")
@@ -90,7 +108,9 @@ def _decode_body(payload: dict, mime_type: str) -> str:
     mime = payload.get("mimeType", "")
 
     if mime == mime_type and payload.get("body", {}).get("data"):
-        return base64.urlsafe_b64decode(payload["body"]["data"]).decode("utf-8", errors="replace")
+        return base64.urlsafe_b64decode(payload["body"]["data"]).decode(
+            "utf-8", errors="replace"
+        )
 
     for part in payload.get("parts", []):
         text = _decode_body(part, mime_type)
@@ -121,9 +141,16 @@ def _extract_text_body(payload: dict) -> str:
 
 def _handle_read(msg_id: str) -> None:
     service = _get_gmail_service()
-    msg = service.users().messages().get(
-        userId="me", id=msg_id, format="full",
-    ).execute()
+    msg = (
+        service.users()
+        .messages()
+        .get(
+            userId="me",
+            id=msg_id,
+            format="full",
+        )
+        .execute()
+    )
 
     headers = {h["name"]: h["value"] for h in msg["payload"].get("headers", [])}
     print(f"from:    {headers.get('From', '(unknown)')}")

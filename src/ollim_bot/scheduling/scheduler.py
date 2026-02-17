@@ -18,8 +18,8 @@ from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
 from ollim_bot.discord_tools import ChainContext, set_chain_context
-from ollim_bot.reminders import Reminder, list_reminders, remove_reminder
-from ollim_bot.routines import Routine, list_routines
+from ollim_bot.scheduling.reminders import Reminder, list_reminders, remove_reminder
+from ollim_bot.scheduling.routines import Routine, list_routines
 from ollim_bot.streamer import _resolve_owner_id, run_agent_background, send_agent_dm
 
 if TYPE_CHECKING:

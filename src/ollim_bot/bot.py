@@ -9,7 +9,7 @@ from discord.ext import commands
 
 from ollim_bot.agent import Agent
 from ollim_bot.discord_tools import set_channel
-from ollim_bot.scheduler import setup_scheduler
+from ollim_bot.scheduling import setup_scheduler
 from ollim_bot.sessions import load_session_id
 from ollim_bot.streamer import stream_to_channel
 from ollim_bot.views import ActionButton

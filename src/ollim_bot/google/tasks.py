@@ -3,7 +3,7 @@
 import argparse
 import sys
 
-from ollim_bot.google_auth import get_service
+from ollim_bot.google.auth import get_service
 
 
 def _get_tasks_service():
@@ -57,12 +57,16 @@ def _handle_list(args: argparse.Namespace) -> None:
     page_token = None
 
     while True:
-        result = service.tasks().list(
-            tasklist="@default",
-            showCompleted=args.all,
-            showHidden=args.all,
-            pageToken=page_token,
-        ).execute()
+        result = (
+            service.tasks()
+            .list(
+                tasklist="@default",
+                showCompleted=args.all,
+                showHidden=args.all,
+                pageToken=page_token,
+            )
+            .execute()
+        )
         tasks.extend(result.get("items", []))
         page_token = result.get("nextPageToken")
         if not page_token:
@@ -94,7 +98,9 @@ def _handle_add(args: argparse.Namespace) -> None:
 def _handle_done(task_id: str) -> None:
     service = _get_tasks_service()
     service.tasks().patch(
-        tasklist="@default", task=task_id, body={"status": "completed"},
+        tasklist="@default",
+        task=task_id,
+        body={"status": "completed"},
     ).execute()
     print(f"completed {task_id}")
 
@@ -119,6 +125,8 @@ def _handle_update(args: argparse.Namespace) -> None:
 
     service = _get_tasks_service()
     service.tasks().patch(
-        tasklist="@default", task=args.id, body=body,
+        tasklist="@default",
+        task=args.id,
+        body=body,
     ).execute()
     print(f"updated {args.id}")
