@@ -65,6 +65,7 @@ ADHD-friendly Discord bot with proactive reminders, powered by Claude.
 - Reminders (one-shot, chainable): `~/.ollim-bot/reminders.jsonl`
 - `~/.ollim-bot/` is a git repo; `storage.py` auto-commits on every add/remove
 - Scheduler polls both files every 10s, registers/removes APScheduler jobs
+- Cron day-of-week: standard cron (0=Sun) converted to APScheduler names via `_convert_dow()`
 - Routines managed by Julius via `ollim-bot routine add|list|cancel`
 - Reminders created by user or bot via `ollim-bot reminder add|list|cancel`
 - Prompt tags: `[routine:ID]`, `[routine-bg:ID]`, `[reminder:ID]`, `[reminder-bg:ID]`

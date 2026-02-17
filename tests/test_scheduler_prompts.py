@@ -1,8 +1,12 @@
-"""Tests for scheduler.py prompt-building functions."""
+"""Tests for scheduler.py prompt-building and cron conversion."""
 
 from ollim_bot.reminders import Reminder
 from ollim_bot.routines import Routine
-from ollim_bot.scheduler import _build_reminder_prompt, _build_routine_prompt
+from ollim_bot.scheduler import (
+    _build_reminder_prompt,
+    _build_routine_prompt,
+    _convert_dow,
+)
 
 
 def test_routine_prompt_foreground():
@@ -99,3 +103,31 @@ def test_reminder_prompt_chain_first():
 
     assert "check 1 of 3" in prompt
     assert "follow_up_chain" in prompt
+
+
+def test_convert_dow_weekdays():
+    assert _convert_dow("1-5") == "mon-fri"
+
+
+def test_convert_dow_star():
+    assert _convert_dow("*") == "*"
+
+
+def test_convert_dow_star_step():
+    assert _convert_dow("*/2") == "*/2"
+
+
+def test_convert_dow_sunday_zero():
+    assert _convert_dow("0") == "sun"
+
+
+def test_convert_dow_sunday_seven():
+    assert _convert_dow("7") == "sun"
+
+
+def test_convert_dow_list():
+    assert _convert_dow("1,3,5") == "mon,wed,fri"
+
+
+def test_convert_dow_range_with_step():
+    assert _convert_dow("1-5/2") == "mon-fri/2"
