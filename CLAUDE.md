@@ -6,7 +6,7 @@ ADHD-friendly Discord bot with proactive reminders, powered by Claude.
 - `bot.py` -- Discord interface (DMs, @mentions, slash commands, reaction ack, interrupt-on-new-message)
 - `agent.py` -- Claude Agent SDK brain (persistent sessions, MCP tools, subagents, slash command routing)
 - `prompts.py` -- System prompts for agent and subagents (extracted from agent.py)
-- `discord_tools.py` -- MCP tools: `discord_embed`, `ping_user`, `follow_up_chain` (chain reminders)
+- `discord_tools.py` -- MCP tools: `discord_embed`, `ping_user`, `follow_up_chain`, `save_context`, `report_updates`
 - `views.py` -- Persistent button handlers via `DynamicItem` (delegates to google/ and streamer)
 - `storage.py` -- Shared JSONL I/O with git auto-commit (`~/.ollim-bot/` data repo)
 - `streamer.py` -- Streams agent responses to Discord (throttled edits, 2000-char overflow, `dispatch_agent_response`)
@@ -74,7 +74,12 @@ ADHD-friendly Discord bot with proactive reminders, powered by Claude.
 - Routines managed by Julius via `ollim-bot routine add|list|cancel`
 - Reminders created by user or bot via `ollim-bot reminder add|list|cancel`
 - Prompt tags: `[routine:ID]`, `[routine-bg:ID]`, `[reminder:ID]`, `[reminder-bg:ID]`
-- Background mode: text output discarded, agent uses `ping_user`/`discord_embed` to alert
+- Background mode: runs on forked session; text output discarded, agent uses `ping_user`/`discord_embed` to alert
+- Forked sessions: `run_agent_background` creates disposable forked client (`fork_session=True`)
+  - `save_context` MCP tool: promotes fork to main session (full context preserved)
+  - `report_updates(message)` MCP tool: discards fork, persists summary to `~/.ollim-bot/pending_updates.json`
+  - Neither called: fork silently discarded, zero context bloat
+  - Pending updates injected into next main-session message via `_prepend_context()` in agent.py
 - Chain reminders: `--max-chain N` enables follow-up chain; agent calls `follow_up_chain` MCP tool
 - Chain state: scheduler injects chain context into prompt; silence = chain ends
 
