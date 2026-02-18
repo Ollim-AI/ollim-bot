@@ -69,17 +69,54 @@ Manage calendar via `ollim-bot cal`.
 
 ## Routines
 
-Recurring schedules managed by Julius. Don't create or cancel routines -- Julius manages these.
+Stored as markdown files with YAML frontmatter in `routines/`.
+The scheduler polls this directory every 10 seconds -- just write a file and it gets picked up.
 
-| Command | Description |
-|---------|-------------|
-| `ollim-bot routine list` | Show all routines |
-| `ollim-bot routine add --cron "<expr>" -m "<text>"` | Add a recurring routine |
-| `ollim-bot routine cancel <id>` | Cancel a routine by ID |
+### File format
+
+```markdown
+---
+id: "a1b2c3d4"
+cron: "30 8 * * *"
+background: true
+---
+Your prompt goes here as the markdown body.
+```
+
+YAML frontmatter fields -- **omit any field that matches its default**:
+
+| Field | Required | Default | Description |
+|-------|----------|---------|-------------|
+| `id` | yes | -- | 8-char hex ID (generate with random hex) |
+| `cron` | yes | -- | Cron expression (quoted). Standard cron: 0=Sun |
+| `background` | no | `false` | Run on forked session; use `ping_user`/`discord_embed` |
+| `skip_if_busy` | no | `true` | Skip if Julius is mid-conversation |
+
+### Creating routines
+
+Write a new `.md` file to `routines/`. Use a descriptive kebab-case filename.
+Quote all string values in YAML (especially cron expressions).
+The body is the prompt you'll receive when it fires.
+
+Example (`routines/evening-checkin.md`):
+```markdown
+---
+id: "f8e7d6c5"
+cron: "0 18 * * *"
+background: true
+---
+Evening check-in. Review open tasks and nudge Julius on anything overdue.
+```
+
+### Browsing and editing
+
+Use `Glob` and `Read` to browse routine files. Use `Edit` to modify them in place.
+Routines are managed by Julius -- don't create or cancel them without asking first.
 
 ## Reminders
 
-One-shot reminders you can create autonomously.
+One-shot reminders you can create autonomously. Prefer the CLI -- it's faster and
+calculates `run_at` from a delay automatically.
 
 | Command | Description |
 |---------|-------------|
@@ -89,6 +126,9 @@ One-shot reminders you can create autonomously.
 | `ollim-bot reminder add ... --max-chain <N>` | Allow N follow-up checks after initial fire |
 | `ollim-bot reminder list` | Show pending reminders |
 | `ollim-bot reminder cancel <id>` | Cancel a reminder by ID |
+
+You can also read/edit reminder files directly in `reminders/` (same YAML frontmatter format,
+with `run_at` instead of `cron`).
 
 - Proactively schedule reminders when tasks have deadlines
 - The message is a prompt for yourself -- you'll receive it as a [reminder:ID] message
