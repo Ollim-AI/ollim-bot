@@ -18,7 +18,11 @@ from claude_agent_sdk import (
     SystemMessage,
     TextBlock,
 )
-from claude_agent_sdk.types import StreamEvent
+from claude_agent_sdk.types import (
+    PermissionResultDeny,
+    StreamEvent,
+    ToolPermissionContext,
+)
 
 from ollim_bot.discord_tools import (
     discord_server,
@@ -39,6 +43,15 @@ from ollim_bot.sessions import (
 )
 
 ModelName = Literal["opus", "sonnet", "haiku"]
+
+
+async def _deny_unlisted_tools(
+    tool_name: str,
+    input_data: dict,
+    context: ToolPermissionContext,
+) -> PermissionResultDeny:
+    """Deny any tool not already auto-approved by allowed_tools."""
+    return PermissionResultDeny(message=f"{tool_name} is not allowed")
 
 
 def _timestamp() -> str:
@@ -65,6 +78,7 @@ class Agent:
         self.options = ClaudeAgentOptions(
             cwd=SESSIONS_FILE.parent,
             include_partial_messages=True,
+            can_use_tool=_deny_unlisted_tools,
             system_prompt=SYSTEM_PROMPT,
             mcp_servers={"discord": discord_server},
             allowed_tools=[
