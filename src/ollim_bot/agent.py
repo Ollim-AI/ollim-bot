@@ -89,6 +89,8 @@ class Agent:
                 "Bash(ollim-bot gmail *)",
                 "Bash(ollim-bot help)",
                 "Bash(claude-history *)",
+                "WebFetch",
+                "WebSearch",
                 "mcp__discord__discord_embed",
                 "mcp__discord__ping_user",
                 "mcp__discord__follow_up_chain",
