@@ -147,15 +147,17 @@ async def run_agent_background(
         set_in_fork(True)
 
         forked_session_id: str | None = None
-        client = await agent.create_forked_client(user_id)
         try:
-            forked_session_id = await agent.run_on_client(client, prompt)
+            client = await agent.create_forked_client(user_id)
+            try:
+                forked_session_id = await agent.run_on_client(client, prompt)
+            finally:
+                with contextlib.suppress(Exception):
+                    await client.disconnect()
         finally:
             set_in_fork(False)
             if forked_session_id is None:
                 pop_fork_saved()  # clear leaked flag on error
-            with contextlib.suppress(Exception):
-                await client.disconnect()
 
         if pop_fork_saved():
             save_session_id(user_id, forked_session_id)
