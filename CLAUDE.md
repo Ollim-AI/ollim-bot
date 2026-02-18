@@ -5,6 +5,7 @@ ADHD-friendly Discord bot with proactive reminders, powered by Claude.
 ## Architecture
 - `bot.py` -- Discord interface (DMs, @mentions, slash commands, reaction ack, interrupt-on-new-message)
 - `agent.py` -- Claude Agent SDK brain (persistent sessions, MCP tools, subagents, slash command routing)
+- `main.py` -- CLI entry point and command router (`ollim-bot` dispatches to bot, routines, reminders, tasks, cal, gmail)
 - `prompts.py` -- System prompts for agent and subagents (extracted from agent.py)
 - `discord_tools.py` -- MCP tools: `discord_embed`, `ping_user`, `follow_up_chain`, `save_context`, `report_updates`
 - `views.py` -- Persistent button handlers via `DynamicItem` (delegates to google/ and streamer)
@@ -77,10 +78,10 @@ ADHD-friendly Discord bot with proactive reminders, powered by Claude.
 - Prompt tags: `[routine:ID]`, `[routine-bg:ID]`, `[reminder:ID]`, `[reminder-bg:ID]`
 - Background mode: runs on forked session; text output discarded, agent uses `ping_user`/`discord_embed` to alert
 - Forked sessions: `run_agent_background` creates disposable forked client (`fork_session=True`)
-  - `save_context` MCP tool: promotes fork via `swap_client` (fork client replaces main, no reconnect needed)
+  - `save_context` MCP tool: promotes fork via `swap_client` (fork client replaces main, no reconnect needed); clears pending updates
   - `report_updates(message)` MCP tool: discards fork, persists summary to `~/.ollim-bot/pending_updates.json`
   - Neither called: fork silently discarded, zero context bloat
-  - Pending updates injected into next main-session message via `_prepend_context()` in agent.py
+  - Pending updates prepended to all interactions: main sessions pop (read + clear), forks peek (read-only)
 - Chain reminders: `--max-chain N` enables follow-up chain; agent calls `follow_up_chain` MCP tool
 - Chain state: scheduler injects chain context into prompt; silence = chain ends
 
@@ -88,6 +89,7 @@ ADHD-friendly Discord bot with proactive reminders, powered by Claude.
 ```bash
 uv sync                    # Install deps
 uv run ollim-bot           # Run the bot
+uv run pytest              # Run tests
 ```
 
 ## Principles
