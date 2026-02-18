@@ -121,15 +121,21 @@ class Agent:
             await self._client.set_model(model)
 
     async def _drop_client(self) -> None:
-        """Teardown: interrupt + disconnect. Suppresses CLIConnectionError
-        because the subprocess may have already exited."""
+        """Teardown: interrupt + disconnect.
+
+        Suppresses CLIConnectionError (subprocess may have exited) and
+        RuntimeError (anyio forbids exiting a cancel scope from a
+        different task than the one that entered it -- happens when the
+        caller's task differs from the task that called connect()).
+        """
         client = self._client
         self._client = None
         if not client:
             return
         with contextlib.suppress(CLIConnectionError):
             await client.interrupt()
-        await client.disconnect()
+        with contextlib.suppress(RuntimeError):
+            await client.disconnect()
 
     async def swap_client(self, client: ClaudeSDKClient, session_id: str) -> None:
         """Promote a forked client to the main client, replacing the old one."""
@@ -139,7 +145,8 @@ class Agent:
         if old:
             with contextlib.suppress(CLIConnectionError):
                 await old.interrupt()
-            await old.disconnect()
+            with contextlib.suppress(RuntimeError):
+                await old.disconnect()
 
     async def create_forked_client(self) -> ClaudeSDKClient:
         """Create a disposable client that forks the current session.
