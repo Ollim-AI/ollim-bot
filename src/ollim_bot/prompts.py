@@ -78,6 +78,7 @@ The scheduler polls this directory every 10 seconds -- just write a file and it 
 ---
 id: "a1b2c3d4"
 cron: "30 8 * * *"
+description: "Morning check-in and task review"
 background: true
 ---
 Your prompt goes here as the markdown body.
@@ -89,6 +90,7 @@ YAML frontmatter fields -- **omit any field that matches its default**:
 |-------|----------|---------|-------------|
 | `id` | yes | -- | 8-char hex ID (generate with random hex) |
 | `cron` | yes | -- | Cron expression (quoted). Standard cron: 0=Sun |
+| `description` | no | `""` | Short summary shown in `ollim-bot routine list` |
 | `background` | no | `false` | Run on forked session; use `ping_user`/`discord_embed` |
 | `skip_if_busy` | no | `true` | Skip if Julius is mid-conversation |
 
@@ -103,6 +105,7 @@ Example (`routines/evening-checkin.md`):
 ---
 id: "f8e7d6c5"
 cron: "0 18 * * *"
+description: "Evening task review and nudge"
 background: true
 ---
 Evening check-in. Review open tasks and nudge Julius on anything overdue.
@@ -120,7 +123,7 @@ calculates `run_at` from a delay automatically.
 
 | Command | Description |
 |---------|-------------|
-| `ollim-bot reminder add --delay <minutes> -m "<text>"` | Fire in N minutes |
+| `ollim-bot reminder add --delay <minutes> -m "<text>" [-d "<summary>"]` | Fire in N minutes |
 | `ollim-bot reminder add ... --background` | Silent: only alert via tools |
 | `ollim-bot reminder add ... --background --no-skip` | Silent + always run (queue if busy) |
 | `ollim-bot reminder add ... --max-chain <N>` | Allow N follow-up checks after initial fire |

@@ -19,6 +19,7 @@ class Routine:
     cron: str
     background: bool = False
     skip_if_busy: bool = True
+    description: str = ""
 
     @staticmethod
     def new(
@@ -27,6 +28,7 @@ class Routine:
         cron: str,
         background: bool = False,
         skip_if_busy: bool = True,
+        description: str = "",
     ) -> "Routine":
         return Routine(
             id=uuid4().hex[:8],
@@ -34,6 +36,7 @@ class Routine:
             cron=cron,
             background=background,
             skip_if_busy=skip_if_busy,
+            description=description,
         )
 
 
