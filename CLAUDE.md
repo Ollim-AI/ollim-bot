@@ -9,7 +9,7 @@ ADHD-friendly Discord bot with proactive reminders, powered by Claude.
 - `prompts.py` -- System prompts for agent and subagents (extracted from agent.py)
 - `discord_tools.py` -- MCP tools: `discord_embed`, `ping_user`, `follow_up_chain`, `save_context`, `report_updates`
 - `views.py` -- Persistent button handlers via `DynamicItem` (delegates to google/ and streamer)
-- `storage.py` -- Shared JSONL I/O with git auto-commit (`~/.ollim-bot/` data repo)
+- `storage.py` -- Shared JSONL I/O, markdown I/O (`read_md_dir`/`write_md`/`remove_md`), and git auto-commit (`~/.ollim-bot/` data repo)
 - `streamer.py` -- Streams agent responses to Discord (throttled edits, 2000-char overflow, `dispatch_agent_response`)
 - `sessions.py` -- Persists Agent SDK session ID (plain string file) for conversation resumption across restarts
 - `embeds.py` -- Embed/button types, builders, maps, and `build_embed`/`build_view` (shared by discord_tools and views)
@@ -20,8 +20,8 @@ ADHD-friendly Discord bot with proactive reminders, powered by Claude.
   - `calendar.py` -- Google Calendar CLI + API helpers (`delete_event`)
   - `gmail.py` -- Gmail CLI (`ollim-bot gmail`, read-only)
 - `scheduling/` -- Routines, reminders, and APScheduler sub-package
-  - `routines.py` -- Routine dataclass and JSONL I/O (recurring crons, `routines.jsonl`)
-  - `reminders.py` -- Reminder dataclass and JSONL I/O (one-shot + chainable, `reminders.jsonl`)
+  - `routines.py` -- Routine dataclass and markdown I/O (recurring crons, `routines/*.md`)
+  - `reminders.py` -- Reminder dataclass and markdown I/O (one-shot + chainable, `reminders/*.md`)
   - `scheduler.py` -- Proactive scheduling via APScheduler (syncs routines + reminders every 10s)
   - `routine_cmd.py` -- Routines CLI (`ollim-bot routine`)
   - `reminder_cmd.py` -- Reminders CLI (`ollim-bot reminder`)
@@ -67,10 +67,12 @@ ADHD-friendly Discord bot with proactive reminders, powered by Claude.
 - Add new Google services: add scope to `google/auth.py`, create `google/*.py`, add commands to SYSTEM_PROMPT
 
 ## Routines & reminders
-- Routines (recurring crons): `~/.ollim-bot/routines.jsonl`
-- Reminders (one-shot, chainable): `~/.ollim-bot/reminders.jsonl`
+- Routines (recurring crons): `~/.ollim-bot/routines/<slug>.md` (YAML frontmatter + markdown body)
+- Reminders (one-shot, chainable): `~/.ollim-bot/reminders/<slug>.md` (YAML frontmatter + markdown body)
+- Each item is a separate .md file; filenames are human-readable slugs; `id` in YAML is authoritative
+- Agent has Read/Edit access to `reminders/**` and `routines/**` for direct file browsing/editing
 - `~/.ollim-bot/` is a git repo; `storage.py` auto-commits on every add/remove
-- Scheduler polls both files every 10s, registers/removes APScheduler jobs
+- Scheduler polls both directories every 10s, registers/removes APScheduler jobs
 - Scheduler and streamer receive `owner: discord.User` (resolved once in bot.py `on_ready`)
 - Cron day-of-week: standard cron (0=Sun) converted to APScheduler names via `_convert_dow()`
 - Routines managed by Julius via `ollim-bot routine add|list|cancel`
