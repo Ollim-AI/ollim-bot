@@ -70,13 +70,12 @@ ADHD-friendly Discord bot with proactive reminders, powered by Claude.
 - Routines (recurring crons): `~/.ollim-bot/routines/<slug>.md` (YAML frontmatter + markdown body)
 - Reminders (one-shot, chainable): `~/.ollim-bot/reminders/<slug>.md` (YAML frontmatter + markdown body)
 - Each item is a separate .md file; filenames are human-readable slugs; `id` in YAML is authoritative
-- Agent has Read/Edit access to `reminders/**` and `routines/**` for direct file browsing/editing
+- Agent has Glob/Read/Write/Edit access to `reminders/**` and `routines/**` -- creates and manages files directly (no CLI)
 - `~/.ollim-bot/` is a git repo; `storage.py` auto-commits on every add/remove
 - Scheduler polls both directories every 10s, registers/removes APScheduler jobs
 - Scheduler and streamer receive `owner: discord.User` (resolved once in bot.py `on_ready`)
 - Cron day-of-week: standard cron (0=Sun) converted to APScheduler names via `_convert_dow()`
-- Routines managed by Julius via `ollim-bot routine add|list|cancel`
-- Reminders created by user or bot via `ollim-bot reminder add|list|cancel`
+- CLI (`ollim-bot routine|reminder`) still works for human use and subagents
 - Prompt tags: `[routine:ID]`, `[routine-bg:ID]`, `[reminder:ID]`, `[reminder-bg:ID]`
 - Background mode: runs on forked session; text output discarded, agent uses `ping_user`/`discord_embed` to alert
 - Forked sessions: `run_agent_background` creates disposable forked client (`fork_session=True`)
@@ -84,7 +83,7 @@ ADHD-friendly Discord bot with proactive reminders, powered by Claude.
   - `report_updates(message)` MCP tool: discards fork, persists summary to `~/.ollim-bot/pending_updates.json`
   - Neither called: fork silently discarded, zero context bloat
   - Pending updates prepended to all interactions: main sessions pop (read + clear), forks peek (read-only)
-- Chain reminders: `--max-chain N` enables follow-up chain; agent calls `follow_up_chain` MCP tool
+- Chain reminders: `max_chain: N` in YAML frontmatter enables follow-up chain; agent calls `follow_up_chain` MCP tool
 - Chain state: scheduler injects chain context into prompt; silence = chain ends
 
 ## Dev commands
