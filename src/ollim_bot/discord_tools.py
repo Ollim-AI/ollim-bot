@@ -225,13 +225,25 @@ def _append_update(message: str) -> None:
     os.replace(tmp, _UPDATES_FILE)
 
 
-def pop_pending_updates() -> list[str]:
-    """Read and clear all pending updates. Called by agent.py before main-session messages."""
+def peek_pending_updates() -> list[str]:
+    """Read pending updates without clearing. Used by forks to see accumulated context."""
     if not _UPDATES_FILE.exists():
         return []
     updates = json.loads(_UPDATES_FILE.read_text())
-    _UPDATES_FILE.unlink()
     return [u["message"] for u in updates]
+
+
+def clear_pending_updates() -> None:
+    """Delete the pending updates file if it exists."""
+    if _UPDATES_FILE.exists():
+        _UPDATES_FILE.unlink()
+
+
+def pop_pending_updates() -> list[str]:
+    """Read and clear all pending updates. Called by agent.py before main-session messages."""
+    updates = peek_pending_updates()
+    clear_pending_updates()
+    return updates
 
 
 @tool(
@@ -254,6 +266,7 @@ async def save_context(args: dict[str, Any]) -> dict[str, Any]:
         }
     global _fork_saved
     _fork_saved = True
+    clear_pending_updates()
     return {
         "content": [
             {"type": "text", "text": "Context saved -- this session will be preserved."}

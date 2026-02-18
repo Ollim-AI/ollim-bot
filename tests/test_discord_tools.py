@@ -4,7 +4,9 @@ import asyncio
 
 from ollim_bot.discord_tools import (
     ChainContext,
+    clear_pending_updates,
     follow_up_chain,
+    peek_pending_updates,
     pop_fork_saved,
     pop_pending_updates,
     report_updates,
@@ -175,4 +177,53 @@ def test_multiple_updates_accumulate():
 
     updates = pop_pending_updates()
     assert updates == ["first finding", "second finding"]
+    set_in_fork(False)
+
+
+# --- peek / clear tests ---
+
+
+def test_peek_reads_without_clearing():
+    pop_pending_updates()  # clear stale state
+    set_in_fork(True)
+    _run(_report({"message": "peeked update"}))
+
+    first = peek_pending_updates()
+    second = peek_pending_updates()
+
+    assert first == ["peeked update"]
+    assert second == ["peeked update"]
+    pop_pending_updates()  # cleanup
+    set_in_fork(False)
+
+
+def test_clear_removes_file():
+    pop_pending_updates()  # clear stale state
+    set_in_fork(True)
+    _run(_report({"message": "to be cleared"}))
+
+    clear_pending_updates()
+
+    assert peek_pending_updates() == []
+    set_in_fork(False)
+
+
+def test_clear_is_idempotent():
+    pop_pending_updates()  # ensure clean
+
+    clear_pending_updates()
+    clear_pending_updates()
+
+    assert peek_pending_updates() == []
+
+
+def test_save_context_clears_pending_updates():
+    pop_pending_updates()  # clear stale state
+    set_in_fork(True)
+    _run(_report({"message": "pre-save update"}))
+
+    _run(_save_ctx({}))
+
+    assert peek_pending_updates() == []
+    pop_fork_saved()  # cleanup
     set_in_fork(False)
