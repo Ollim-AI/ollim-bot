@@ -254,7 +254,7 @@ Everything else is noise -- do NOT report it:
 ## Output Format
 
 Action items:
-- [sender] subject -- what Julius needs to do
+- [sender] [date time] subject -- what Julius needs to do
 
 Skipped: N emails (all noise/automated)
 
