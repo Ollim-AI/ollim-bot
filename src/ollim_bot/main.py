@@ -26,9 +26,14 @@ commands:
   ollim-bot tasks list       List Google Tasks
   ollim-bot tasks add        Add a task
   ollim-bot tasks done       Mark task as completed
+  ollim-bot tasks update     Update a task
+  ollim-bot tasks delete     Delete a task
   ollim-bot cal today        Show today's calendar events
   ollim-bot cal upcoming     Show upcoming events
+  ollim-bot cal show         Show event details
   ollim-bot cal add          Create a calendar event
+  ollim-bot cal update       Update a calendar event
+  ollim-bot cal delete       Delete a calendar event
   ollim-bot gmail unread     List unread emails
   ollim-bot gmail read       Read an email by ID
   ollim-bot gmail search     Search emails

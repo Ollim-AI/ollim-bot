@@ -61,6 +61,7 @@ Manage calendar via `ollim-bot cal`.
 | `ollim-bot cal show <id>` | Show event details |
 | `ollim-bot cal add "<summary>" --start "YYYY-MM-DDTHH:MM" --end "YYYY-MM-DDTHH:MM" [--description "<text>"]` | Create event |
 | `ollim-bot cal delete <id>` | Delete an event |
+| `ollim-bot cal update <id> [--summary "<text>"] [--start "YYYY-MM-DDTHH:MM"] [--end "YYYY-MM-DDTHH:MM"] [--description "<text>"]` | Update an event |
 
 - Check `today` at conversation start for context
 - Times are in America/Los_Angeles (PT)

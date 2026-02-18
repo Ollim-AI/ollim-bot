@@ -36,6 +36,13 @@ def run_calendar_command(argv: list[str]) -> None:
     del_p = sub.add_parser("delete", help="Delete an event")
     del_p.add_argument("id", help="Event ID")
 
+    upd_p = sub.add_parser("update", help="Update an event")
+    upd_p.add_argument("id", help="Event ID")
+    upd_p.add_argument("--summary", help="New title")
+    upd_p.add_argument("--start", help="New start: YYYY-MM-DDTHH:MM")
+    upd_p.add_argument("--end", help="New end: YYYY-MM-DDTHH:MM")
+    upd_p.add_argument("--description", help="New description")
+
     args = parser.parse_args(argv)
 
     if args.action == "today":
@@ -48,6 +55,8 @@ def run_calendar_command(argv: list[str]) -> None:
         _handle_show(args.id)
     elif args.action == "delete":
         _handle_delete(args.id)
+    elif args.action == "update":
+        _handle_update(args)
     else:
         parser.print_help()
         sys.exit(1)
@@ -153,3 +162,28 @@ def delete_event(event_id: str) -> None:
 def _handle_delete(event_id: str) -> None:
     delete_event(event_id)
     print(f"deleted {event_id}")
+
+
+def _handle_update(args: argparse.Namespace) -> None:
+    body: dict = {}
+    if args.summary is not None:
+        body["summary"] = args.summary
+    if args.start is not None:
+        body["start"] = {
+            "dateTime": _parse_dt(args.start),
+            "timeZone": "America/Los_Angeles",
+        }
+    if args.end is not None:
+        body["end"] = {
+            "dateTime": _parse_dt(args.end),
+            "timeZone": "America/Los_Angeles",
+        }
+    if args.description is not None:
+        body["description"] = args.description
+    if not body:
+        print("error: provide at least one of --summary, --start, --end, --description")
+        sys.exit(1)
+
+    service = _get_calendar_service()
+    service.events().patch(calendarId="primary", eventId=args.id, body=body).execute()
+    print(f"updated {args.id}")
