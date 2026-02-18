@@ -11,6 +11,10 @@ from ollim_bot.scheduling.routines import (
 )
 
 
+def _summary(r: Routine) -> str:
+    return r.description or r.message
+
+
 def _fmt_schedule(r: Routine) -> str:
     sched = f"cron '{r.cron}'"
     if r.background:
@@ -28,6 +32,7 @@ def run_routine_command(argv: list[str]) -> None:
     add_p.add_argument(
         "--cron", required=True, help='5-field cron (e.g. "0 9 * * 1-5")'
     )
+    add_p.add_argument("--description", "-d", default="", help="Short summary for list")
     add_p.add_argument("--background", action="store_true", help="Silent mode")
     add_p.add_argument("--no-skip", action="store_true", help="Always run (bg only)")
 
@@ -57,11 +62,12 @@ def _handle_add(args: argparse.Namespace) -> None:
     routine = Routine.new(
         message=args.message,
         cron=args.cron,
+        description=args.description,
         background=args.background,
         skip_if_busy=not args.no_skip,
     )
     append_routine(routine)
-    print(f"scheduled {routine.id}: {_fmt_schedule(routine)} -- {routine.message}")
+    print(f"scheduled {routine.id}: {_fmt_schedule(routine)} -- {_summary(routine)}")
 
 
 def _handle_list() -> None:
@@ -70,7 +76,7 @@ def _handle_list() -> None:
         print("no routines")
         return
     for r in routines:
-        print(f"  {r.id}  {_fmt_schedule(r):24s}  {r.message}")
+        print(f"  {r.id}  {_fmt_schedule(r):24s}  {_summary(r)}")
 
 
 def _handle_cancel(routine_id: str) -> None:

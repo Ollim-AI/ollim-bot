@@ -11,6 +11,10 @@ from ollim_bot.scheduling.reminders import (
 )
 
 
+def _summary(r: Reminder) -> str:
+    return r.description or r.message
+
+
 def _fmt_schedule(r: Reminder) -> str:
     sched = f"at {r.run_at[:16]}"
     if r.background:
@@ -27,6 +31,7 @@ def run_reminder_command(argv: list[str]) -> None:
 
     add_p = sub.add_parser("add", help="Schedule a one-shot reminder")
     add_p.add_argument("--message", "-m", required=True, help="Reminder message")
+    add_p.add_argument("--description", "-d", default="", help="Short summary for list")
     add_p.add_argument("--delay", type=int, required=True, help="Fire in N minutes")
     add_p.add_argument("--background", action="store_true", help="Silent mode")
     add_p.add_argument("--no-skip", action="store_true", help="Always run (bg only)")
@@ -59,6 +64,7 @@ def _handle_add(args: argparse.Namespace) -> None:
     reminder = Reminder.new(
         message=args.message,
         delay_minutes=args.delay,
+        description=args.description,
         background=args.background,
         skip_if_busy=not args.no_skip,
         max_chain=args.max_chain,
@@ -66,7 +72,7 @@ def _handle_add(args: argparse.Namespace) -> None:
         chain_parent=args.chain_parent,
     )
     append_reminder(reminder)
-    print(f"scheduled {reminder.id}: {_fmt_schedule(reminder)} -- {reminder.message}")
+    print(f"scheduled {reminder.id}: {_fmt_schedule(reminder)} -- {_summary(reminder)}")
 
 
 def _handle_list() -> None:
@@ -75,7 +81,7 @@ def _handle_list() -> None:
         print("no pending reminders")
         return
     for r in reminders:
-        print(f"  {r.id}  {_fmt_schedule(r):24s}  {r.message}")
+        print(f"  {r.id}  {_fmt_schedule(r):24s}  {_summary(r)}")
 
 
 def _handle_cancel(reminder_id: str) -> None:
