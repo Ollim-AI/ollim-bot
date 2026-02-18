@@ -13,6 +13,7 @@ from claude_agent_sdk import (
     AssistantMessage,
     ClaudeAgentOptions,
     ClaudeSDKClient,
+    CLIConnectionError,
     ResultMessage,
     SystemMessage,
     TextBlock,
@@ -120,22 +121,25 @@ class Agent:
             await self._client.set_model(model)
 
     async def _drop_client(self) -> None:
-        """Suppresses disconnect errors -- anyio prohibits cross-task cancellation."""
+        """Teardown: interrupt + disconnect. Suppresses CLIConnectionError
+        because the subprocess may have already exited."""
         client = self._client
         self._client = None
         if not client:
             return
-        await client.interrupt()
-        with contextlib.suppress(Exception):
-            await client.disconnect()
+        with contextlib.suppress(CLIConnectionError):
+            await client.interrupt()
+        await client.disconnect()
 
-    async def drop_client(self) -> None:
-        """Invalidate the cached interactive client.
-
-        Called after a forked session is promoted to main so the next
-        interactive message reconnects with the newly saved session ID.
-        """
-        await self._drop_client()
+    async def swap_client(self, client: ClaudeSDKClient, session_id: str) -> None:
+        """Promote a forked client to the main client, replacing the old one."""
+        old = self._client
+        self._client = client
+        save_session_id(session_id)
+        if old:
+            with contextlib.suppress(CLIConnectionError):
+                await old.interrupt()
+            await old.disconnect()
 
     async def create_forked_client(self) -> ClaudeSDKClient:
         """Create a disposable client that forks the current session.

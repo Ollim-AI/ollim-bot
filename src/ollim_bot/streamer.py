@@ -129,7 +129,6 @@ async def run_agent_background(
 ) -> None:
     """Run agent on a forked session -- discard fork unless save_context is called."""
     from ollim_bot.discord_tools import pop_fork_saved, set_channel, set_in_fork
-    from ollim_bot.sessions import save_session_id
 
     dm = await owner.create_dm()
 
@@ -141,18 +140,18 @@ async def run_agent_background(
         set_in_fork(True)
 
         forked_session_id: str | None = None
+        promoted = False
         try:
             client = await agent.create_forked_client()
             try:
                 forked_session_id = await agent.run_on_client(client, prompt)
             finally:
-                with contextlib.suppress(Exception):
+                if forked_session_id is not None and pop_fork_saved():
+                    await agent.swap_client(client, forked_session_id)
+                    promoted = True
+                if not promoted:
                     await client.disconnect()
         finally:
             set_in_fork(False)
             if forked_session_id is None:
-                pop_fork_saved()  # clear leaked flag on error
-
-        if pop_fork_saved():
-            save_session_id(forked_session_id)
-            await agent.drop_client()
+                pop_fork_saved()
