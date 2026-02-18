@@ -20,7 +20,11 @@ from claude_agent_sdk import (
 )
 from claude_agent_sdk.types import StreamEvent
 
-from ollim_bot.discord_tools import discord_server, pop_pending_updates
+from ollim_bot.discord_tools import (
+    discord_server,
+    peek_pending_updates,
+    pop_pending_updates,
+)
 from ollim_bot.prompts import (
     GMAIL_READER_PROMPT,
     HISTORY_REVIEWER_PROMPT,
@@ -42,10 +46,14 @@ def _timestamp() -> str:
     return now.strftime("[%Y-%m-%d %a %I:%M %p PT]")
 
 
-def _prepend_context(message: str) -> str:
-    """Prepend timestamp and any pending background updates to a user message."""
+def _prepend_context(message: str, *, clear: bool = True) -> str:
+    """Prepend timestamp and any pending background updates to a user message.
+
+    clear=True (default): pops updates (main session clears the file).
+    clear=False: peeks updates (fork reads without clearing).
+    """
     ts = _timestamp()
-    updates = pop_pending_updates()
+    updates = pop_pending_updates() if clear else peek_pending_updates()
     if updates:
         header = "RECENT BACKGROUND UPDATES:\n" + "\n".join(f"- {u}" for u in updates)
         return f"{ts} {header}\n\n{message}"
@@ -164,7 +172,7 @@ class Agent:
 
     async def run_on_client(self, client: ClaudeSDKClient, message: str) -> str:
         """Send a message on an explicit client, discard output, return session_id."""
-        message = f"{_timestamp()} {message}" if message else _timestamp()
+        message = _prepend_context(message, clear=False)
         await client.query(message)
 
         session_id: str | None = None
