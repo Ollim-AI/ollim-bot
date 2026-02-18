@@ -36,7 +36,8 @@ ADHD-friendly Discord bot with proactive reminders, powered by Claude.
 - `include_partial_messages=True` -- enables `StreamEvent` for real-time streaming
 - `StreamEvent` imported from `claude_agent_sdk.types` (not in `__init__.__all__`)
 - Session ID persisted to `~/.ollim-bot/sessions.json` (plain string, not JSON); `resume=session_id` on reconnect
-- `_drop_client()`: set `_client = None` first, then interrupt + disconnect (anyio cross-task limitation)
+- `_drop_client()`: set `_client = None` first, then interrupt + disconnect; suppresses `CLIConnectionError` on interrupt (subprocess may have exited)
+- `swap_client(client, session_id)`: promotes forked client to main (avoids reconnect); drops old client
 - Race guard: `save_session_id` skipped if `self._client is not client` (client was dropped mid-stream by `/clear` or `/model`)
 
 ## Discord slash commands
@@ -76,7 +77,7 @@ ADHD-friendly Discord bot with proactive reminders, powered by Claude.
 - Prompt tags: `[routine:ID]`, `[routine-bg:ID]`, `[reminder:ID]`, `[reminder-bg:ID]`
 - Background mode: runs on forked session; text output discarded, agent uses `ping_user`/`discord_embed` to alert
 - Forked sessions: `run_agent_background` creates disposable forked client (`fork_session=True`)
-  - `save_context` MCP tool: promotes fork to main session (full context preserved)
+  - `save_context` MCP tool: promotes fork via `swap_client` (fork client replaces main, no reconnect needed)
   - `report_updates(message)` MCP tool: discards fork, persists summary to `~/.ollim-bot/pending_updates.json`
   - Neither called: fork silently discarded, zero context bloat
   - Pending updates injected into next main-session message via `_prepend_context()` in agent.py
