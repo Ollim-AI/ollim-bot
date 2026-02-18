@@ -1,4 +1,4 @@
-"""Reminder data model and JSONL persistence.
+"""Reminder data model and markdown persistence.
 
 Reminders are one-shot time-based nudges. They support chaining via a state
 machine: a reminder with max_chain > 0 can be followed up by the agent calling
@@ -9,9 +9,9 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from uuid import uuid4
 
-from ollim_bot.storage import DATA_DIR, TZ, append_jsonl, read_jsonl, remove_jsonl
+from ollim_bot.storage import DATA_DIR, TZ, read_md_dir, remove_md, write_md
 
-REMINDERS_FILE = DATA_DIR / "reminders.jsonl"
+REMINDERS_DIR = DATA_DIR / "reminders"
 
 
 @dataclass(frozen=True, slots=True)
@@ -55,14 +55,12 @@ class Reminder:
 
 
 def append_reminder(reminder: Reminder) -> None:
-    append_jsonl(REMINDERS_FILE, reminder, f"add reminder {reminder.id}")
+    write_md(REMINDERS_DIR, reminder, f"add reminder {reminder.id}")
 
 
 def list_reminders() -> list[Reminder]:
-    return read_jsonl(REMINDERS_FILE, Reminder)
+    return read_md_dir(REMINDERS_DIR, Reminder)
 
 
 def remove_reminder(reminder_id: str) -> bool:
-    return remove_jsonl(
-        REMINDERS_FILE, reminder_id, Reminder, f"remove reminder {reminder_id}"
-    )
+    return remove_md(REMINDERS_DIR, reminder_id, f"remove reminder {reminder_id}")

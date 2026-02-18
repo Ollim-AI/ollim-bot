@@ -36,8 +36,8 @@ def test_append_and_list_routines(data_dir):
     result = list_routines()
 
     assert len(result) == 2
-    assert result[0].message == "morning"
-    assert result[1].message == "evening"
+    messages = {r.message for r in result}
+    assert messages == {"morning", "evening"}
 
 
 def test_list_routines_empty(data_dir):

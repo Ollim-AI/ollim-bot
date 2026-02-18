@@ -12,7 +12,7 @@ def data_dir(tmp_path, monkeypatch):
     import ollim_bot.storage as storage_mod
 
     monkeypatch.setattr(storage_mod, "DATA_DIR", tmp_path)
-    monkeypatch.setattr(routines_mod, "ROUTINES_FILE", tmp_path / "routines.jsonl")
-    monkeypatch.setattr(reminders_mod, "REMINDERS_FILE", tmp_path / "reminders.jsonl")
+    monkeypatch.setattr(routines_mod, "ROUTINES_DIR", tmp_path / "routines")
+    monkeypatch.setattr(reminders_mod, "REMINDERS_DIR", tmp_path / "reminders")
     monkeypatch.setattr(inquiries_mod, "INQUIRIES_FILE", tmp_path / "inquiries.json")
     return tmp_path
