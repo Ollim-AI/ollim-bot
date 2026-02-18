@@ -52,7 +52,7 @@ def _prepend_context(message: str) -> str:
 
 
 class Agent:
-    def __init__(self):
+    def __init__(self) -> None:
         self.options = ClaudeAgentOptions(
             cwd=SESSIONS_FILE.parent,
             include_partial_messages=True,
@@ -99,52 +99,50 @@ class Agent:
                 ),
             },
         )
-        self._clients: dict[str, ClaudeSDKClient] = {}
-        self._locks: dict[str, asyncio.Lock] = {}
+        self._client: ClaudeSDKClient | None = None
+        self._lock = asyncio.Lock()
 
-    def lock(self, user_id: str) -> asyncio.Lock:
-        """Lazily created on first access; cached for the lifetime of the agent."""
-        return self._locks.setdefault(user_id, asyncio.Lock())
+    def lock(self) -> asyncio.Lock:
+        return self._lock
 
-    async def interrupt(self, user_id: str) -> None:
-        client = self._clients.get(user_id)
-        if client:
-            await client.interrupt()
+    async def interrupt(self) -> None:
+        if self._client:
+            await self._client.interrupt()
 
-    async def clear(self, user_id: str) -> None:
-        await self._drop_client(user_id)
-        delete_session_id(user_id)
+    async def clear(self) -> None:
+        await self._drop_client()
+        delete_session_id()
 
-    async def set_model(self, user_id: str, model: ModelName) -> None:
+    async def set_model(self, model: ModelName) -> None:
         """Updates shared options (affects future connections) and switches any live client in-place."""
         self.options = replace(self.options, model=model)
-        client = self._clients.get(user_id)
-        if client:
-            await client.set_model(model)
+        if self._client:
+            await self._client.set_model(model)
 
-    async def _drop_client(self, user_id: str) -> None:
+    async def _drop_client(self) -> None:
         """Suppresses disconnect errors -- anyio prohibits cross-task cancellation."""
-        client = self._clients.pop(user_id, None)
+        client = self._client
+        self._client = None
         if not client:
             return
         await client.interrupt()
         with contextlib.suppress(Exception):
             await client.disconnect()
 
-    async def drop_client(self, user_id: str) -> None:
+    async def drop_client(self) -> None:
         """Invalidate the cached interactive client.
 
         Called after a forked session is promoted to main so the next
         interactive message reconnects with the newly saved session ID.
         """
-        await self._drop_client(user_id)
+        await self._drop_client()
 
-    async def create_forked_client(self, user_id: str) -> ClaudeSDKClient:
+    async def create_forked_client(self) -> ClaudeSDKClient:
         """Create a disposable client that forks the current session.
 
-        Not stored in self._clients -- the caller disconnects it after use.
+        Not stored in self._client -- the caller disconnects it after use.
         """
-        session_id = load_session_id(user_id)
+        session_id = load_session_id()
         if session_id:
             opts = replace(self.options, resume=session_id, fork_session=True)
         else:
@@ -166,13 +164,13 @@ class Agent:
         assert session_id is not None, "No ResultMessage received from forked client"
         return session_id
 
-    async def slash(self, user_id: str, command: str) -> str:
+    async def slash(self, command: str) -> str:
         """Route a slash command and collect the response text.
 
         Returns the most informative response found: system message text,
         then assistant text, then result fallback, then cost, then "done.".
         """
-        client = await self._get_client(user_id)
+        client = await self._get_client()
         await client.query(command)
 
         parts: list[str] = []
@@ -192,8 +190,8 @@ class Agent:
                 if msg.result:
                     result_text = msg.result
                 cost = msg.total_cost_usd
-                if self._clients.get(user_id) is client:
-                    save_session_id(user_id, msg.session_id)
+                if self._client is client:
+                    save_session_id(msg.session_id)
 
         if parts:
             return "\n".join(parts)
@@ -203,21 +201,20 @@ class Agent:
             return f"session cost: ${cost:.4f}"
         return "done."
 
-    async def _get_client(self, user_id: str) -> ClaudeSDKClient:
-        if user_id not in self._clients:
-            session_id = load_session_id(user_id)
+    async def _get_client(self) -> ClaudeSDKClient:
+        if self._client is None:
+            session_id = load_session_id()
             opts = (
                 replace(self.options, resume=session_id) if session_id else self.options
             )
             client = ClaudeSDKClient(opts)
             await client.connect()
-            self._clients[user_id] = client
-        return self._clients[user_id]
+            self._client = client
+        return self._client
 
     async def stream_chat(
         self,
         message: str,
-        user_id: str,
         *,
         images: list[dict[str, str]] | None = None,
     ) -> AsyncGenerator[str, None]:
@@ -227,7 +224,7 @@ class Agent:
         then to ResultMessage.result. Saves session ID on completion.
         """
         message = _prepend_context(message)
-        client = await self._get_client(user_id)
+        client = await self._get_client()
 
         if images:
             # SDK has no ImageBlock type -- images go through the raw
@@ -289,8 +286,8 @@ class Agent:
             elif isinstance(msg, ResultMessage):
                 if msg.result:
                     result_text = msg.result
-                if self._clients.get(user_id) is client:
-                    save_session_id(user_id, msg.session_id)
+                if self._client is client:
+                    save_session_id(msg.session_id)
 
         if not streamed:
             if fallback_parts:
@@ -298,14 +295,14 @@ class Agent:
             elif result_text:
                 yield result_text
 
-    async def chat(self, message: str, user_id: str) -> str:
+    async def chat(self, message: str) -> str:
         """Non-streaming counterpart of stream_chat; accumulates full response.
 
         Falls back to ResultMessage.result when no AssistantMessage text blocks
         are found.
         """
         message = _prepend_context(message)
-        client = await self._get_client(user_id)
+        client = await self._get_client()
         await client.query(message)
 
         parts: list[str] = []
@@ -318,8 +315,8 @@ class Agent:
             elif isinstance(msg, ResultMessage):
                 if msg.result:
                     result_text = msg.result
-                if self._clients.get(user_id) is client:
-                    save_session_id(user_id, msg.session_id)
+                if self._client is client:
+                    save_session_id(msg.session_id)
 
         # result is a summary Claude writes when it has no assistant turn (e.g. pure tool runs)
         if not parts and result_text:

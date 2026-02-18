@@ -64,8 +64,7 @@ def create_bot() -> commands.Bot:
 
     @bot.tree.command(name="clear", description="Clear conversation and start fresh")
     async def slash_clear(interaction: discord.Interaction):
-        user_id = str(interaction.user.id)
-        await agent.clear(user_id)
+        await agent.clear()
         await interaction.response.send_message("conversation cleared. fresh start.")
 
     @bot.tree.command(name="compact", description="Compress conversation context")
@@ -73,19 +72,17 @@ def create_bot() -> commands.Bot:
     async def slash_compact(
         interaction: discord.Interaction, instructions: str | None = None
     ):
-        user_id = str(interaction.user.id)
         cmd = f"/compact {instructions}" if instructions else "/compact"
-        async with agent.lock(user_id):
+        async with agent.lock():
             await interaction.response.defer(thinking=True)
-            result = await agent.slash(user_id, cmd)
+            result = await agent.slash(cmd)
             await interaction.followup.send(result)
 
     @bot.tree.command(name="cost", description="Show token usage for this session")
     async def slash_cost(interaction: discord.Interaction):
-        user_id = str(interaction.user.id)
-        async with agent.lock(user_id):
+        async with agent.lock():
             await interaction.response.defer(thinking=True)
-            result = await agent.slash(user_id, "/cost")
+            result = await agent.slash("/cost")
             await interaction.followup.send(result)
 
     @bot.tree.command(name="model", description="Switch the AI model")
@@ -100,8 +97,7 @@ def create_bot() -> commands.Bot:
     async def slash_model(
         interaction: discord.Interaction, name: discord.app_commands.Choice[str]
     ):
-        user_id = str(interaction.user.id)
-        await agent.set_model(user_id, name.value)
+        await agent.set_model(name.value)
         await interaction.response.send_message(f"switched to {name.value}.")
 
     @bot.event
@@ -131,7 +127,7 @@ def create_bot() -> commands.Bot:
         print(f"scheduler started: {len(scheduler.get_jobs())} jobs")
 
         dm = await owner.create_dm()
-        resumed = load_session_id(str(owner.id)) is not None
+        resumed = load_session_id() is not None
         if resumed:
             await dm.send("hey, i'm back online. i remember where we left off.")
         else:
@@ -157,17 +153,16 @@ def create_bot() -> commands.Bot:
         )
 
         images = await _read_images(message.attachments)
-        user_id = str(message.author.id)
 
         await message.add_reaction("\N{EYES}")
 
         # Interrupt so the user's new message gets a fresh response
-        if agent.lock(user_id).locked():
-            await agent.interrupt(user_id)
+        if agent.lock().locked():
+            await agent.interrupt()
 
-        async with agent.lock(user_id):
+        async with agent.lock():
             await dispatch_agent_response(
-                agent, message.channel, user_id, content, images=images or None
+                agent, message.channel, content, images=images or None
             )
 
         with contextlib.suppress(discord.NotFound):

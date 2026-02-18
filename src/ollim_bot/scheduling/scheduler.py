@@ -133,16 +133,15 @@ def _register_routine(
     _registered_routines.add(routine.id)
 
     prompt = _build_routine_prompt(routine)
-    uid = str(owner.id)
 
     async def _fire() -> None:
         try:
             if routine.background:
                 await run_agent_background(
-                    owner, agent, uid, prompt, skip_if_busy=routine.skip_if_busy
+                    owner, agent, prompt, skip_if_busy=routine.skip_if_busy
                 )
             else:
-                await send_agent_dm(owner, agent, uid, prompt)
+                await send_agent_dm(owner, agent, prompt)
         except Exception:
             log.exception("Routine %s failed", routine.id)
             raise
@@ -172,7 +171,6 @@ def _register_reminder(
     _registered_reminders.add(reminder.id)
 
     prompt = _build_reminder_prompt(reminder)
-    uid = str(owner.id)
 
     async def fire_oneshot() -> None:
         # follow_up_chain MCP tool reads this to schedule the next link
@@ -191,10 +189,10 @@ def _register_reminder(
         try:
             if reminder.background:
                 await run_agent_background(
-                    owner, agent, uid, prompt, skip_if_busy=reminder.skip_if_busy
+                    owner, agent, prompt, skip_if_busy=reminder.skip_if_busy
                 )
             else:
-                await send_agent_dm(owner, agent, uid, prompt)
+                await send_agent_dm(owner, agent, prompt)
         except Exception:
             log.exception("Reminder %s failed", reminder.id)
             raise

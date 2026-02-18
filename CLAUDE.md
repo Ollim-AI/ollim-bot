@@ -10,7 +10,7 @@ ADHD-friendly Discord bot with proactive reminders, powered by Claude.
 - `views.py` -- Persistent button handlers via `DynamicItem` (delegates to google/ and streamer)
 - `storage.py` -- Shared JSONL I/O with git auto-commit (`~/.ollim-bot/` data repo)
 - `streamer.py` -- Streams agent responses to Discord (throttled edits, 2000-char overflow, `dispatch_agent_response`)
-- `sessions.py` -- Persists Agent SDK session IDs for conversation resumption across restarts
+- `sessions.py` -- Persists Agent SDK session ID (plain string file) for conversation resumption across restarts
 - `embeds.py` -- Embed/button types, builders, maps, and `build_embed`/`build_view` (shared by discord_tools and views)
 - `inquiries.py` -- Persists button inquiry prompts to `~/.ollim-bot/inquiries.json` (7-day TTL)
 - `google/` -- Google API integration sub-package
@@ -27,7 +27,7 @@ ADHD-friendly Discord bot with proactive reminders, powered by Claude.
 
 ## Agent SDK config
 - Auth: Claude Code OAuth (no API key needed)
-- `ClaudeSDKClient` per user for persistent conversation with auto-compaction
+- Single `ClaudeSDKClient` for persistent conversation with auto-compaction (single-user bot)
 - No `setting_sources` -- all config is in code (no CLAUDE.md, skills, or settings.json loaded)
 - `permission_mode="default"` -- SDK default; tools gated by `allowed_tools`
 - Subagents defined programmatically via `AgentDefinition`: gmail-reader, history-reviewer, responsiveness-reviewer
@@ -35,9 +35,9 @@ ADHD-friendly Discord bot with proactive reminders, powered by Claude.
 - `ResultMessage.result` is a fallback — don't double-count with `AssistantMessage` text blocks
 - `include_partial_messages=True` -- enables `StreamEvent` for real-time streaming
 - `StreamEvent` imported from `claude_agent_sdk.types` (not in `__init__.__all__`)
-- Session IDs persisted to `~/.ollim-bot/sessions.json`; `resume=session_id` on reconnect
-- `_drop_client()`: interrupt + drop reference, skip `disconnect()` (anyio cross-task limitation)
-- Race guard: `save_session_id` skipped if client was popped mid-stream by `/clear` or `/model`
+- Session ID persisted to `~/.ollim-bot/sessions.json` (plain string, not JSON); `resume=session_id` on reconnect
+- `_drop_client()`: set `_client = None` first, then interrupt + disconnect (anyio cross-task limitation)
+- Race guard: `save_session_id` skipped if `self._client is not client` (client was dropped mid-stream by `/clear` or `/model`)
 
 ## Discord slash commands
 - `/clear` -- reset conversation (drop client + delete session ID)
@@ -45,7 +45,7 @@ ADHD-friendly Discord bot with proactive reminders, powered by Claude.
 - `/cost` -- show token usage via SDK's native `/cost`
 - `/model <opus|sonnet|haiku>` -- switch model (update options + drop client, next message reconnects)
 - `Agent.slash()` -- generic method routing SDK slash commands, captures SystemMessage + AssistantMessage + ResultMessage
-- `Agent.set_model()` -- uses `dataclasses.replace()` on shared options (single-user assumption)
+- `Agent.set_model()` -- uses `dataclasses.replace()` on shared options + updates live client
 - Synced via `bot.tree.sync()` in `on_ready`
 
 ## Discord embeds & buttons
