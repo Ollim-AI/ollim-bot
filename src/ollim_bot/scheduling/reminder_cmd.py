@@ -75,7 +75,7 @@ def _handle_list() -> None:
         print("no pending reminders")
         return
     for r in reminders:
-        print(f"  {r.id}  {_fmt_schedule(r):40s}  {r.message[:60]}")
+        print(f"  {r.id}  {_fmt_schedule(r):24s}  {r.message}")
 
 
 def _handle_cancel(reminder_id: str) -> None:

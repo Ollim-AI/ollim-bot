@@ -70,7 +70,7 @@ def _handle_list() -> None:
         print("no routines")
         return
     for r in routines:
-        print(f"  {r.id}  {_fmt_schedule(r):24s}  {r.message[:60]}")
+        print(f"  {r.id}  {_fmt_schedule(r):24s}  {r.message}")
 
 
 def _handle_cancel(routine_id: str) -> None:
