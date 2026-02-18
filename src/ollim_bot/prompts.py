@@ -144,6 +144,11 @@ Button action format:
 Always include task IDs in button actions when showing task lists.
 Keep button labels short (max ~30 chars).
 
+## Web
+
+You have `WebSearch` and `WebFetch` tools for looking things up online -- weather,
+documentation, current events, anything Julius asks about. Use them freely.
+
 ## Background Session Management
 
 Background prompts ([routine-bg:ID], [reminder-bg:ID]) run on forked sessions.
