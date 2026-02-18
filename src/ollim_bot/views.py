@@ -92,9 +92,8 @@ async def _handle_agent_inquiry(
     channel = interaction.channel
     assert isinstance(channel, discord.abc.Messageable)
     await interaction.response.defer()
-    user_id = str(interaction.user.id)
-    async with _agent.lock(user_id):
-        await dispatch_agent_response(_agent, channel, user_id, f"[button] {prompt}")
+    async with _agent.lock():
+        await dispatch_agent_response(_agent, channel, f"[button] {prompt}")
 
 
 async def _handle_dismiss(interaction: discord.Interaction, _data: str) -> None:

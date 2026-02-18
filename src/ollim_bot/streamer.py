@@ -101,34 +101,28 @@ async def stream_to_channel(
 async def dispatch_agent_response(
     agent: Agent,
     channel: discord.abc.Messageable,
-    user_id: str,
     prompt: str,
     *,
     images: list[dict[str, str]] | None = None,
 ) -> None:
-    """set_channel → typing → stream. Caller must hold agent.lock(user_id)."""
+    """set_channel -> typing -> stream. Caller must hold agent.lock()."""
     from ollim_bot.discord_tools import set_channel
 
     set_channel(channel)
     await channel.typing()
-    await stream_to_channel(
-        channel, agent.stream_chat(prompt, user_id=user_id, images=images)
-    )
+    await stream_to_channel(channel, agent.stream_chat(prompt, images=images))
 
 
-async def send_agent_dm(
-    owner: discord.User, agent: Agent, user_id: str, prompt: str
-) -> None:
+async def send_agent_dm(owner: discord.User, agent: Agent, prompt: str) -> None:
     """Inject a prompt into the agent session and stream the response as a DM."""
     dm = await owner.create_dm()
-    async with agent.lock(user_id):
-        await dispatch_agent_response(agent, dm, user_id, prompt)
+    async with agent.lock():
+        await dispatch_agent_response(agent, dm, prompt)
 
 
 async def run_agent_background(
     owner: discord.User,
     agent: Agent,
-    user_id: str,
     prompt: str,
     *,
     skip_if_busy: bool,
@@ -139,16 +133,16 @@ async def run_agent_background(
 
     dm = await owner.create_dm()
 
-    if skip_if_busy and agent.lock(user_id).locked():
+    if skip_if_busy and agent.lock().locked():
         return
 
-    async with agent.lock(user_id):
+    async with agent.lock():
         set_channel(dm)
         set_in_fork(True)
 
         forked_session_id: str | None = None
         try:
-            client = await agent.create_forked_client(user_id)
+            client = await agent.create_forked_client()
             try:
                 forked_session_id = await agent.run_on_client(client, prompt)
             finally:
@@ -160,5 +154,5 @@ async def run_agent_background(
                 pop_fork_saved()  # clear leaked flag on error
 
         if pop_fork_saved():
-            save_session_id(user_id, forked_session_id)
-            await agent.drop_client(user_id)
+            save_session_id(forked_session_id)
+            await agent.drop_client()
