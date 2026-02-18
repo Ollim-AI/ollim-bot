@@ -199,10 +199,11 @@ _TZ = ZoneInfo("America/Los_Angeles")
 
 
 def set_in_fork(active: bool) -> None:
-    """Enter or exit fork mode. Resets the saved flag on every transition."""
+    """Enter or exit fork mode. Resets the saved flag on entry only."""
     global _in_fork, _fork_saved
     _in_fork = active
-    _fork_saved = False
+    if active:
+        _fork_saved = False
 
 
 def pop_fork_saved() -> bool:
