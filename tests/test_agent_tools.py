@@ -5,17 +5,29 @@ import asyncio
 import ollim_bot.forks as forks_mod
 from ollim_bot.agent_tools import (
     ChainContext,
+    enter_fork,
+    exit_fork,
     follow_up_chain,
     report_updates,
     save_context,
     set_chain_context,
 )
-from ollim_bot.forks import pop_fork_saved, pop_pending_updates, set_in_fork
+from ollim_bot.forks import (
+    ForkExitAction,
+    pop_enter_fork,
+    pop_exit_action,
+    pop_fork_saved,
+    pop_pending_updates,
+    set_in_fork,
+    set_interactive_fork,
+)
 
 # @tool decorator wraps the function in SdkMcpTool; .handler is the raw async fn
 _follow_up = follow_up_chain.handler
 _save_ctx = save_context.handler
 _report = report_updates.handler
+_enter = enter_fork.handler
+_exit = exit_fork.handler
 
 
 def _run(coro):
@@ -147,3 +159,106 @@ def test_report_updates_does_not_save_fork():
     assert pop_fork_saved() is False
     pop_pending_updates()
     set_in_fork(False)
+
+
+# --- enter_fork ---
+
+
+def test_enter_fork_sets_request():
+    result = _run(_enter({"topic": "research ML papers", "idle_timeout": 15}))
+
+    assert "Fork will be created" in result["content"][0]["text"]
+    topic, timeout = pop_enter_fork()
+    assert topic == "research ML papers"
+    assert timeout == 15
+
+
+def test_enter_fork_no_topic():
+    result = _run(_enter({}))
+
+    assert "Fork will be created" in result["content"][0]["text"]
+    topic, timeout = pop_enter_fork()
+    assert topic is None
+    assert timeout == 10
+
+
+def test_enter_fork_while_in_bg_fork():
+    set_in_fork(True)
+
+    result = _run(_enter({}))
+
+    assert "Error" in result["content"][0]["text"]
+    assert "already in a fork" in result["content"][0]["text"]
+    pop_enter_fork()
+    set_in_fork(False)
+
+
+def test_enter_fork_while_in_interactive_fork():
+    set_interactive_fork(True, idle_timeout=10)
+
+    result = _run(_enter({}))
+
+    assert "Error" in result["content"][0]["text"]
+    assert "already in a fork" in result["content"][0]["text"]
+    pop_enter_fork()
+    set_interactive_fork(False)
+
+
+# --- exit_fork ---
+
+
+def test_exit_fork_not_in_fork():
+    result = _run(_exit({}))
+
+    assert "Error" in result["content"][0]["text"]
+    assert "not in an interactive fork" in result["content"][0]["text"]
+
+
+def test_exit_fork_in_interactive_fork():
+    set_interactive_fork(True, idle_timeout=10)
+
+    result = _run(_exit({}))
+
+    assert "discarded" in result["content"][0]["text"].lower()
+    assert pop_exit_action() is ForkExitAction.EXIT
+    set_interactive_fork(False)
+
+
+# --- save_context (interactive fork mode) ---
+
+
+def test_save_context_in_interactive_fork():
+    set_interactive_fork(True, idle_timeout=10)
+
+    result = _run(_save_ctx({}))
+
+    assert "promoted" in result["content"][0]["text"].lower()
+    assert pop_exit_action() is ForkExitAction.SAVE
+    set_interactive_fork(False)
+
+
+def test_save_context_prefers_interactive_over_bg():
+    """Interactive fork check takes priority over bg fork check."""
+    set_in_fork(True)
+    set_interactive_fork(True, idle_timeout=10)
+
+    result = _run(_save_ctx({}))
+
+    assert "promoted" in result["content"][0]["text"].lower()
+    assert pop_exit_action() is ForkExitAction.SAVE
+    set_interactive_fork(False)
+    set_in_fork(False)
+
+
+# --- report_updates (interactive fork mode) ---
+
+
+def test_report_updates_in_interactive_fork():
+    pop_pending_updates()
+    set_interactive_fork(True, idle_timeout=10)
+
+    _run(_report({"message": "found 3 papers"}))
+
+    assert pop_exit_action() is ForkExitAction.REPORT
+    assert pop_pending_updates() == ["found 3 papers"]
+    set_interactive_fork(False)

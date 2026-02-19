@@ -13,7 +13,14 @@ from ollim_bot.embeds import (
     build_embed,
     build_view,
 )
-from ollim_bot.forks import _append_update, clear_pending_updates
+from ollim_bot.forks import (
+    ForkExitAction,
+    _append_update,
+    clear_pending_updates,
+    in_interactive_fork,
+    request_enter_fork,
+    set_exit_action,
+)
 
 # Module-level channel reference, set by bot.py before each stream_chat().
 # Safe because the per-user lock serializes access (single-user bot).
@@ -185,10 +192,10 @@ async def follow_up_chain(args: dict[str, Any]) -> dict[str, Any]:
 
 @tool(
     "save_context",
-    "Signal that this background check produced useful context worth keeping in "
-    "the conversation. Call this when you found something noteworthy, sent an alert, "
-    "or made a decision the user should see in history. If you don't call this, "
-    "everything from this check is discarded.",
+    "Signal that this forked session produced useful context worth keeping. "
+    "In a background fork, preserves the full session. In an interactive fork, "
+    "promotes the fork to the main session. If you don't call this, "
+    "everything from this fork is discarded.",
     {
         "type": "object",
         "properties": {},
@@ -197,6 +204,17 @@ async def follow_up_chain(args: dict[str, Any]) -> dict[str, Any]:
 async def save_context(args: dict[str, Any]) -> dict[str, Any]:
     import ollim_bot.forks as forks_mod
 
+    if in_interactive_fork():
+        set_exit_action(ForkExitAction.SAVE)
+        clear_pending_updates()
+        return {
+            "content": [
+                {
+                    "type": "text",
+                    "text": "Context saved -- fork will be promoted to main session.",
+                }
+            ]
+        }
     if not forks_mod._in_fork:
         return {
             "content": [
@@ -214,7 +232,7 @@ async def save_context(args: dict[str, Any]) -> dict[str, Any]:
 
 @tool(
     "report_updates",
-    "Report a short summary from this background check to the main conversation. "
+    "Report a short summary from this fork to the main conversation. "
     "The fork is discarded but the summary is injected into the next main-session "
     "message. Use for lightweight findings that don't need full context preservation.",
     {
@@ -231,6 +249,17 @@ async def save_context(args: dict[str, Any]) -> dict[str, Any]:
 async def report_updates(args: dict[str, Any]) -> dict[str, Any]:
     import ollim_bot.forks as forks_mod
 
+    if in_interactive_fork():
+        set_exit_action(ForkExitAction.REPORT)
+        _append_update(args["message"])
+        return {
+            "content": [
+                {
+                    "type": "text",
+                    "text": "Update reported -- fork will be discarded after this response.",
+                }
+            ]
+        }
     if not forks_mod._in_fork:
         return {
             "content": [
@@ -248,7 +277,66 @@ async def report_updates(args: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+@tool(
+    "enter_fork",
+    "Start an interactive forked session for research, tangents, or focused work. "
+    "The fork branches from the main conversation. Use exit_fork, save_context, or "
+    "report_updates to end it.",
+    {
+        "type": "object",
+        "properties": {
+            "topic": {
+                "type": "string",
+                "description": "Optional topic for the fork",
+            },
+            "idle_timeout": {
+                "type": "integer",
+                "description": "Minutes before idle timeout prompt (default 10)",
+            },
+        },
+    },
+)
+async def enter_fork(args: dict[str, Any]) -> dict[str, Any]:
+    import ollim_bot.forks as forks_mod
+
+    if forks_mod._in_fork or in_interactive_fork():
+        return {"content": [{"type": "text", "text": "Error: already in a fork"}]}
+    request_enter_fork(args.get("topic"), idle_timeout=args.get("idle_timeout", 10))
+    return {
+        "content": [
+            {"type": "text", "text": "Fork will be created after this response."}
+        ]
+    }
+
+
+@tool(
+    "exit_fork",
+    "Exit the current interactive fork. The fork is discarded and the main "
+    "session resumes.",
+    {"type": "object", "properties": {}},
+)
+async def exit_fork(args: dict[str, Any]) -> dict[str, Any]:
+    if not in_interactive_fork():
+        return {
+            "content": [{"type": "text", "text": "Error: not in an interactive fork"}]
+        }
+    set_exit_action(ForkExitAction.EXIT)
+    return {
+        "content": [
+            {"type": "text", "text": "Fork will be discarded after this response."}
+        ]
+    }
+
+
 agent_server = create_sdk_mcp_server(
     "discord",
-    tools=[discord_embed, ping_user, follow_up_chain, save_context, report_updates],
+    tools=[
+        discord_embed,
+        ping_user,
+        follow_up_chain,
+        save_context,
+        report_updates,
+        enter_fork,
+        exit_fork,
+    ],
 )
