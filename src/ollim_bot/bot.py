@@ -6,9 +6,19 @@ from typing import Literal
 
 import discord
 from discord.ext import commands
+from discord.ui import Button, View
 
 from ollim_bot.agent import Agent
 from ollim_bot.agent_tools import set_channel
+from ollim_bot.forks import (
+    ForkExitAction,
+    clear_prompted,
+    enter_fork_requested,
+    in_interactive_fork,
+    pop_enter_fork,
+    pop_exit_action,
+    touch_activity,
+)
 from ollim_bot.scheduling import setup_scheduler
 from ollim_bot.sessions import load_session_id
 from ollim_bot.streamer import stream_to_channel
@@ -74,6 +84,74 @@ def create_bot() -> commands.Bot:
         await channel.typing()
         await stream_to_channel(channel, agent.stream_chat(prompt, images=images))
 
+    async def _send_fork_enter(
+        channel: discord.abc.Messageable, topic: str | None
+    ) -> None:
+        embed = discord.Embed(
+            title="Forked Session",
+            description=f"Topic: {topic}" if topic else "Open session",
+            color=discord.Color.purple(),
+        )
+        view = View(timeout=None)
+        view.add_item(
+            Button(
+                label="Save Context",
+                style=discord.ButtonStyle.success,
+                custom_id="act:fork_save:_",
+            )
+        )
+        view.add_item(
+            Button(
+                label="Report",
+                style=discord.ButtonStyle.primary,
+                custom_id="act:fork_report:_",
+            )
+        )
+        view.add_item(
+            Button(
+                label="Exit Fork",
+                style=discord.ButtonStyle.danger,
+                custom_id="act:fork_exit:_",
+            )
+        )
+        await channel.send(embed=embed, view=view)
+
+    def _fork_exit_embed(action: ForkExitAction) -> discord.Embed:
+        labels = {
+            ForkExitAction.SAVE: (
+                "context saved — promoted to main session",
+                discord.Color.green(),
+            ),
+            ForkExitAction.REPORT: (
+                "summary reported — fork discarded",
+                discord.Color.blue(),
+            ),
+            ForkExitAction.EXIT: ("fork discarded", discord.Color.greyple()),
+        }
+        label, color = labels[action]
+        return discord.Embed(title="Fork Ended", description=label, color=color)
+
+    async def _check_fork_transitions(
+        channel: discord.abc.Messageable,
+    ) -> None:
+        """Check if agent requested fork entry/exit during last response."""
+        if enter_fork_requested():
+            topic, timeout = pop_enter_fork()
+            await agent.enter_interactive_fork(idle_timeout=timeout)
+            await _send_fork_enter(channel, topic)
+            if topic:
+                set_channel(channel)
+                await channel.typing()
+                await stream_to_channel(channel, agent.stream_chat(topic))
+                touch_activity()
+                await _check_fork_transitions(channel)
+            return
+
+        exit_action = pop_exit_action()
+        if exit_action is not ForkExitAction.NONE:
+            await agent.exit_interactive_fork(exit_action)
+            await channel.send(embed=_fork_exit_embed(exit_action))
+
     @bot.tree.command(name="clear", description="Clear conversation and start fresh")
     async def slash_clear(interaction: discord.Interaction):
         await agent.clear()
@@ -96,6 +174,28 @@ def create_bot() -> commands.Bot:
             await interaction.response.defer(thinking=True)
             result = await agent.slash("/cost")
             await interaction.followup.send(result)
+
+    @bot.tree.command(name="fork", description="Start a forked conversation")
+    @discord.app_commands.describe(topic="Optional topic to start with")
+    async def slash_fork(interaction: discord.Interaction, topic: str | None = None):
+        if agent.in_fork:
+            await interaction.response.send_message(
+                "already in a fork.", ephemeral=True
+            )
+            return
+        await interaction.response.defer()
+        async with agent.lock():
+            await agent.enter_interactive_fork()
+            channel = interaction.channel
+            assert isinstance(channel, discord.abc.Messageable)
+            await _send_fork_enter(channel, topic)
+            await interaction.delete_original_response()
+            if topic:
+                set_channel(channel)
+                await channel.typing()
+                await stream_to_channel(channel, agent.stream_chat(topic))
+                touch_activity()
+                await _check_fork_transitions(channel)
 
     @bot.tree.command(name="model", description="Switch the AI model")
     @discord.app_commands.describe(name="Model to use")
@@ -174,6 +274,10 @@ def create_bot() -> commands.Bot:
 
         async with agent.lock():
             await _dispatch(message.channel, content, images=images or None)
+            if in_interactive_fork():
+                touch_activity()
+                clear_prompted()
+            await _check_fork_transitions(message.channel)
 
         with contextlib.suppress(discord.NotFound):
             await message.remove_reaction("\N{EYES}", bot.user)
