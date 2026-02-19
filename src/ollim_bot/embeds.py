@@ -8,6 +8,7 @@ import discord
 from discord.ui import Button, View
 
 from ollim_bot import inquiries
+from ollim_bot.forks import ForkExitAction
 
 ButtonStyle = Literal["primary", "secondary", "success", "danger"]
 EmbedColor = Literal["blue", "green", "red", "yellow", "purple"]
@@ -34,6 +35,23 @@ class EmbedConfig:
     color: EmbedColor = "blue"
     fields: tuple[EmbedField, ...] = field(default_factory=tuple)
     buttons: tuple[ButtonConfig, ...] = field(default_factory=tuple)
+
+
+_FORK_EXIT_COLORS: dict[ForkExitAction, discord.Color] = {
+    ForkExitAction.SAVE: discord.Color.green(),
+    ForkExitAction.REPORT: discord.Color.blue(),
+    ForkExitAction.EXIT: discord.Color.greyple(),
+}
+
+
+def fork_exit_embed(
+    action: ForkExitAction, summary: str | None = None
+) -> discord.Embed:
+    return discord.Embed(
+        title="Fork Ended",
+        description=summary,
+        color=_FORK_EXIT_COLORS[action],
+    )
 
 
 STYLE_MAP: dict[ButtonStyle, discord.ButtonStyle] = {

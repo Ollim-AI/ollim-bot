@@ -29,6 +29,7 @@ from ollim_bot.agent_tools import agent_server
 from ollim_bot.forks import (
     ForkExitAction,
     peek_pending_updates,
+    pop_exit_action,
     pop_pending_updates,
     set_interactive_fork,
     touch_activity,
@@ -267,6 +268,19 @@ class Agent:
                 await client.interrupt()
             with contextlib.suppress(RuntimeError):
                 await client.disconnect()
+
+    async def pop_fork_exit(self) -> tuple[ForkExitAction, str | None] | None:
+        """Pop pending exit action, exit the fork, return (action, summary) or None."""
+        action = pop_exit_action()
+        if action is ForkExitAction.NONE:
+            return None
+        summary = (
+            peek_pending_updates()[-1]
+            if action is ForkExitAction.REPORT and peek_pending_updates()
+            else None
+        )
+        await self.exit_interactive_fork(action)
+        return action, summary
 
     async def create_forked_client(self) -> ClaudeSDKClient:
         """Create a disposable client that forks the current session.

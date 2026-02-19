@@ -11,14 +11,12 @@ from discord.ui import Button, View
 from ollim_bot.agent import Agent
 from ollim_bot.agent_tools import set_channel
 from ollim_bot.config import BOT_NAME, USER_NAME
+from ollim_bot.embeds import fork_exit_embed
 from ollim_bot.forks import (
-    ForkExitAction,
     clear_prompted,
     enter_fork_requested,
     in_interactive_fork,
-    peek_pending_updates,
     pop_enter_fork,
-    pop_exit_action,
     touch_activity,
 )
 from ollim_bot.scheduling import setup_scheduler
@@ -118,20 +116,6 @@ def create_bot() -> commands.Bot:
         )
         await channel.send(embed=embed, view=view)
 
-    def _fork_exit_embed(
-        action: ForkExitAction, summary: str | None = None
-    ) -> discord.Embed:
-        colors = {
-            ForkExitAction.SAVE: discord.Color.green(),
-            ForkExitAction.REPORT: discord.Color.blue(),
-            ForkExitAction.EXIT: discord.Color.greyple(),
-        }
-        return discord.Embed(
-            title="Fork Ended",
-            description=summary,
-            color=colors[action],
-        )
-
     def _fork_topic_prompt(topic: str) -> str:
         return (
             f"[fork-started] You are now inside an interactive forked session. "
@@ -158,15 +142,10 @@ def create_bot() -> commands.Bot:
                 await _check_fork_transitions(channel)
             return
 
-        exit_action = pop_exit_action()
-        if exit_action is not ForkExitAction.NONE:
-            summary = (
-                peek_pending_updates()[-1]
-                if exit_action is ForkExitAction.REPORT and peek_pending_updates()
-                else None
-            )
-            await agent.exit_interactive_fork(exit_action)
-            await channel.send(embed=_fork_exit_embed(exit_action, summary))
+        result = await agent.pop_fork_exit()
+        if result:
+            action, summary = result
+            await channel.send(embed=fork_exit_embed(action, summary))
 
     @bot.tree.command(name="clear", description="Clear conversation and start fresh")
     async def slash_clear(interaction: discord.Interaction):
