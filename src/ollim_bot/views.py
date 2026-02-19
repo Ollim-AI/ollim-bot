@@ -120,15 +120,26 @@ async def _handle_fork_save(interaction: discord.Interaction, _data: str) -> Non
 
 
 async def _handle_fork_report(interaction: discord.Interaction, _data: str) -> None:
-    from ollim_bot.forks import ForkExitAction, _append_update, in_interactive_fork
+    from ollim_bot.forks import ForkExitAction, in_interactive_fork
 
     if not in_interactive_fork():
         await interaction.response.send_message("no active fork.", ephemeral=True)
         return
     assert _agent is not None
-    _append_update("fork exited via button (report)")
+    channel = interaction.channel
+    assert isinstance(channel, discord.abc.Messageable)
     await interaction.response.defer()
     async with _agent.lock():
+        set_channel(channel)
+        await channel.typing()
+        await stream_to_channel(
+            channel,
+            _agent.stream_chat(
+                "The user clicked the Report button to exit this fork. "
+                "Summarize the key findings from this forked conversation "
+                "using the report_updates tool, then the fork will end."
+            ),
+        )
         await _agent.exit_interactive_fork(ForkExitAction.REPORT)
     await interaction.followup.send("summary reported — fork discarded.")
 
