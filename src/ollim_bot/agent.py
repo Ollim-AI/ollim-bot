@@ -24,11 +24,8 @@ from claude_agent_sdk.types import (
     ToolPermissionContext,
 )
 
-from ollim_bot.discord_tools import (
-    discord_server,
-    peek_pending_updates,
-    pop_pending_updates,
-)
+from ollim_bot.discord_tools import discord_server
+from ollim_bot.forks import peek_pending_updates, pop_pending_updates
 from ollim_bot.prompts import (
     GMAIL_READER_PROMPT,
     HISTORY_REVIEWER_PROMPT,

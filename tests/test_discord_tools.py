@@ -1,26 +1,28 @@
-"""Tests for discord_tools.py — chain context, follow_up_chain, fork tools."""
+"""Tests for discord_tools.py — chain context, follow_up_chain, tool handlers."""
 
 import asyncio
 
+import ollim_bot.forks as forks_mod
 from ollim_bot.discord_tools import (
     ChainContext,
-    clear_pending_updates,
     follow_up_chain,
-    peek_pending_updates,
-    pop_fork_saved,
-    pop_pending_updates,
     report_updates,
     save_context,
     set_chain_context,
-    set_in_fork,
 )
+from ollim_bot.forks import pop_fork_saved, pop_pending_updates, set_in_fork
 
 # @tool decorator wraps the function in SdkMcpTool; .handler is the raw async fn
 _follow_up = follow_up_chain.handler
+_save_ctx = save_context.handler
+_report = report_updates.handler
 
 
 def _run(coro):
     return asyncio.get_event_loop().run_until_complete(coro)
+
+
+# --- Chain context ---
 
 
 def test_chain_context_is_frozen():
@@ -81,9 +83,7 @@ def test_set_chain_context_roundtrip():
     assert "no active reminder context" in result["content"][0]["text"]
 
 
-# --- save_context tests ---
-
-_save_ctx = save_context.handler
+# --- save_context (bg fork mode) ---
 
 
 def test_save_context_not_in_fork():
@@ -104,28 +104,19 @@ def test_save_context_sets_flag():
     set_in_fork(False)
 
 
-def test_fork_saved_cleared_after_pop():
+def test_save_context_clears_pending_updates():
+    pop_pending_updates()
     set_in_fork(True)
+    forks_mod._append_update("pre-save update")
+
     _run(_save_ctx({}))
+
+    assert forks_mod.peek_pending_updates() == []
     pop_fork_saved()
-
-    assert pop_fork_saved() is False
     set_in_fork(False)
 
 
-def test_set_in_fork_resets_saved():
-    set_in_fork(True)
-    _run(_save_ctx({}))
-
-    set_in_fork(True)  # re-entering fork resets the saved flag
-
-    assert pop_fork_saved() is False
-    set_in_fork(False)
-
-
-# --- report_updates tests ---
-
-_report = report_updates.handler
+# --- report_updates (bg fork mode) ---
 
 
 def test_report_updates_not_in_fork():
@@ -138,7 +129,7 @@ def test_report_updates_not_in_fork():
 
 
 def test_report_updates_appends_to_file():
-    pop_pending_updates()  # clear any stale state
+    pop_pending_updates()
     set_in_fork(True)
 
     _run(_report({"message": "Found 2 actionable emails"}))
@@ -154,76 +145,5 @@ def test_report_updates_does_not_save_fork():
     _run(_report({"message": "minor update"}))
 
     assert pop_fork_saved() is False
-    pop_pending_updates()  # cleanup
-    set_in_fork(False)
-
-
-def test_pop_pending_updates_clears_file():
-    pop_pending_updates()  # clear stale state
-    set_in_fork(True)
-    _run(_report({"message": "update"}))
-    pop_pending_updates()  # first pop clears
-
-    assert pop_pending_updates() == []
-    set_in_fork(False)
-
-
-def test_multiple_updates_accumulate():
-    pop_pending_updates()  # clear stale state
-    set_in_fork(True)
-
-    _run(_report({"message": "first finding"}))
-    _run(_report({"message": "second finding"}))
-
-    updates = pop_pending_updates()
-    assert updates == ["first finding", "second finding"]
-    set_in_fork(False)
-
-
-# --- peek / clear tests ---
-
-
-def test_peek_reads_without_clearing():
-    pop_pending_updates()  # clear stale state
-    set_in_fork(True)
-    _run(_report({"message": "peeked update"}))
-
-    first = peek_pending_updates()
-    second = peek_pending_updates()
-
-    assert first == ["peeked update"]
-    assert second == ["peeked update"]
-    pop_pending_updates()  # cleanup
-    set_in_fork(False)
-
-
-def test_clear_removes_file():
-    pop_pending_updates()  # clear stale state
-    set_in_fork(True)
-    _run(_report({"message": "to be cleared"}))
-
-    clear_pending_updates()
-
-    assert peek_pending_updates() == []
-    set_in_fork(False)
-
-
-def test_clear_is_idempotent():
-    pop_pending_updates()  # ensure clean
-
-    clear_pending_updates()
-    clear_pending_updates()
-
-    assert peek_pending_updates() == []
-
-
-def test_save_context_clears_pending_updates():
-    pop_pending_updates()  # clear stale state
-    set_in_fork(True)
-    _run(_report({"message": "pre-save update"}))
-
-    _run(_save_ctx({}))
-
-    assert peek_pending_updates() == []
-    pop_fork_saved()  # cleanup
+    pop_pending_updates()
     set_in_fork(False)
