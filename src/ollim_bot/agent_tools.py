@@ -305,7 +305,12 @@ async def enter_fork(args: dict[str, Any]) -> dict[str, Any]:
     request_enter_fork(args.get("topic"), idle_timeout=args.get("idle_timeout", 10))
     return {
         "content": [
-            {"type": "text", "text": "Fork will be created after this response."}
+            {
+                "type": "text",
+                "text": "Fork will start after you finish responding. "
+                "Do NOT call any other tools in this turn — they will "
+                "run on the main session, not the fork.",
+            }
         ]
     }
 

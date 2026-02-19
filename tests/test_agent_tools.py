@@ -167,7 +167,7 @@ def test_report_updates_does_not_save_fork():
 def test_enter_fork_sets_request():
     result = _run(_enter({"topic": "research ML papers", "idle_timeout": 15}))
 
-    assert "Fork will be created" in result["content"][0]["text"]
+    assert "Fork will start" in result["content"][0]["text"]
     topic, timeout = pop_enter_fork()
     assert topic == "research ML papers"
     assert timeout == 15
@@ -176,7 +176,7 @@ def test_enter_fork_sets_request():
 def test_enter_fork_no_topic():
     result = _run(_enter({}))
 
-    assert "Fork will be created" in result["content"][0]["text"]
+    assert "Fork will start" in result["content"][0]["text"]
     topic, timeout = pop_enter_fork()
     assert topic is None
     assert timeout == 10
