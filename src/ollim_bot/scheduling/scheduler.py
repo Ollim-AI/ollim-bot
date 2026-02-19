@@ -26,6 +26,8 @@ from ollim_bot.forks import (
     idle_timeout,
     in_interactive_fork,
     is_idle,
+    peek_pending_updates,
+    pop_exit_action,
     run_agent_background,
     send_agent_dm,
     set_prompted_at,
@@ -286,6 +288,26 @@ def setup_scheduler(
                         f"If {USER_NAME} is still engaged, ask them what they'd like to do."
                     ),
                 )
-                touch_activity()
+                exit_action = pop_exit_action()
+                if exit_action is not ForkExitAction.NONE:
+                    summary = (
+                        peek_pending_updates()[-1]
+                        if exit_action is ForkExitAction.REPORT
+                        and peek_pending_updates()
+                        else None
+                    )
+                    await agent.exit_interactive_fork(exit_action)
+                    embed = discord.Embed(
+                        title="Fork Ended",
+                        description=summary,
+                        color={
+                            ForkExitAction.SAVE: discord.Color.green(),
+                            ForkExitAction.REPORT: discord.Color.blue(),
+                            ForkExitAction.EXIT: discord.Color.greyple(),
+                        }[exit_action],
+                    )
+                    await dm.send(embed=embed)
+                else:
+                    touch_activity()
 
     return scheduler
