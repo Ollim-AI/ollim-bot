@@ -260,7 +260,7 @@ async def save_context(args: dict[str, Any]) -> dict[str, Any]:
 async def report_updates(args: dict[str, Any]) -> dict[str, Any]:
     if in_interactive_fork():
         set_exit_action(ForkExitAction.REPORT)
-        _append_update(args["message"])
+        await _append_update(args["message"])
         return {
             "content": [
                 {
@@ -276,7 +276,7 @@ async def report_updates(args: dict[str, Any]) -> dict[str, Any]:
                 {"type": "text", "text": "Error: not in a forked background session"}
             ]
         }
-    _append_update(args["message"])
+    await _append_update(args["message"])
     return {
         "content": [
             {

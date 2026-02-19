@@ -1,5 +1,6 @@
 """Tests for forks.py — fork state, pending updates, interactive fork lifecycle."""
 
+import asyncio
 import time
 
 from ollim_bot.forks import (
@@ -24,11 +25,15 @@ from ollim_bot.forks import (
 # --- Pending updates ---
 
 
+def _run(coro):
+    return asyncio.get_event_loop().run_until_complete(coro)
+
+
 def test_peek_reads_without_clearing():
     pop_pending_updates()
     from ollim_bot.forks import _append_update
 
-    _append_update("peeked")
+    _run(_append_update("peeked"))
 
     first = peek_pending_updates()
     second = peek_pending_updates()
@@ -42,7 +47,7 @@ def test_pop_clears_updates():
     pop_pending_updates()
     from ollim_bot.forks import _append_update
 
-    _append_update("cleared")
+    _run(_append_update("cleared"))
     pop_pending_updates()
 
     assert pop_pending_updates() == []
@@ -52,8 +57,8 @@ def test_multiple_updates_accumulate():
     pop_pending_updates()
     from ollim_bot.forks import _append_update
 
-    _append_update("first")
-    _append_update("second")
+    _run(_append_update("first"))
+    _run(_append_update("second"))
 
     assert pop_pending_updates() == ["first", "second"]
 

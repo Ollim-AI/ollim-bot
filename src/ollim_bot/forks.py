@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import tempfile
@@ -47,17 +48,25 @@ def in_bg_fork() -> bool:
 
 _UPDATES_FILE = Path.home() / ".ollim-bot" / "pending_updates.json"
 _TZ = ZoneInfo("America/Los_Angeles")
+_updates_lock = asyncio.Lock()
 
 
-def _append_update(message: str) -> None:
-    """Append a timestamped update to the pending updates file."""
-    _UPDATES_FILE.parent.mkdir(parents=True, exist_ok=True)
-    updates = json.loads(_UPDATES_FILE.read_text()) if _UPDATES_FILE.exists() else []
-    updates.append({"ts": datetime.now(_TZ).isoformat(), "message": message})
-    fd, tmp = tempfile.mkstemp(dir=_UPDATES_FILE.parent, suffix=".tmp")
-    os.write(fd, json.dumps(updates).encode())
-    os.close(fd)
-    os.replace(tmp, _UPDATES_FILE)
+async def _append_update(message: str) -> None:
+    """Append a timestamped update to the pending updates file.
+
+    Lock protects the read-modify-write cycle so concurrent bg forks
+    don't lose each other's updates.
+    """
+    async with _updates_lock:
+        _UPDATES_FILE.parent.mkdir(parents=True, exist_ok=True)
+        updates = (
+            json.loads(_UPDATES_FILE.read_text()) if _UPDATES_FILE.exists() else []
+        )
+        updates.append({"ts": datetime.now(_TZ).isoformat(), "message": message})
+        fd, tmp = tempfile.mkstemp(dir=_UPDATES_FILE.parent, suffix=".tmp")
+        os.write(fd, json.dumps(updates).encode())
+        os.close(fd)
+        os.replace(tmp, _UPDATES_FILE)
 
 
 def peek_pending_updates() -> list[str]:
