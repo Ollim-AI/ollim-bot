@@ -10,6 +10,7 @@ from discord.ui import Button, View
 
 from ollim_bot.agent import Agent
 from ollim_bot.agent_tools import set_channel
+from ollim_bot.config import BOT_NAME, USER_NAME
 from ollim_bot.forks import (
     ForkExitAction,
     clear_prompted,
@@ -215,7 +216,7 @@ def create_bot() -> commands.Bot:
     @bot.event
     async def on_ready():
         nonlocal _ready_fired
-        print(f"ollim-bot online as {bot.user}")
+        print(f"{BOT_NAME} online as {bot.user}")
 
         # on_ready fires again on every reconnect; init must only happen once
         if _ready_fired:
@@ -244,7 +245,7 @@ def create_bot() -> commands.Bot:
             await dm.send("hey, i'm back online. i remember where we left off.")
         else:
             await dm.send(
-                "hey julius, ollim-bot is online. what's on your plate today?"
+                f"hey {USER_NAME.lower()}, {BOT_NAME} is online. what's on your plate today?"
             )
 
     @bot.event
