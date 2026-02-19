@@ -107,6 +107,13 @@ async def _handle_dismiss(interaction: discord.Interaction, _data: str) -> None:
     await interaction.message.delete()
 
 
+def _fork_exit_embed(
+    description: str, color: discord.Color, summary: str | None = None
+) -> discord.Embed:
+    text = f"{description}\n\n> {summary}" if summary else description
+    return discord.Embed(title="Fork Ended", description=text, color=color)
+
+
 async def _handle_fork_save(interaction: discord.Interaction, _data: str) -> None:
     from ollim_bot.forks import ForkExitAction, in_interactive_fork
 
@@ -120,7 +127,10 @@ async def _handle_fork_save(interaction: discord.Interaction, _data: str) -> Non
             await interaction.followup.send("fork already ended.", ephemeral=True)
             return
         await _agent.exit_interactive_fork(ForkExitAction.SAVE)
-    await interaction.followup.send("context saved — promoted to main session.")
+    embed = _fork_exit_embed(
+        "context saved — promoted to main session", discord.Color.green()
+    )
+    await interaction.followup.send(embed=embed)
 
 
 async def _handle_fork_report(interaction: discord.Interaction, _data: str) -> None:
@@ -156,8 +166,11 @@ async def _handle_fork_report(interaction: discord.Interaction, _data: str) -> N
         updates_after = peek_pending_updates()
         new_updates = updates_after[updates_before:]
         await _agent.exit_interactive_fork(ForkExitAction.REPORT)
-    summary = new_updates[-1] if new_updates else "fork discarded (no summary reported)"
-    await interaction.followup.send(f"fork ended — {summary}")
+    summary = new_updates[-1] if new_updates else "no summary reported"
+    embed = _fork_exit_embed(
+        "summary reported — fork discarded", discord.Color.blue(), summary
+    )
+    await interaction.followup.send(embed=embed)
 
 
 async def _handle_fork_exit(interaction: discord.Interaction, _data: str) -> None:
@@ -173,4 +186,5 @@ async def _handle_fork_exit(interaction: discord.Interaction, _data: str) -> Non
             await interaction.followup.send("fork already ended.", ephemeral=True)
             return
         await _agent.exit_interactive_fork(ForkExitAction.EXIT)
-    await interaction.followup.send("fork discarded.")
+    embed = _fork_exit_embed("fork discarded", discord.Color.greyple())
+    await interaction.followup.send(embed=embed)
