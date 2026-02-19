@@ -193,41 +193,28 @@ async def follow_up_chain(args: dict[str, Any]) -> dict[str, Any]:
 
 @tool(
     "save_context",
-    "Signal that this forked session produced useful context worth keeping. "
-    "In a background fork, preserves the full session. In an interactive fork, "
-    "promotes the fork to the main session. If you don't call this, "
-    "everything from this fork is discarded.",
+    "Promote the current interactive fork to the main session. Only available "
+    "in interactive forks. If you don't call this, everything from this fork "
+    "is discarded.",
     {
         "type": "object",
         "properties": {},
     },
 )
 async def save_context(args: dict[str, Any]) -> dict[str, Any]:
-    import ollim_bot.forks as forks_mod
-
-    if in_interactive_fork():
-        set_exit_action(ForkExitAction.SAVE)
-        clear_pending_updates()
+    if not in_interactive_fork():
         return {
-            "content": [
-                {
-                    "type": "text",
-                    "text": "Context saved. Fork will be promoted to main session "
-                    "after you finish responding.",
-                }
-            ]
+            "content": [{"type": "text", "text": "Error: not in an interactive fork"}]
         }
-    if not forks_mod._in_fork:
-        return {
-            "content": [
-                {"type": "text", "text": "Error: not in a forked background session"}
-            ]
-        }
-    forks_mod._fork_saved = True
+    set_exit_action(ForkExitAction.SAVE)
     clear_pending_updates()
     return {
         "content": [
-            {"type": "text", "text": "Context saved -- this session will be preserved."}
+            {
+                "type": "text",
+                "text": "Context saved. Fork will be promoted to main session "
+                "after you finish responding.",
+            }
         ]
     }
 

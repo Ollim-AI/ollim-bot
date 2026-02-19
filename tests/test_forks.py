@@ -11,53 +11,15 @@ from ollim_bot.forks import (
     peek_pending_updates,
     pop_enter_fork,
     pop_exit_action,
-    pop_fork_saved,
     pop_pending_updates,
     prompted_at,
     request_enter_fork,
     set_exit_action,
-    set_in_fork,
     set_interactive_fork,
     set_prompted_at,
     should_auto_exit,
     touch_activity,
 )
-
-# --- Background fork state (migrated from test_agent_tools.py) ---
-
-
-def test_bg_fork_saved_default():
-    set_in_fork(True)
-
-    assert pop_fork_saved() is False
-
-    set_in_fork(False)
-
-
-def test_set_in_fork_resets_saved():
-    set_in_fork(True)
-    # Simulate save_context setting the flag via the internal global
-    import ollim_bot.forks as forks_mod
-
-    forks_mod._fork_saved = True
-    set_in_fork(True)  # re-entering resets
-
-    assert pop_fork_saved() is False
-
-    set_in_fork(False)
-
-
-def test_pop_fork_saved_clears():
-    import ollim_bot.forks as forks_mod
-
-    set_in_fork(True)
-    forks_mod._fork_saved = True
-    pop_fork_saved()
-
-    assert pop_fork_saved() is False
-
-    set_in_fork(False)
-
 
 # --- Pending updates ---
 
