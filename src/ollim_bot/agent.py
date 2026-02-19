@@ -278,11 +278,8 @@ class Agent:
         action = pop_exit_action()
         if action is ForkExitAction.NONE:
             return None
-        summary = (
-            peek_pending_updates()[-1]
-            if action is ForkExitAction.REPORT and peek_pending_updates()
-            else None
-        )
+        updates = peek_pending_updates()
+        summary = updates[-1] if action is ForkExitAction.REPORT and updates else None
         await self.exit_interactive_fork(action)
         return action, summary
 

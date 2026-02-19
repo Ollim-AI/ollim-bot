@@ -55,9 +55,7 @@ _BG_PREAMBLE = (
     "This runs on a forked session -- by default everything is discarded.\n"
     "- Call `report_updates(message)` to pass a short summary to the main "
     "session (fork discarded).\n"
-    "- Call `save_context` only if this check produced heavy context worth "
-    "preserving entirely.\n"
-    "- Call neither if nothing useful happened.\n\n"
+    "- Call nothing if nothing useful happened.\n\n"
 )
 
 _registered_routines: set[str] = set()
@@ -268,7 +266,7 @@ def setup_scheduler(
 
         if should_auto_exit():
             dm = await owner.create_dm()
-            _append_update("fork auto-exited after idle timeout")
+            await _append_update("fork auto-exited after idle timeout")
             async with agent.lock():
                 await agent.exit_interactive_fork(ForkExitAction.REPORT)
                 await dm.send(
