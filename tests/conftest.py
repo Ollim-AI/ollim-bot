@@ -1,5 +1,10 @@
 """Shared fixtures for ollim-bot tests."""
 
+import os
+
+os.environ.setdefault("OLLIM_USER_NAME", "TestUser")
+os.environ.setdefault("OLLIM_BOT_NAME", "test-bot")
+
 import pytest
 
 
