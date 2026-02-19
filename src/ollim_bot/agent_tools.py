@@ -1,6 +1,7 @@
 """MCP tool definitions for agent interactions (embeds, buttons, chains, forks)."""
 
 import subprocess
+from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import Any
 
@@ -18,23 +19,36 @@ from ollim_bot.forks import (
     ForkExitAction,
     _append_update,
     clear_pending_updates,
+    in_bg_fork,
     in_interactive_fork,
     request_enter_fork,
     set_exit_action,
 )
 
-# Module-level channel reference, set by bot.py before each stream_chat().
-# Safe because the per-user lock serializes access (single-user bot).
-_channel = None
+# ---------------------------------------------------------------------------
+# Channel reference — globals for main session, contextvars for bg forks
+# ---------------------------------------------------------------------------
+
+_channel: Any = None
+_channel_var: ContextVar[Any] = ContextVar("_channel", default=None)
 
 
 def set_channel(channel: object) -> None:
-    """Must be called before every stream_chat() or tools dispatch to a stale channel."""
+    """Set channel global — used by main session (protected by agent lock)."""
     global _channel
     _channel = channel
 
 
-# Set immediately before the agent fires, cleared in fire_oneshot() after dispatch.
+def set_fork_channel(channel: object) -> None:
+    """Set channel via contextvar — used by bg forks (no lock needed)."""
+    _channel_var.set(channel)
+
+
+# ---------------------------------------------------------------------------
+# Chain context — same dual pattern
+# ---------------------------------------------------------------------------
+
+
 @dataclass(frozen=True, slots=True)
 class ChainContext:
     reminder_id: str
@@ -46,12 +60,20 @@ class ChainContext:
 
 
 _chain_context: ChainContext | None = None
+_chain_context_var: ContextVar[ChainContext | None] = ContextVar(
+    "_chain_context", default=None
+)
 
 
 def set_chain_context(ctx: ChainContext | None) -> None:
-    """Pass None to clear context after a chain reminder fires."""
+    """Set chain context global — used by foreground reminders."""
     global _chain_context
     _chain_context = ctx
+
+
+def set_fork_chain_context(ctx: ChainContext | None) -> None:
+    """Set chain context via contextvar — used by bg reminders."""
+    _chain_context_var.set(ctx)
 
 
 @tool(
@@ -93,7 +115,7 @@ def set_chain_context(ctx: ChainContext | None) -> None:
     },
 )
 async def discord_embed(args: dict[str, Any]) -> dict[str, Any]:
-    channel = _channel
+    channel = _channel_var.get() or _channel
     if channel is None:
         return {"content": [{"type": "text", "text": "Error: no active channel"}]}
 
@@ -126,7 +148,7 @@ async def discord_embed(args: dict[str, Any]) -> dict[str, Any]:
     },
 )
 async def ping_user(args: dict[str, Any]) -> dict[str, Any]:
-    channel = _channel
+    channel = _channel_var.get() or _channel
     if channel is None:
         return {"content": [{"type": "text", "text": "Error: no active channel"}]}
 
@@ -151,7 +173,7 @@ async def ping_user(args: dict[str, Any]) -> dict[str, Any]:
     },
 )
 async def follow_up_chain(args: dict[str, Any]) -> dict[str, Any]:
-    ctx = _chain_context
+    ctx = _chain_context_var.get() or _chain_context
     if ctx is None:
         return {
             "content": [{"type": "text", "text": "Error: no active reminder context"}]
@@ -236,8 +258,6 @@ async def save_context(args: dict[str, Any]) -> dict[str, Any]:
     },
 )
 async def report_updates(args: dict[str, Any]) -> dict[str, Any]:
-    import ollim_bot.forks as forks_mod
-
     if in_interactive_fork():
         set_exit_action(ForkExitAction.REPORT)
         _append_update(args["message"])
@@ -250,7 +270,7 @@ async def report_updates(args: dict[str, Any]) -> dict[str, Any]:
                 }
             ]
         }
-    if not forks_mod._in_fork:
+    if not in_bg_fork():
         return {
             "content": [
                 {"type": "text", "text": "Error: not in a forked background session"}
@@ -287,9 +307,7 @@ async def report_updates(args: dict[str, Any]) -> dict[str, Any]:
     },
 )
 async def enter_fork(args: dict[str, Any]) -> dict[str, Any]:
-    import ollim_bot.forks as forks_mod
-
-    if forks_mod._in_fork or in_interactive_fork():
+    if in_bg_fork() or in_interactive_fork():
         return {"content": [{"type": "text", "text": "Error: already in a fork"}]}
     request_enter_fork(args.get("topic"), idle_timeout=args.get("idle_timeout", 10))
     return {
