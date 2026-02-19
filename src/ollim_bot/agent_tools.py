@@ -212,7 +212,8 @@ async def save_context(args: dict[str, Any]) -> dict[str, Any]:
             "content": [
                 {
                     "type": "text",
-                    "text": "Context saved -- fork will be promoted to main session.",
+                    "text": "Context saved. Fork will be promoted to main session "
+                    "after you finish responding. Do NOT call any other tools.",
                 }
             ]
         }
@@ -257,7 +258,8 @@ async def report_updates(args: dict[str, Any]) -> dict[str, Any]:
             "content": [
                 {
                     "type": "text",
-                    "text": "Update reported -- fork will be discarded after this response.",
+                    "text": "Update reported. Fork will be discarded after you finish "
+                    "responding. Do NOT call any other tools.",
                 }
             ]
         }
@@ -329,7 +331,11 @@ async def exit_fork(args: dict[str, Any]) -> dict[str, Any]:
     set_exit_action(ForkExitAction.EXIT)
     return {
         "content": [
-            {"type": "text", "text": "Fork will be discarded after this response."}
+            {
+                "type": "text",
+                "text": "Fork will be discarded after you finish responding. "
+                "Do NOT call any other tools.",
+            }
         ]
     }
 
