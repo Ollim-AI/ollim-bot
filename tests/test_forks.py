@@ -23,7 +23,7 @@ from ollim_bot.forks import (
     touch_activity,
 )
 
-# --- Background fork state (migrated from test_discord_tools.py) ---
+# --- Background fork state (migrated from test_agent_tools.py) ---
 
 
 def test_bg_fork_saved_default():

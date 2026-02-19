@@ -26,7 +26,7 @@ class ForkExitAction(Enum):
 
 
 # ---------------------------------------------------------------------------
-# Background fork state (unchanged from original discord_tools.py)
+# Background fork state (unchanged from original agent_tools.py)
 # ---------------------------------------------------------------------------
 
 _in_fork: bool = False
@@ -210,7 +210,7 @@ async def run_agent_background(
     skip_if_busy: bool,
 ) -> None:
     """Run agent on a forked session -- discard fork unless save_context is called."""
-    from ollim_bot.discord_tools import set_channel
+    from ollim_bot.agent_tools import set_channel
 
     dm = await owner.create_dm()
 
@@ -245,7 +245,7 @@ async def send_agent_dm(
     prompt: str,
 ) -> None:
     """Inject a prompt into the agent session and stream the response as a DM."""
-    from ollim_bot.discord_tools import set_channel
+    from ollim_bot.agent_tools import set_channel
     from ollim_bot.streamer import stream_to_channel
 
     dm = await owner.create_dm()

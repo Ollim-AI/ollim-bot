@@ -24,7 +24,7 @@ from claude_agent_sdk.types import (
     ToolPermissionContext,
 )
 
-from ollim_bot.discord_tools import discord_server
+from ollim_bot.agent_tools import agent_server
 from ollim_bot.forks import peek_pending_updates, pop_pending_updates
 from ollim_bot.prompts import (
     GMAIL_READER_PROMPT,
@@ -77,7 +77,7 @@ class Agent:
             include_partial_messages=True,
             can_use_tool=_deny_unlisted_tools,
             system_prompt=SYSTEM_PROMPT,
-            mcp_servers={"discord": discord_server},
+            mcp_servers={"discord": agent_server},
             allowed_tools=[
                 "Bash(ollim-bot tasks *)",
                 "Bash(ollim-bot cal *)",

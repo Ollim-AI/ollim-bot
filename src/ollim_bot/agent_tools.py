@@ -1,4 +1,4 @@
-"""MCP tools for agent interactions (embeds, buttons, chain follow-ups, fork control)."""
+"""MCP tool definitions for agent interactions (embeds, buttons, chains, forks)."""
 
 import subprocess
 from dataclasses import dataclass
@@ -248,7 +248,7 @@ async def report_updates(args: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-discord_server = create_sdk_mcp_server(
+agent_server = create_sdk_mcp_server(
     "discord",
     tools=[discord_embed, ping_user, follow_up_chain, save_context, report_updates],
 )

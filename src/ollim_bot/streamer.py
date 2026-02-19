@@ -106,7 +106,7 @@ async def dispatch_agent_response(
     images: list[dict[str, str]] | None = None,
 ) -> None:
     """set_channel -> typing -> stream. Caller must hold agent.lock()."""
-    from ollim_bot.discord_tools import set_channel
+    from ollim_bot.agent_tools import set_channel
 
     set_channel(channel)
     await channel.typing()
@@ -128,7 +128,7 @@ async def run_agent_background(
     skip_if_busy: bool,
 ) -> None:
     """Run agent on a forked session -- discard fork unless save_context is called."""
-    from ollim_bot.discord_tools import set_channel
+    from ollim_bot.agent_tools import set_channel
     from ollim_bot.forks import pop_fork_saved, set_in_fork
 
     dm = await owner.create_dm()
