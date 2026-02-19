@@ -1,14 +1,8 @@
-"""MCP tools for Discord interactions (embeds, buttons, chain follow-ups, fork control)."""
+"""MCP tools for agent interactions (embeds, buttons, chain follow-ups, fork control)."""
 
-import json
-import os
 import subprocess
-import tempfile
 from dataclasses import dataclass
-from datetime import datetime
-from pathlib import Path
 from typing import Any
-from zoneinfo import ZoneInfo
 
 from claude_agent_sdk import create_sdk_mcp_server, tool
 
@@ -19,6 +13,7 @@ from ollim_bot.embeds import (
     build_embed,
     build_view,
 )
+from ollim_bot.forks import _append_update, clear_pending_updates
 
 # Module-level channel reference, set by bot.py before each stream_chat().
 # Safe because the per-user lock serializes access (single-user bot).
@@ -188,64 +183,6 @@ async def follow_up_chain(args: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-# --- Forked background session state ---
-# Set by run_agent_background before/after forked runs.
-# Safe because the per-user lock serializes access (single-user bot).
-_in_fork: bool = False
-_fork_saved: bool = False
-
-_UPDATES_FILE = Path.home() / ".ollim-bot" / "pending_updates.json"
-_TZ = ZoneInfo("America/Los_Angeles")
-
-
-def set_in_fork(active: bool) -> None:
-    """Enter or exit fork mode. Resets the saved flag on entry only."""
-    global _in_fork, _fork_saved
-    _in_fork = active
-    if active:
-        _fork_saved = False
-
-
-def pop_fork_saved() -> bool:
-    """Read and clear the fork-saved flag. Called by runner after stream completes."""
-    global _fork_saved
-    saved = _fork_saved
-    _fork_saved = False
-    return saved
-
-
-def _append_update(message: str) -> None:
-    """Append a timestamped update to the pending updates file."""
-    _UPDATES_FILE.parent.mkdir(parents=True, exist_ok=True)
-    updates = json.loads(_UPDATES_FILE.read_text()) if _UPDATES_FILE.exists() else []
-    updates.append({"ts": datetime.now(_TZ).isoformat(), "message": message})
-    fd, tmp = tempfile.mkstemp(dir=_UPDATES_FILE.parent, suffix=".tmp")
-    os.write(fd, json.dumps(updates).encode())
-    os.close(fd)
-    os.replace(tmp, _UPDATES_FILE)
-
-
-def peek_pending_updates() -> list[str]:
-    """Read pending updates without clearing. Used by forks to see accumulated context."""
-    if not _UPDATES_FILE.exists():
-        return []
-    updates = json.loads(_UPDATES_FILE.read_text())
-    return [u["message"] for u in updates]
-
-
-def clear_pending_updates() -> None:
-    """Delete the pending updates file if it exists."""
-    if _UPDATES_FILE.exists():
-        _UPDATES_FILE.unlink()
-
-
-def pop_pending_updates() -> list[str]:
-    """Read and clear all pending updates. Called by agent.py before main-session messages."""
-    updates = peek_pending_updates()
-    clear_pending_updates()
-    return updates
-
-
 @tool(
     "save_context",
     "Signal that this background check produced useful context worth keeping in "
@@ -258,14 +195,15 @@ def pop_pending_updates() -> list[str]:
     },
 )
 async def save_context(args: dict[str, Any]) -> dict[str, Any]:
-    if not _in_fork:
+    import ollim_bot.forks as forks_mod
+
+    if not forks_mod._in_fork:
         return {
             "content": [
                 {"type": "text", "text": "Error: not in a forked background session"}
             ]
         }
-    global _fork_saved
-    _fork_saved = True
+    forks_mod._fork_saved = True
     clear_pending_updates()
     return {
         "content": [
@@ -291,7 +229,9 @@ async def save_context(args: dict[str, Any]) -> dict[str, Any]:
     },
 )
 async def report_updates(args: dict[str, Any]) -> dict[str, Any]:
-    if not _in_fork:
+    import ollim_bot.forks as forks_mod
+
+    if not forks_mod._in_fork:
         return {
             "content": [
                 {"type": "text", "text": "Error: not in a forked background session"}
