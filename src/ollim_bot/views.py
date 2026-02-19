@@ -115,6 +115,9 @@ async def _handle_fork_save(interaction: discord.Interaction, _data: str) -> Non
     assert _agent is not None
     await interaction.response.defer()
     async with _agent.lock():
+        if not in_interactive_fork():
+            await interaction.followup.send("fork already ended.", ephemeral=True)
+            return
         await _agent.exit_interactive_fork(ForkExitAction.SAVE)
     await interaction.followup.send("context saved — promoted to main session.")
 
@@ -130,6 +133,9 @@ async def _handle_fork_report(interaction: discord.Interaction, _data: str) -> N
     assert isinstance(channel, discord.abc.Messageable)
     await interaction.response.defer()
     async with _agent.lock():
+        if not in_interactive_fork():
+            await interaction.followup.send("fork already ended.", ephemeral=True)
+            return
         set_channel(channel)
         await channel.typing()
         await stream_to_channel(
@@ -153,5 +159,8 @@ async def _handle_fork_exit(interaction: discord.Interaction, _data: str) -> Non
     assert _agent is not None
     await interaction.response.defer()
     async with _agent.lock():
+        if not in_interactive_fork():
+            await interaction.followup.send("fork already ended.", ephemeral=True)
+            return
         await _agent.exit_interactive_fork(ForkExitAction.EXIT)
     await interaction.followup.send("fork discarded.")
