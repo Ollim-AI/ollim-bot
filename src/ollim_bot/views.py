@@ -123,7 +123,11 @@ async def _handle_fork_save(interaction: discord.Interaction, _data: str) -> Non
 
 
 async def _handle_fork_report(interaction: discord.Interaction, _data: str) -> None:
-    from ollim_bot.forks import ForkExitAction, in_interactive_fork
+    from ollim_bot.forks import (
+        ForkExitAction,
+        in_interactive_fork,
+        peek_pending_updates,
+    )
 
     if not in_interactive_fork():
         await interaction.response.send_message("no active fork.", ephemeral=True)
@@ -136,6 +140,7 @@ async def _handle_fork_report(interaction: discord.Interaction, _data: str) -> N
         if not in_interactive_fork():
             await interaction.followup.send("fork already ended.", ephemeral=True)
             return
+        updates_before = len(peek_pending_updates())
         set_channel(channel)
         await channel.typing()
         await stream_to_channel(
@@ -146,8 +151,11 @@ async def _handle_fork_report(interaction: discord.Interaction, _data: str) -> N
                 "using the report_updates tool, then the fork will end."
             ),
         )
+        updates_after = peek_pending_updates()
+        new_updates = updates_after[updates_before:]
         await _agent.exit_interactive_fork(ForkExitAction.REPORT)
-    await interaction.followup.send("summary reported — fork discarded.")
+    summary = new_updates[-1] if new_updates else "fork discarded (no summary reported)"
+    await interaction.followup.send(f"fork ended — {summary}")
 
 
 async def _handle_fork_exit(interaction: discord.Interaction, _data: str) -> None:
