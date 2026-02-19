@@ -6,6 +6,7 @@ from typing import Any
 
 from claude_agent_sdk import create_sdk_mcp_server, tool
 
+from ollim_bot.config import USER_NAME
 from ollim_bot.embeds import (
     ButtonConfig,
     EmbedConfig,
@@ -111,7 +112,7 @@ async def discord_embed(args: dict[str, Any]) -> dict[str, Any]:
 
 @tool(
     "ping_user",
-    "Send a plain text message to Julius. Use in background mode when something "
+    f"Send a plain text message to {USER_NAME}. Use in background mode when something "
     "needs attention but an embed isn't necessary.",
     {
         "type": "object",

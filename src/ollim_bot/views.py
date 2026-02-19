@@ -11,6 +11,7 @@ from discord.ui import Button, DynamicItem
 
 from ollim_bot import inquiries
 from ollim_bot.agent_tools import set_channel
+from ollim_bot.config import USER_NAME
 from ollim_bot.google.calendar import delete_event
 from ollim_bot.google.tasks import complete_task, delete_task
 from ollim_bot.streamer import stream_to_channel
@@ -146,7 +147,7 @@ async def _handle_fork_report(interaction: discord.Interaction, _data: str) -> N
         await stream_to_channel(
             channel,
             _agent.stream_chat(
-                "[system] Julius clicked Report to exit this fork. "
+                f"[system] {USER_NAME} clicked Report to exit this fork. "
                 "You MUST call report_updates with a concise summary of "
                 "what happened in this fork. Do NOT use any other tools. "
                 "The fork ends immediately after your response."

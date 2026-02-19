@@ -19,6 +19,7 @@ from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
 from ollim_bot.agent_tools import ChainContext, set_chain_context, set_channel
+from ollim_bot.config import USER_NAME
 from ollim_bot.forks import (
     ForkExitAction,
     _append_update,
@@ -282,7 +283,7 @@ def setup_scheduler(
                         f"[fork-timeout] This fork has been idle for {timeout} minutes. "
                         "Decide what to do: use `save_context` to promote to main session, "
                         "`report_updates(message)` to send a summary, or `exit_fork` to discard. "
-                        "If Julius is still engaged, ask them what they'd like to do."
+                        f"If {USER_NAME} is still engaged, ask them what they'd like to do."
                     ),
                 )
                 touch_activity()
