@@ -132,6 +132,14 @@ def create_bot() -> commands.Bot:
         label, color = labels[action]
         return discord.Embed(title="Fork Ended", description=label, color=color)
 
+    def _fork_topic_prompt(topic: str) -> str:
+        return (
+            f"[fork-started] You are now inside an interactive forked session. "
+            f"Your task: {topic}\n\n"
+            "Work on this. When done, use save_context to promote to main, "
+            "report_updates(message) to send a summary, or exit_fork to discard."
+        )
+
     async def _check_fork_transitions(
         channel: discord.abc.Messageable,
     ) -> None:
@@ -143,7 +151,9 @@ def create_bot() -> commands.Bot:
             if topic:
                 set_channel(channel)
                 await channel.typing()
-                await stream_to_channel(channel, agent.stream_chat(topic))
+                await stream_to_channel(
+                    channel, agent.stream_chat(_fork_topic_prompt(topic))
+                )
                 touch_activity()
                 await _check_fork_transitions(channel)
             return
@@ -194,7 +204,9 @@ def create_bot() -> commands.Bot:
             if topic:
                 set_channel(channel)
                 await channel.typing()
-                await stream_to_channel(channel, agent.stream_chat(topic))
+                await stream_to_channel(
+                    channel, agent.stream_chat(_fork_topic_prompt(topic))
+                )
                 touch_activity()
                 await _check_fork_transitions(channel)
 
