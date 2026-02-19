@@ -25,7 +25,13 @@ from claude_agent_sdk.types import (
 )
 
 from ollim_bot.agent_tools import agent_server
-from ollim_bot.forks import peek_pending_updates, pop_pending_updates
+from ollim_bot.forks import (
+    ForkExitAction,
+    peek_pending_updates,
+    pop_pending_updates,
+    set_interactive_fork,
+    touch_activity,
+)
 from ollim_bot.prompts import (
     GMAIL_READER_PROMPT,
     HISTORY_REVIEWER_PROMPT,
@@ -100,6 +106,8 @@ class Agent:
                 "mcp__discord__follow_up_chain",
                 "mcp__discord__save_context",
                 "mcp__discord__report_updates",
+                "mcp__discord__enter_fork",
+                "mcp__discord__exit_fork",
                 "Task",
             ],
             permission_mode="default",
@@ -129,7 +137,13 @@ class Agent:
             },
         )
         self._client: ClaudeSDKClient | None = None
+        self._fork_client: ClaudeSDKClient | None = None
+        self._fork_session_id: str | None = None
         self._lock = asyncio.Lock()
+
+    @property
+    def in_fork(self) -> bool:
+        return self._fork_client is not None
 
     def lock(self) -> asyncio.Lock:
         return self._lock
@@ -175,6 +189,32 @@ class Agent:
                 await old.interrupt()
             with contextlib.suppress(RuntimeError):
                 await old.disconnect()
+
+    async def enter_interactive_fork(self, *, idle_timeout: int = 10) -> None:
+        """Create an interactive fork client and switch routing to it."""
+        self._fork_client = await self.create_forked_client()
+        self._fork_session_id = None
+        set_interactive_fork(True, idle_timeout=idle_timeout)
+        touch_activity()
+
+    async def exit_interactive_fork(self, action: ForkExitAction) -> None:
+        """Exit interactive fork: promote (SAVE), report (REPORT), or discard (EXIT)."""
+        client = self._fork_client
+        session_id = self._fork_session_id
+        self._fork_client = None
+        self._fork_session_id = None
+        set_interactive_fork(False)
+
+        if client is None:
+            return
+
+        if action is ForkExitAction.SAVE and session_id is not None:
+            await self.swap_client(client, session_id)
+        else:
+            with contextlib.suppress(CLIConnectionError):
+                await client.interrupt()
+            with contextlib.suppress(RuntimeError):
+                await client.disconnect()
 
     async def create_forked_client(self) -> ClaudeSDKClient:
         """Create a disposable client that forks the current session.
@@ -262,8 +302,12 @@ class Agent:
         Falls back to AssistantMessage text blocks if no StreamEvent arrives,
         then to ResultMessage.result. Saves session ID on completion.
         """
-        message = _prepend_context(message)
-        client = await self._get_client()
+        if self._fork_client is not None:
+            client = self._fork_client
+            message = _prepend_context(message, clear=False)
+        else:
+            message = _prepend_context(message)
+            client = await self._get_client()
 
         if images:
             # SDK has no ImageBlock type -- images go through the raw
@@ -325,7 +369,9 @@ class Agent:
             elif isinstance(msg, ResultMessage):
                 if msg.result:
                     result_text = msg.result
-                if self._client is client:
+                if self._fork_client is not None and client is self._fork_client:
+                    self._fork_session_id = msg.session_id
+                elif self._client is client:
                     save_session_id(msg.session_id)
 
         if not streamed:
@@ -340,8 +386,12 @@ class Agent:
         Falls back to ResultMessage.result when no AssistantMessage text blocks
         are found.
         """
-        message = _prepend_context(message)
-        client = await self._get_client()
+        if self._fork_client is not None:
+            client = self._fork_client
+            message = _prepend_context(message, clear=False)
+        else:
+            message = _prepend_context(message)
+            client = await self._get_client()
         await client.query(message)
 
         parts: list[str] = []
@@ -354,7 +404,9 @@ class Agent:
             elif isinstance(msg, ResultMessage):
                 if msg.result:
                     result_text = msg.result
-                if self._client is client:
+                if self._fork_client is not None and client is self._fork_client:
+                    self._fork_session_id = msg.session_id
+                elif self._client is client:
                     save_session_id(msg.session_id)
 
         # result is a summary Claude writes when it has no assistant turn (e.g. pure tool runs)
