@@ -81,10 +81,11 @@ ADHD-friendly Discord bot with proactive reminders, powered by Claude.
 - Prompt tags: `[routine:ID]`, `[routine-bg:ID]`, `[reminder:ID]`, `[reminder-bg:ID]`
 - Background mode: runs on forked session; text output discarded, agent uses `ping_user`/`discord_embed` to alert
 - Forked sessions: `run_agent_background` creates disposable forked client (`fork_session=True`)
-  - `save_context` MCP tool: promotes fork via `swap_client` (fork client replaces main, no reconnect needed); clears pending updates
-  - `report_updates(message)` MCP tool: discards fork, persists summary to `~/.ollim-bot/pending_updates.json`
-  - Neither called: fork silently discarded, zero context bloat
+  - Always discarded — `save_context` blocked in bg forks (only available in interactive forks)
+  - `report_updates(message)` MCP tool: persists summary to `~/.ollim-bot/pending_updates.json`
+  - Not called: fork silently discarded, zero context bloat
   - Pending updates prepended to all interactions: main sessions pop (read + clear), forks peek (read-only)
+- Bg forks run without `agent.lock()` — channel, chain context, and in_fork state scoped via `contextvars`
 - Chain reminders: `max_chain: N` in YAML frontmatter enables follow-up chain; agent calls `follow_up_chain` MCP tool
 - Chain state: scheduler injects chain context into prompt; silence = chain ends
 
@@ -92,7 +93,7 @@ ADHD-friendly Discord bot with proactive reminders, powered by Claude.
 - `/fork [topic]` or `enter_fork(topic?, idle_timeout=10)` MCP tool starts interactive fork
 - Forks branch from main session (never nested); bg forks can run in parallel
 - Three exit strategies via MCP tools or buttons:
-  - `save_context`: promote fork to main session (full context preserved via `swap_client`)
+  - `save_context`: promote fork to main session (interactive forks only, via `swap_client`)
   - `report_updates(message)`: queue summary, discard fork
   - `exit_fork`: clean discard, return to main session
 - Fork state in `forks.py`: `_in_interactive_fork`, `_fork_exit_action`, `_fork_last_activity`, `_fork_prompted_at`
