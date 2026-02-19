@@ -18,10 +18,22 @@ from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
-from ollim_bot.agent_tools import ChainContext, set_chain_context
-from ollim_bot.forks import run_agent_background, send_agent_dm
+from ollim_bot.agent_tools import ChainContext, set_chain_context, set_channel
+from ollim_bot.forks import (
+    ForkExitAction,
+    _append_update,
+    idle_timeout,
+    in_interactive_fork,
+    is_idle,
+    run_agent_background,
+    send_agent_dm,
+    set_prompted_at,
+    should_auto_exit,
+    touch_activity,
+)
 from ollim_bot.scheduling.reminders import Reminder, list_reminders, remove_reminder
 from ollim_bot.scheduling.routines import Routine, list_routines
+from ollim_bot.streamer import stream_to_channel
 
 if TYPE_CHECKING:
     from ollim_bot.agent import Agent
@@ -238,5 +250,41 @@ def setup_scheduler(
             if job:
                 job.remove()
             _registered_reminders.discard(stale_id)
+
+    @scheduler.scheduled_job(IntervalTrigger(seconds=60))
+    async def check_fork_timeout() -> None:
+        if not in_interactive_fork():
+            return
+
+        if should_auto_exit():
+            dm = await owner.create_dm()
+            _append_update("fork auto-exited after idle timeout")
+            async with agent.lock():
+                await agent.exit_interactive_fork(ForkExitAction.REPORT)
+                embed = discord.Embed(
+                    title="Fork Ended",
+                    description="auto-exited after idle timeout — summary reported",
+                    color=discord.Color.greyple(),
+                )
+                await dm.send(embed=embed)
+            return
+
+        if is_idle():
+            set_prompted_at()
+            dm = await owner.create_dm()
+            timeout = idle_timeout()
+            async with agent.lock():
+                set_channel(dm)
+                await dm.typing()
+                await stream_to_channel(
+                    dm,
+                    agent.stream_chat(
+                        f"[fork-timeout] This fork has been idle for {timeout} minutes. "
+                        "Decide what to do: use `save_context` to promote to main session, "
+                        "`report_updates(message)` to send a summary, or `exit_fork` to discard. "
+                        "If Julius is still engaged, ask them what they'd like to do."
+                    ),
+                )
+                touch_activity()
 
     return scheduler
