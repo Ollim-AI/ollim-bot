@@ -20,14 +20,13 @@ from apscheduler.triggers.interval import IntervalTrigger
 
 from ollim_bot.agent_tools import ChainContext, set_chain_context, set_channel
 from ollim_bot.config import USER_NAME
+from ollim_bot.embeds import fork_exit_embed
 from ollim_bot.forks import (
     ForkExitAction,
     _append_update,
     idle_timeout,
     in_interactive_fork,
     is_idle,
-    peek_pending_updates,
-    pop_exit_action,
     run_agent_background,
     send_agent_dm,
     set_prompted_at,
@@ -264,12 +263,12 @@ def setup_scheduler(
             _append_update("fork auto-exited after idle timeout")
             async with agent.lock():
                 await agent.exit_interactive_fork(ForkExitAction.REPORT)
-                embed = discord.Embed(
-                    title="Fork Ended",
-                    description="auto-exited after idle timeout — summary reported",
-                    color=discord.Color.greyple(),
+                await dm.send(
+                    embed=fork_exit_embed(
+                        ForkExitAction.REPORT,
+                        "auto-exited after idle timeout",
+                    )
                 )
-                await dm.send(embed=embed)
             return
 
         if is_idle():
@@ -288,25 +287,10 @@ def setup_scheduler(
                         f"If {USER_NAME} is still engaged, ask them what they'd like to do."
                     ),
                 )
-                exit_action = pop_exit_action()
-                if exit_action is not ForkExitAction.NONE:
-                    summary = (
-                        peek_pending_updates()[-1]
-                        if exit_action is ForkExitAction.REPORT
-                        and peek_pending_updates()
-                        else None
-                    )
-                    await agent.exit_interactive_fork(exit_action)
-                    embed = discord.Embed(
-                        title="Fork Ended",
-                        description=summary,
-                        color={
-                            ForkExitAction.SAVE: discord.Color.green(),
-                            ForkExitAction.REPORT: discord.Color.blue(),
-                            ForkExitAction.EXIT: discord.Color.greyple(),
-                        }[exit_action],
-                    )
-                    await dm.send(embed=embed)
+                result = await agent.pop_fork_exit()
+                if result:
+                    action, summary = result
+                    await dm.send(embed=fork_exit_embed(action, summary))
                 else:
                     touch_activity()
 
