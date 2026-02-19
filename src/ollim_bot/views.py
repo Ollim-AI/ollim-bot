@@ -146,9 +146,10 @@ async def _handle_fork_report(interaction: discord.Interaction, _data: str) -> N
         await stream_to_channel(
             channel,
             _agent.stream_chat(
-                "The user clicked the Report button to exit this fork. "
-                "Summarize the key findings from this forked conversation "
-                "using the report_updates tool, then the fork will end."
+                "[system] Julius clicked Report to exit this fork. "
+                "You MUST call report_updates with a concise summary of "
+                "what happened in this fork. Do NOT use any other tools. "
+                "The fork ends immediately after your response."
             ),
         )
         updates_after = peek_pending_updates()
