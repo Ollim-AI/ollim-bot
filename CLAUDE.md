@@ -7,12 +7,13 @@ ADHD-friendly Discord bot with proactive reminders, powered by Claude.
 - `agent.py` -- Claude Agent SDK brain (persistent sessions, MCP tools, subagents, slash command routing)
 - `main.py` -- CLI entry point and command router (`ollim-bot` dispatches to bot, routines, reminders, tasks, cal, gmail)
 - `prompts.py` -- System prompts for agent and subagents (extracted from agent.py)
-- `discord_tools.py` -- MCP tools: `discord_embed`, `ping_user`, `follow_up_chain`, `save_context`, `report_updates`
-- `views.py` -- Persistent button handlers via `DynamicItem` (delegates to google/ and streamer)
+- `agent_tools.py` -- MCP tools: `discord_embed`, `ping_user`, `follow_up_chain`, `save_context`, `report_updates`, `enter_fork`, `exit_fork`
+- `forks.py` -- Fork state (bg + interactive), pending updates I/O, `run_agent_background`, `send_agent_dm`
+- `views.py` -- Persistent button handlers via `DynamicItem` (delegates to google/, forks, and streamer)
 - `storage.py` -- Shared JSONL I/O, markdown I/O (`read_md_dir`/`write_md`/`remove_md`), and git auto-commit (`~/.ollim-bot/` data repo)
-- `streamer.py` -- Streams agent responses to Discord (throttled edits, 2000-char overflow, `dispatch_agent_response`)
+- `streamer.py` -- Streams agent responses to Discord (throttled edits, 2000-char overflow)
 - `sessions.py` -- Persists Agent SDK session ID (plain string file) for conversation resumption across restarts
-- `embeds.py` -- Embed/button types, builders, maps, and `build_embed`/`build_view` (shared by discord_tools and views)
+- `embeds.py` -- Embed/button types, builders, maps, and `build_embed`/`build_view` (shared by agent_tools and views)
 - `inquiries.py` -- Persists button inquiry prompts to `~/.ollim-bot/inquiries.json` (7-day TTL)
 - `google/` -- Google API integration sub-package
   - `auth.py` -- Shared Google OAuth2 (Tasks + Calendar + Gmail)
@@ -46,17 +47,18 @@ ADHD-friendly Discord bot with proactive reminders, powered by Claude.
 - `/compact [instructions]` -- compress context via SDK's native `/compact`
 - `/cost` -- show token usage via SDK's native `/cost`
 - `/model <opus|sonnet|haiku>` -- switch model (update options + drop client, next message reconnects)
+- `/fork [topic]` -- start interactive forked conversation
 - `Agent.slash()` -- generic method routing SDK slash commands, captures SystemMessage + AssistantMessage + ResultMessage
 - `Agent.set_model()` -- uses `dataclasses.replace()` on shared options + updates live client
 - Synced via `bot.tree.sync()` in `on_ready`
 
 ## Discord embeds & buttons
 - `discord_embed` MCP tool via `create_sdk_mcp_server` — Claude controls when to send embeds
-- Channel reference stored in module-level `_channel` (discord_tools.py), set before each stream_chat()
+- Channel reference stored in module-level `_channel` (agent_tools.py), set before each stream_chat()
 - Button actions encoded in `custom_id`: `act:<action>:<data>` pattern
 - Direct actions (task_done, task_del, event_del): call google/ API helpers directly, ephemeral response
-- Agent inquiry (agent:<uuid>): stored prompts, route back through `dispatch_agent_response()`
-- `dispatch_agent_response()` in streamer.py: set_channel → typing → stream (used by bot.py and views.py)
+- Agent inquiry (agent:<uuid>): stored prompts, route back through agent via views.py
+- Fork actions (fork_save, fork_report, fork_exit): exit interactive fork with chosen strategy
 - `DynamicItem[Button]` for persistent buttons across restarts
 - Inquiry prompts persisted to `~/.ollim-bot/inquiries.json` (survive restarts, 7-day TTL)
 
@@ -85,6 +87,20 @@ ADHD-friendly Discord bot with proactive reminders, powered by Claude.
   - Pending updates prepended to all interactions: main sessions pop (read + clear), forks peek (read-only)
 - Chain reminders: `max_chain: N` in YAML frontmatter enables follow-up chain; agent calls `follow_up_chain` MCP tool
 - Chain state: scheduler injects chain context into prompt; silence = chain ends
+
+## Interactive forks
+- `/fork [topic]` or `enter_fork(topic?, idle_timeout=10)` MCP tool starts interactive fork
+- Forks branch from main session (never nested); bg forks can run in parallel
+- Three exit strategies via MCP tools or buttons:
+  - `save_context`: promote fork to main session (full context preserved via `swap_client`)
+  - `report_updates(message)`: queue summary, discard fork
+  - `exit_fork`: clean discard, return to main session
+- Fork state in `forks.py`: `_in_interactive_fork`, `_fork_exit_action`, `_fork_last_activity`, `_fork_prompted_at`
+- Agent routing: `stream_chat`/`chat` route to `_fork_client` when active; `_prepend_context(clear=False)` for forks
+- Post-stream transitions: `_check_fork_transitions()` in bot.py checks `enter_fork_requested()` and `pop_exit_action()`
+- Idle timeout: scheduler checks every 60s; prompts agent after `idle_timeout` minutes; auto-exits with report after another timeout
+- Embed with buttons sent on fork entry (`_send_fork_enter`); exit embed sent on fork end (`_fork_exit_embed`)
+- Button handlers in views.py: `fork_save`, `fork_report`, `fork_exit`
 
 ## Dev commands
 ```bash
