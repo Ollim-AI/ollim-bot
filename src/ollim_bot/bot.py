@@ -121,20 +121,16 @@ def create_bot() -> commands.Bot:
     def _fork_exit_embed(
         action: ForkExitAction, summary: str | None = None
     ) -> discord.Embed:
-        labels = {
-            ForkExitAction.SAVE: (
-                "context saved — promoted to main session",
-                discord.Color.green(),
-            ),
-            ForkExitAction.REPORT: (
-                "summary reported — fork discarded",
-                discord.Color.blue(),
-            ),
-            ForkExitAction.EXIT: ("fork discarded", discord.Color.greyple()),
+        colors = {
+            ForkExitAction.SAVE: discord.Color.green(),
+            ForkExitAction.REPORT: discord.Color.blue(),
+            ForkExitAction.EXIT: discord.Color.greyple(),
         }
-        label, color = labels[action]
-        description = f"{label}\n\n> {summary}" if summary else label
-        return discord.Embed(title="Fork Ended", description=description, color=color)
+        return discord.Embed(
+            title="Fork Ended",
+            description=summary,
+            color=colors[action],
+        )
 
     def _fork_topic_prompt(topic: str) -> str:
         return (
