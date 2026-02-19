@@ -26,27 +26,15 @@ class ForkExitAction(Enum):
 
 
 # ---------------------------------------------------------------------------
-# Background fork state (unchanged from original agent_tools.py)
+# Background fork state
 # ---------------------------------------------------------------------------
 
 _in_fork: bool = False
-_fork_saved: bool = False
 
 
 def set_in_fork(active: bool) -> None:
-    """Enter or exit background fork mode. Resets the saved flag on entry."""
-    global _in_fork, _fork_saved
+    global _in_fork
     _in_fork = active
-    if active:
-        _fork_saved = False
-
-
-def pop_fork_saved() -> bool:
-    """Read and clear the fork-saved flag."""
-    global _fork_saved
-    saved = _fork_saved
-    _fork_saved = False
-    return saved
 
 
 # ---------------------------------------------------------------------------
@@ -209,7 +197,7 @@ async def run_agent_background(
     *,
     skip_if_busy: bool,
 ) -> None:
-    """Run agent on a forked session -- discard fork unless save_context is called."""
+    """Run agent on a disposable forked session — always discarded after use."""
     from ollim_bot.agent_tools import set_channel
 
     dm = await owner.create_dm()
@@ -221,22 +209,14 @@ async def run_agent_background(
         set_channel(dm)
         set_in_fork(True)
 
-        forked_session_id: str | None = None
-        promoted = False
         try:
             client = await agent.create_forked_client()
             try:
-                forked_session_id = await agent.run_on_client(client, prompt)
+                await agent.run_on_client(client, prompt)
             finally:
-                if forked_session_id is not None and pop_fork_saved():
-                    await agent.swap_client(client, forked_session_id)
-                    promoted = True
-                if not promoted:
-                    await client.disconnect()
+                await client.disconnect()
         finally:
             set_in_fork(False)
-            if forked_session_id is None:
-                pop_fork_saved()
 
 
 async def send_agent_dm(
