@@ -1,9 +1,9 @@
-"""Tests for discord_tools.py — chain context, follow_up_chain, tool handlers."""
+"""Tests for agent_tools.py — chain context, follow_up_chain, tool handlers."""
 
 import asyncio
 
 import ollim_bot.forks as forks_mod
-from ollim_bot.discord_tools import (
+from ollim_bot.agent_tools import (
     ChainContext,
     follow_up_chain,
     report_updates,

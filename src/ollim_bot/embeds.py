@@ -1,4 +1,4 @@
-"""Embed/button types and builders shared by discord_tools and views."""
+"""Embed/button types and builders shared by agent_tools and views."""
 
 import re
 from dataclasses import dataclass, field
