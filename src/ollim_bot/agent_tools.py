@@ -213,7 +213,7 @@ async def save_context(args: dict[str, Any]) -> dict[str, Any]:
                 {
                     "type": "text",
                     "text": "Context saved. Fork will be promoted to main session "
-                    "after you finish responding. Do NOT call any other tools.",
+                    "after you finish responding.",
                 }
             ]
         }
@@ -258,8 +258,8 @@ async def report_updates(args: dict[str, Any]) -> dict[str, Any]:
             "content": [
                 {
                     "type": "text",
-                    "text": "Update reported. Fork will be discarded after you finish "
-                    "responding. Do NOT call any other tools.",
+                    "text": "Update reported. Fork will be discarded after you "
+                    "finish responding — further tool calls delay the exit.",
                 }
             ]
         }
@@ -309,9 +309,9 @@ async def enter_fork(args: dict[str, Any]) -> dict[str, Any]:
         "content": [
             {
                 "type": "text",
-                "text": "Fork will start after you finish responding. "
-                "Do NOT call any other tools in this turn — they will "
-                "run on the main session, not the fork.",
+                "text": "Fork will start after you finish responding — "
+                "further tool calls delay the fork and run on the "
+                "main session, not the fork.",
             }
         ]
     }
@@ -333,8 +333,8 @@ async def exit_fork(args: dict[str, Any]) -> dict[str, Any]:
         "content": [
             {
                 "type": "text",
-                "text": "Fork will be discarded after you finish responding. "
-                "Do NOT call any other tools.",
+                "text": "Fork will be discarded after you finish responding "
+                "— further tool calls delay the exit.",
             }
         ]
     }
