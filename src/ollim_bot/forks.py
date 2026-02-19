@@ -6,6 +6,7 @@ import json
 import os
 import tempfile
 import time
+from contextvars import ContextVar
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
@@ -26,15 +27,18 @@ class ForkExitAction(Enum):
 
 
 # ---------------------------------------------------------------------------
-# Background fork state
+# Background fork state — contextvar so bg forks don't need agent lock
 # ---------------------------------------------------------------------------
 
-_in_fork: bool = False
+_in_fork_var: ContextVar[bool] = ContextVar("_in_fork", default=False)
 
 
 def set_in_fork(active: bool) -> None:
-    global _in_fork
-    _in_fork = active
+    _in_fork_var.set(active)
+
+
+def in_bg_fork() -> bool:
+    return _in_fork_var.get()
 
 
 # ---------------------------------------------------------------------------
