@@ -18,7 +18,12 @@ from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
-from ollim_bot.agent_tools import ChainContext, set_chain_context, set_channel
+from ollim_bot.agent_tools import (
+    ChainContext,
+    set_chain_context,
+    set_channel,
+    set_fork_chain_context,
+)
 from ollim_bot.config import USER_NAME
 from ollim_bot.embeds import fork_exit_embed
 from ollim_bot.forks import (
@@ -188,24 +193,27 @@ def _register_reminder(
 
     async def fire_oneshot() -> None:
         # follow_up_chain MCP tool reads this to schedule the next link
+        chain_ctx = None
         if reminder.max_chain > 0 and reminder.chain_depth < reminder.max_chain:
-            set_chain_context(
-                ChainContext(
-                    reminder_id=reminder.id,
-                    message=reminder.message,
-                    chain_depth=reminder.chain_depth,
-                    max_chain=reminder.max_chain,
-                    chain_parent=reminder.chain_parent or reminder.id,
-                    background=reminder.background,
-                )
+            chain_ctx = ChainContext(
+                reminder_id=reminder.id,
+                message=reminder.message,
+                chain_depth=reminder.chain_depth,
+                max_chain=reminder.max_chain,
+                chain_parent=reminder.chain_parent or reminder.id,
+                background=reminder.background,
             )
 
         try:
             if reminder.background:
+                if chain_ctx:
+                    set_fork_chain_context(chain_ctx)
                 await run_agent_background(
                     owner, agent, prompt, skip_if_busy=reminder.skip_if_busy
                 )
             else:
+                if chain_ctx:
+                    set_chain_context(chain_ctx)
                 await send_agent_dm(owner, agent, prompt)
         except Exception:
             log.exception("Reminder %s failed", reminder.id)

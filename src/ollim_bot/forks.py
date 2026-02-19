@@ -201,26 +201,28 @@ async def run_agent_background(
     *,
     skip_if_busy: bool,
 ) -> None:
-    """Run agent on a disposable forked session — always discarded after use."""
-    from ollim_bot.agent_tools import set_channel
+    """Run agent on a disposable forked session — no lock needed.
 
-    dm = await owner.create_dm()
+    Contextvars scope channel and in_fork state to this task, so bg forks
+    run concurrently without stomping on main session or other forks.
+    """
+    from ollim_bot.agent_tools import set_fork_channel
 
     if skip_if_busy and agent.lock().locked():
         return
 
-    async with agent.lock():
-        set_channel(dm)
-        set_in_fork(True)
+    dm = await owner.create_dm()
+    set_fork_channel(dm)
+    set_in_fork(True)
 
+    try:
+        client = await agent.create_forked_client()
         try:
-            client = await agent.create_forked_client()
-            try:
-                await agent.run_on_client(client, prompt)
-            finally:
-                await client.disconnect()
+            await agent.run_on_client(client, prompt)
         finally:
-            set_in_fork(False)
+            await client.disconnect()
+    finally:
+        set_in_fork(False)
 
 
 async def send_agent_dm(
