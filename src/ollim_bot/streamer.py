@@ -5,12 +5,8 @@ from __future__ import annotations
 import asyncio
 import contextlib
 from collections.abc import AsyncGenerator
-from typing import TYPE_CHECKING
 
 import discord
-
-if TYPE_CHECKING:
-    from ollim_bot.agent import Agent
 
 # Discord allows ~5 edits per 5 seconds per channel.  0.5s gives a
 # responsive feel; discord.py handles any 429s transparently.
@@ -96,63 +92,3 @@ async def stream_to_channel(
 
     if not buf:
         await channel.send("hmm, I didn't have a response for that.")
-
-
-async def dispatch_agent_response(
-    agent: Agent,
-    channel: discord.abc.Messageable,
-    prompt: str,
-    *,
-    images: list[dict[str, str]] | None = None,
-) -> None:
-    """set_channel -> typing -> stream. Caller must hold agent.lock()."""
-    from ollim_bot.agent_tools import set_channel
-
-    set_channel(channel)
-    await channel.typing()
-    await stream_to_channel(channel, agent.stream_chat(prompt, images=images))
-
-
-async def send_agent_dm(owner: discord.User, agent: Agent, prompt: str) -> None:
-    """Inject a prompt into the agent session and stream the response as a DM."""
-    dm = await owner.create_dm()
-    async with agent.lock():
-        await dispatch_agent_response(agent, dm, prompt)
-
-
-async def run_agent_background(
-    owner: discord.User,
-    agent: Agent,
-    prompt: str,
-    *,
-    skip_if_busy: bool,
-) -> None:
-    """Run agent on a forked session -- discard fork unless save_context is called."""
-    from ollim_bot.agent_tools import set_channel
-    from ollim_bot.forks import pop_fork_saved, set_in_fork
-
-    dm = await owner.create_dm()
-
-    if skip_if_busy and agent.lock().locked():
-        return
-
-    async with agent.lock():
-        set_channel(dm)
-        set_in_fork(True)
-
-        forked_session_id: str | None = None
-        promoted = False
-        try:
-            client = await agent.create_forked_client()
-            try:
-                forked_session_id = await agent.run_on_client(client, prompt)
-            finally:
-                if forked_session_id is not None and pop_fork_saved():
-                    await agent.swap_client(client, forked_session_id)
-                    promoted = True
-                if not promoted:
-                    await client.disconnect()
-        finally:
-            set_in_fork(False)
-            if forked_session_id is None:
-                pop_fork_saved()

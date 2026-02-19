@@ -8,9 +8,10 @@ import discord
 from discord.ext import commands
 
 from ollim_bot.agent import Agent
+from ollim_bot.agent_tools import set_channel
 from ollim_bot.scheduling import setup_scheduler
 from ollim_bot.sessions import load_session_id
-from ollim_bot.streamer import dispatch_agent_response
+from ollim_bot.streamer import stream_to_channel
 from ollim_bot.views import ActionButton
 from ollim_bot.views import init as init_views
 
@@ -61,6 +62,17 @@ def create_bot() -> commands.Bot:
     )
     agent = Agent()
     _ready_fired = False
+
+    async def _dispatch(
+        channel: discord.abc.Messageable,
+        prompt: str,
+        *,
+        images: list[dict[str, str]] | None = None,
+    ) -> None:
+        """set_channel -> typing -> stream. Caller must hold agent.lock()."""
+        set_channel(channel)
+        await channel.typing()
+        await stream_to_channel(channel, agent.stream_chat(prompt, images=images))
 
     @bot.tree.command(name="clear", description="Clear conversation and start fresh")
     async def slash_clear(interaction: discord.Interaction):
@@ -161,9 +173,7 @@ def create_bot() -> commands.Bot:
             await agent.interrupt()
 
         async with agent.lock():
-            await dispatch_agent_response(
-                agent, message.channel, content, images=images or None
-            )
+            await _dispatch(message.channel, content, images=images or None)
 
         with contextlib.suppress(discord.NotFound):
             await message.remove_reaction("\N{EYES}", bot.user)

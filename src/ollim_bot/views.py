@@ -10,9 +10,10 @@ import discord
 from discord.ui import Button, DynamicItem
 
 from ollim_bot import inquiries
+from ollim_bot.agent_tools import set_channel
 from ollim_bot.google.calendar import delete_event
 from ollim_bot.google.tasks import complete_task, delete_task
-from ollim_bot.streamer import dispatch_agent_response
+from ollim_bot.streamer import stream_to_channel
 
 if TYPE_CHECKING:
     from ollim_bot.agent import Agent
@@ -93,7 +94,9 @@ async def _handle_agent_inquiry(
     assert isinstance(channel, discord.abc.Messageable)
     await interaction.response.defer()
     async with _agent.lock():
-        await dispatch_agent_response(_agent, channel, f"[button] {prompt}")
+        set_channel(channel)
+        await channel.typing()
+        await stream_to_channel(channel, _agent.stream_chat(f"[button] {prompt}"))
 
 
 async def _handle_dismiss(interaction: discord.Interaction, _data: str) -> None:
