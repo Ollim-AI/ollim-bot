@@ -206,6 +206,8 @@ class Agent:
             await self._client.interrupt()
 
     async def clear(self) -> None:
+        if self._fork_client:
+            await self.exit_interactive_fork(ForkExitAction.EXIT)
         await self._drop_client()
         delete_session_id()
 
@@ -214,6 +216,8 @@ class Agent:
         self.options = replace(self.options, model=model)
         if self._client:
             await self._client.set_model(model)
+        if self._fork_client:
+            await self._fork_client.set_model(model)
 
     async def _drop_client(self) -> None:
         """Teardown: interrupt + disconnect.
