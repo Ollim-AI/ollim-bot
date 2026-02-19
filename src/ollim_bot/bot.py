@@ -16,6 +16,7 @@ from ollim_bot.forks import (
     clear_prompted,
     enter_fork_requested,
     in_interactive_fork,
+    peek_pending_updates,
     pop_enter_fork,
     pop_exit_action,
     touch_activity,
@@ -117,7 +118,9 @@ def create_bot() -> commands.Bot:
         )
         await channel.send(embed=embed, view=view)
 
-    def _fork_exit_embed(action: ForkExitAction) -> discord.Embed:
+    def _fork_exit_embed(
+        action: ForkExitAction, summary: str | None = None
+    ) -> discord.Embed:
         labels = {
             ForkExitAction.SAVE: (
                 "context saved — promoted to main session",
@@ -130,7 +133,8 @@ def create_bot() -> commands.Bot:
             ForkExitAction.EXIT: ("fork discarded", discord.Color.greyple()),
         }
         label, color = labels[action]
-        return discord.Embed(title="Fork Ended", description=label, color=color)
+        description = f"{label}\n\n> {summary}" if summary else label
+        return discord.Embed(title="Fork Ended", description=description, color=color)
 
     def _fork_topic_prompt(topic: str) -> str:
         return (
@@ -160,8 +164,13 @@ def create_bot() -> commands.Bot:
 
         exit_action = pop_exit_action()
         if exit_action is not ForkExitAction.NONE:
+            summary = (
+                peek_pending_updates()[-1]
+                if exit_action is ForkExitAction.REPORT and peek_pending_updates()
+                else None
+            )
             await agent.exit_interactive_fork(exit_action)
-            await channel.send(embed=_fork_exit_embed(exit_action))
+            await channel.send(embed=_fork_exit_embed(exit_action, summary))
 
     @bot.tree.command(name="clear", description="Clear conversation and start fresh")
     async def slash_clear(interaction: discord.Interaction):
