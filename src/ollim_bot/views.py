@@ -56,6 +56,9 @@ class ActionButton(
             "event_del": _handle_event_delete,
             "agent": _handle_agent_inquiry,
             "dismiss": _handle_dismiss,
+            "fork_save": _handle_fork_save,
+            "fork_report": _handle_fork_report,
+            "fork_exit": _handle_fork_exit,
         }
         handler = handlers.get(self.action)
         if handler:
@@ -101,3 +104,43 @@ async def _handle_agent_inquiry(
 
 async def _handle_dismiss(interaction: discord.Interaction, _data: str) -> None:
     await interaction.message.delete()
+
+
+async def _handle_fork_save(interaction: discord.Interaction, _data: str) -> None:
+    from ollim_bot.forks import ForkExitAction, in_interactive_fork
+
+    if not in_interactive_fork():
+        await interaction.response.send_message("no active fork.", ephemeral=True)
+        return
+    assert _agent is not None
+    await interaction.response.defer()
+    async with _agent.lock():
+        await _agent.exit_interactive_fork(ForkExitAction.SAVE)
+    await interaction.followup.send("context saved — promoted to main session.")
+
+
+async def _handle_fork_report(interaction: discord.Interaction, _data: str) -> None:
+    from ollim_bot.forks import ForkExitAction, _append_update, in_interactive_fork
+
+    if not in_interactive_fork():
+        await interaction.response.send_message("no active fork.", ephemeral=True)
+        return
+    assert _agent is not None
+    _append_update("fork exited via button (report)")
+    await interaction.response.defer()
+    async with _agent.lock():
+        await _agent.exit_interactive_fork(ForkExitAction.REPORT)
+    await interaction.followup.send("summary reported — fork discarded.")
+
+
+async def _handle_fork_exit(interaction: discord.Interaction, _data: str) -> None:
+    from ollim_bot.forks import ForkExitAction, in_interactive_fork
+
+    if not in_interactive_fork():
+        await interaction.response.send_message("no active fork.", ephemeral=True)
+        return
+    assert _agent is not None
+    await interaction.response.defer()
+    async with _agent.lock():
+        await _agent.exit_interactive_fork(ForkExitAction.EXIT)
+    await interaction.followup.send("fork discarded.")
