@@ -25,11 +25,21 @@ from ollim_bot.forks import in_bg_fork
 _channel: discord.abc.Messageable | None = None
 _pending: dict[int, asyncio.Future[str]] = {}
 _session_allowed: set[str] = set()
+_dont_ask: bool = True
 
 # Emoji constants
 APPROVE = "\N{WHITE HEAVY CHECK MARK}"
 DENY = "\N{CROSS MARK}"
 ALWAYS = "\N{OPEN LOCK}"
+
+
+def dont_ask() -> bool:
+    return _dont_ask
+
+
+def set_dont_ask(value: bool) -> None:
+    global _dont_ask
+    _dont_ask = value
 
 
 def set_channel(channel: discord.abc.Messageable | None) -> None:
@@ -139,5 +149,9 @@ async def handle_tool_permission(
 ) -> PermissionResult:
     """canUseTool callback — routes bg forks to deny, everything else to Discord."""
     if in_bg_fork():
+        return PermissionResultDeny(message=f"{tool_name} is not allowed")
+    if _dont_ask:
+        if is_session_allowed(tool_name):
+            return PermissionResultAllow()
         return PermissionResultDeny(message=f"{tool_name} is not allowed")
     return await request_approval(tool_name, input_data)
