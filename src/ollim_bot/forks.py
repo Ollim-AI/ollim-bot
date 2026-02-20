@@ -223,12 +223,14 @@ async def run_agent_background(
     run concurrently without stomping on main session or other forks.
     """
     from ollim_bot.agent_tools import set_fork_channel
+    from ollim_bot.sessions import load_session_id, log_session_event
 
     if skip_if_busy and agent.lock().locked():
         return
 
     dm = await owner.create_dm()
     set_fork_channel(dm)
+    main_session_id = load_session_id()
     # CRITICAL: set_in_fork(True) must precede create_forked_client() so the
     # contextvar propagates through the SDK's task-group spawn chain to reach
     # the can_use_tool callback. See design doc for details.
@@ -237,7 +239,12 @@ async def run_agent_background(
     try:
         client = await agent.create_forked_client()
         try:
-            await agent.run_on_client(client, prompt)
+            fork_session_id = await agent.run_on_client(client, prompt)
+            log_session_event(
+                fork_session_id,
+                "bg_fork",
+                parent_session_id=main_session_id,
+            )
         finally:
             await client.disconnect()
     finally:
