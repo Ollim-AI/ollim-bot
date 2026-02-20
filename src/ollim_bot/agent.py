@@ -14,13 +14,14 @@ from claude_agent_sdk import (
     ClaudeAgentOptions,
     ClaudeSDKClient,
     CLIConnectionError,
+    HookMatcher,
     ResultMessage,
     SystemMessage,
     TextBlock,
 )
 from claude_agent_sdk.types import StreamEvent
 
-from ollim_bot.agent_tools import agent_server
+from ollim_bot.agent_tools import agent_server, require_report_hook
 from ollim_bot.formatting import format_tool_label
 from ollim_bot.forks import (
     ForkExitAction,
@@ -102,6 +103,7 @@ class Agent:
                 "Task",
             ],
             permission_mode="default",
+            hooks={"Stop": [HookMatcher(hooks=[require_report_hook])]},
             agents={
                 "gmail-reader": AgentDefinition(
                     description="Email triage specialist. Reads Gmail, sorts through noise, surfaces important emails with suggested follow-up tasks.",

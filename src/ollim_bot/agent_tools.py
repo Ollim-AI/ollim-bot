@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Any, Literal
 
 from claude_agent_sdk import create_sdk_mcp_server, tool
+from claude_agent_sdk.types import HookContext, HookInput, SyncHookJSONOutput
 
 from ollim_bot.config import USER_NAME
 from ollim_bot.embeds import (
@@ -76,6 +77,17 @@ def set_fork_chain_context(ctx: ChainContext | None) -> None:
     _chain_context_var.set(ctx)
 
 
+# ---------------------------------------------------------------------------
+# Bg output tracking — prevents bg forks from stopping without reporting
+# ---------------------------------------------------------------------------
+
+_bg_output_sent_var: ContextVar[bool] = ContextVar("_bg_output_sent", default=False)
+
+
+def bg_output_sent() -> bool:
+    return _bg_output_sent_var.get()
+
+
 def _source() -> Literal["main", "bg", "fork"]:  # duplicate-ok
     """Return the execution context: main session, bg fork, or interactive fork."""
     if in_bg_fork():
@@ -141,6 +153,8 @@ async def discord_embed(args: dict[str, Any]) -> dict[str, Any]:
         embed.set_footer(text=source)
     view = build_view(config.buttons)
     await channel.send(embed=embed, view=view)
+    if source == "bg":
+        _bg_output_sent_var.set(True)
     return {"content": [{"type": "text", "text": "Embed sent."}]}
 
 
@@ -174,6 +188,7 @@ async def ping_user(args: dict[str, Any]) -> dict[str, Any]:
         return {"content": [{"type": "text", "text": "Error: no active channel"}]}
 
     await channel.send(f"[bg] {args['message']}")
+    _bg_output_sent_var.set(True)
     return {"content": [{"type": "text", "text": "Message sent."}]}
 
 
@@ -287,6 +302,7 @@ async def save_context(args: dict[str, Any]) -> dict[str, Any]:
 async def report_updates(args: dict[str, Any]) -> dict[str, Any]:
     if in_bg_fork():
         await _append_update(args["message"])
+        _bg_output_sent_var.set(False)
         return {
             "content": [
                 {
@@ -372,6 +388,23 @@ async def exit_fork(args: dict[str, Any]) -> dict[str, Any]:
             }
         ]
     }
+
+
+async def require_report_hook(
+    input_data: HookInput,
+    tool_use_id: str | None,
+    context: HookContext,
+) -> SyncHookJSONOutput:
+    """Stop hook: prevent bg fork from stopping with unreported output."""
+    if not in_bg_fork() or not _bg_output_sent_var.get():
+        return {}
+    return SyncHookJSONOutput(
+        systemMessage=(
+            "You sent visible output (ping/embed) but haven't called "
+            "report_updates. Call it now to bridge your findings to the "
+            "main session."
+        ),
+    )
 
 
 agent_server = create_sdk_mcp_server(
