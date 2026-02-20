@@ -15,6 +15,7 @@ ADHD-friendly Discord bot with proactive reminders, powered by Claude.
 - `sessions.py` -- Persists Agent SDK session ID (plain string file) for conversation resumption across restarts
 - `permissions.py` -- Discord-based tool approval (canUseTool callback, reaction-based approval, session-allowed set)
 - `formatting.py` -- Tool-label formatting helpers (shared by agent and permissions)
+- `config.py` -- Env vars: `OLLIM_USER_NAME`, `OLLIM_BOT_NAME` (loaded from `.env` via dotenv)
 - `embeds.py` -- Embed/button types, builders, maps, and `build_embed`/`build_view` (shared by agent_tools and views)
 - `inquiries.py` -- Persists button inquiry prompts to `~/.ollim-bot/inquiries.json` (7-day TTL)
 - `google/` -- Google API integration sub-package
@@ -33,7 +34,7 @@ ADHD-friendly Discord bot with proactive reminders, powered by Claude.
 - Auth: Claude Code OAuth (no API key needed)
 - Single `ClaudeSDKClient` for persistent conversation with auto-compaction (single-user bot)
 - No `setting_sources` -- all config is in code (no CLAUDE.md, skills, or settings.json loaded)
-- `permission_mode="default"` -- SDK default; tools gated by `allowed_tools`
+- `permission_mode="default"` -- SDK default; whitelisted tools auto-approved, others routed through `permissions.py`
 - Subagents defined programmatically via `AgentDefinition`: gmail-reader, history-reviewer, responsiveness-reviewer
 - Tool instructions (tasks, cal, routines, reminders, embeds) inlined in SYSTEM_PROMPT; history delegated to subagent
 - `ResultMessage.result` is a fallback — don't double-count with `AssistantMessage` text blocks
@@ -67,8 +68,6 @@ ADHD-friendly Discord bot with proactive reminders, powered by Claude.
 - Inquiry prompts persisted to `~/.ollim-bot/inquiries.json` (survive restarts, 7-day TTL)
 
 ## Permissions
-- `permissions.py` -- Discord-based tool approval via reactions, session-allowed set, permission mode switching
-- `formatting.py` -- Tool-label formatting helpers (extracted from agent.py, shared by agent and permissions)
 - `canUseTool` callback routes through Discord for main/interactive-fork sessions; bg forks get immediate deny
 - Approval flow: send message with tool label, add reactions (approve/deny/always), await Future (60s timeout, auto-deny)
 - `_session_allowed` set: shared across main + interactive forks, reset on `/clear`
@@ -125,6 +124,8 @@ uv sync                    # Install deps
 uv run ollim-bot           # Run the bot
 uv run pytest              # Run tests
 ```
+
+Required env vars (set in `.env`): `DISCORD_TOKEN`, `OLLIM_USER_NAME`, `OLLIM_BOT_NAME`
 
 ## Principles
 Read the python-principles skill.
