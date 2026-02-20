@@ -116,7 +116,7 @@ ADHD-friendly Discord bot with proactive reminders, powered by Claude.
 - Fork state in `forks.py`: `_in_interactive_fork`, `_fork_exit_action`, `_fork_last_activity`, `_fork_prompted_at`
 - Agent routing: `stream_chat`/`chat` route to `_fork_client` when active; `_prepend_context(clear=False)` for forks
 - Post-stream transitions: `_check_fork_transitions()` in bot.py checks `enter_fork_requested()` and `pop_exit_action()`
-- Idle timeout: scheduler checks every 60s; prompts agent after `idle_timeout` minutes; auto-exits with report after another timeout
+- Idle timeout: scheduler checks every 60s; prompts agent after `idle_timeout` minutes; escalates to "you MUST exit" after another timeout (agent always decides exit strategy)
 - Embed with buttons sent on fork entry (`_send_fork_enter`); exit embed sent on fork end (`_fork_exit_embed`)
 - Button handlers in views.py: `fork_save`, `fork_report`, `fork_exit`
 
