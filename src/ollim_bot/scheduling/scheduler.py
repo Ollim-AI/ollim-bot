@@ -260,11 +260,20 @@ def setup_scheduler(
                 job.remove()
             _registered_reminders.discard(stale_id)
 
-    @scheduler.scheduled_job(IntervalTrigger(seconds=60))
-    async def check_fork_timeout() -> None:
-        if not in_interactive_fork():
-            return
+    _fork_check_busy = False
 
+    @scheduler.scheduled_job(IntervalTrigger(seconds=60), max_instances=2)
+    async def check_fork_timeout() -> None:
+        nonlocal _fork_check_busy
+        if _fork_check_busy or not in_interactive_fork():
+            return
+        _fork_check_busy = True
+        try:
+            await _do_fork_check()
+        finally:
+            _fork_check_busy = False
+
+    async def _do_fork_check() -> None:
         if should_auto_exit():
             dm = await owner.create_dm()
             await _append_update("fork auto-exited after idle timeout")
