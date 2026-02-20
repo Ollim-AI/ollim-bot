@@ -299,6 +299,7 @@ def test_ping_user_prefixed_in_bg_fork():
 
 def test_embed_no_footer_on_main():
     ch = InMemoryChannel()
+    set_fork_channel(None)  # clear contextvar from prior bg fork test
     set_channel(ch)
     set_in_fork(False)
     set_interactive_fork(False)
@@ -331,3 +332,91 @@ def test_embed_footer_interactive_fork():
     assert ch.messages[0]["embed"].footer.text == "fork"
     set_interactive_fork(False)
     set_channel(None)
+
+
+# --- bg output tracking + stop hook ---  # duplicate-ok (implementing from plan)
+
+
+def test_bg_output_flag_set_on_ping():
+    from ollim_bot.agent_tools import bg_output_sent
+
+    ch = InMemoryChannel()
+    set_fork_channel(ch)
+    set_in_fork(True)
+
+    async def _check():
+        await _ping({"message": "test"})
+        return bg_output_sent()
+
+    assert _run(_check()) is True
+    set_in_fork(False)
+
+
+def test_bg_output_flag_set_on_embed():
+    from ollim_bot.agent_tools import bg_output_sent
+
+    ch = InMemoryChannel()
+    set_fork_channel(ch)
+    set_in_fork(True)
+
+    async def _check():
+        await _embed({"title": "Test"})
+        return bg_output_sent()
+
+    assert _run(_check()) is True
+    set_in_fork(False)
+
+
+def test_bg_output_flag_cleared_on_report():
+    from ollim_bot.agent_tools import bg_output_sent
+
+    ch = InMemoryChannel()
+    set_fork_channel(ch)
+    _run(pop_pending_updates())
+    set_in_fork(True)
+
+    async def _check():
+        await _ping({"message": "test"})
+        await _report({"message": "summary"})
+        return bg_output_sent()
+
+    assert _run(_check()) is False
+    set_in_fork(False)
+
+
+def test_stop_hook_allows_normal_stop():
+    from ollim_bot.agent_tools import require_report_hook
+
+    set_in_fork(False)
+
+    result = _run(require_report_hook({}, None, {"signal": None}))
+
+    assert result == {}
+
+
+def test_stop_hook_allows_bg_stop_without_output():
+    from ollim_bot.agent_tools import require_report_hook
+
+    set_in_fork(True)
+
+    result = _run(require_report_hook({}, None, {"signal": None}))
+
+    assert result == {}
+    set_in_fork(False)
+
+
+def test_stop_hook_blocks_bg_stop_with_unreported_output():
+    from ollim_bot.agent_tools import require_report_hook
+
+    ch = InMemoryChannel()
+    set_fork_channel(ch)
+    set_in_fork(True)
+
+    async def _check():
+        await _ping({"message": "test"})
+        return await require_report_hook({}, None, {"signal": None})
+
+    result = _run(_check())
+
+    assert "report_updates" in result.get("systemMessage", "")
+    set_in_fork(False)
