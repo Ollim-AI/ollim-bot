@@ -18,6 +18,7 @@ from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
+from ollim_bot import permissions
 from ollim_bot.agent_tools import (
     ChainContext,
     set_chain_context,
@@ -283,6 +284,7 @@ def setup_scheduler(
             timeout = idle_timeout()
             async with agent.lock():
                 set_channel(dm)
+                permissions.set_channel(dm)
                 await dm.typing()
                 await stream_to_channel(
                     dm,

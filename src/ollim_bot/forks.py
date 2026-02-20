@@ -253,8 +253,11 @@ async def send_agent_dm(
     from ollim_bot.agent_tools import set_channel
     from ollim_bot.streamer import stream_to_channel
 
+    from ollim_bot import permissions
+
     dm = await owner.create_dm()
     async with agent.lock():
         set_channel(dm)
+        permissions.set_channel(dm)
         await dm.typing()
         await stream_to_channel(dm, agent.stream_chat(prompt))
