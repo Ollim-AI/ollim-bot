@@ -51,7 +51,7 @@ ADHD-friendly Discord bot with proactive reminders, powered by Claude.
 - `/cost` -- show token usage via SDK's native `/cost`
 - `/model <opus|sonnet|haiku>` -- switch model (update options + drop client, next message reconnects)
 - `/fork [topic]` -- start interactive forked conversation
-- `/permissions <default|acceptEdits|bypassPermissions>` -- switch SDK permission mode (fork-scoped)
+- `/permissions <dontAsk|default|acceptEdits|bypassPermissions>` -- switch permission mode (fork-scoped); `dontAsk` is the default
 - `Agent.slash()` -- generic method routing SDK slash commands, captures SystemMessage + AssistantMessage + ResultMessage
 - `Agent.set_model()` -- uses `dataclasses.replace()` on shared options + updates live client
 - `Agent.set_permission_mode()` -- fork-scoped: only updates active client (differs from `/model`)
@@ -68,10 +68,12 @@ ADHD-friendly Discord bot with proactive reminders, powered by Claude.
 - Inquiry prompts persisted to `~/.ollim-bot/inquiries.json` (survive restarts, 7-day TTL)
 
 ## Permissions
-- `canUseTool` callback routes through Discord for main/interactive-fork sessions; bg forks get immediate deny
-- Approval flow: send message with tool label, add reactions (approve/deny/always), await Future (60s timeout, auto-deny)
+- Default mode is `dontAsk`: non-whitelisted tools silently denied, no Discord prompt
+- `dontAsk` is our layer (`_dont_ask` flag in permissions.py); SDK stays at `default`
+- Other modes (`default`, `acceptEdits`, `bypassPermissions`) clear `_dont_ask` and pass through to SDK
+- Approval flow (when `dontAsk` is off): send message with tool label, add reactions (approve/deny/always), await Future (60s timeout, auto-deny)
+- `canUseTool` callback: bg forks → immediate deny; `dontAsk` → silent deny (unless session-allowed); else → Discord approval
 - `_session_allowed` set: shared across main + interactive forks, reset on `/clear`
-- `/permissions` slash command: switches SDK permission mode (default, acceptEdits, bypassPermissions)
 - Permission mode is fork-scoped (only affects active client); `/model` is shared (affects both)
 - `cancel_pending()` called on interrupt, fork exit, and `/clear`
 - Channel sync invariant: every path into `stream_chat` must call BOTH `agent_tools.set_channel` AND `permissions.set_channel`

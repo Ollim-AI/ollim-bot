@@ -293,6 +293,7 @@ def create_bot() -> commands.Bot:
     @discord.app_commands.describe(mode="Permission mode to use")
     @discord.app_commands.choices(
         mode=[
+            discord.app_commands.Choice(name="dontAsk", value="dontAsk"),
             discord.app_commands.Choice(name="default", value="default"),
             discord.app_commands.Choice(name="acceptEdits", value="acceptEdits"),
             discord.app_commands.Choice(
@@ -303,7 +304,12 @@ def create_bot() -> commands.Bot:
     async def slash_permissions(
         interaction: discord.Interaction, mode: discord.app_commands.Choice[str]
     ):
-        await agent.set_permission_mode(mode.value)
+        if mode.value == "dontAsk":
+            permissions.set_dont_ask(True)
+            await agent.set_permission_mode("default")
+        else:
+            permissions.set_dont_ask(False)
+            await agent.set_permission_mode(mode.value)
         await interaction.response.send_message(f"permissions: {mode.value}")
 
     return bot

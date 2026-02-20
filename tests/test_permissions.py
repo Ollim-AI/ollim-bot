@@ -2,6 +2,7 @@
 
 import asyncio
 
+import pytest
 from claude_agent_sdk.types import (
     PermissionResultAllow,
     PermissionResultDeny,
@@ -11,11 +12,13 @@ from claude_agent_sdk.types import (
 from ollim_bot.forks import set_in_fork
 from ollim_bot.permissions import (
     cancel_pending,
+    dont_ask,
     handle_tool_permission,
     is_session_allowed,
     reset,
     resolve_approval,
     session_allow,
+    set_dont_ask,
 )
 
 
@@ -151,3 +154,58 @@ def test_handle_tool_permission_allows_session_allowed():
         assert isinstance(result, PermissionResultAllow)
     finally:
         reset()
+
+
+# --- dontAsk mode ---
+
+
+def test_dont_ask_default_true():
+    assert dont_ask() is True
+
+
+def test_dont_ask_denies_non_whitelisted():
+    set_dont_ask(True)
+    try:
+        result = _run(
+            handle_tool_permission("Bash", {"command": "ls"}, ToolPermissionContext())
+        )
+
+        assert isinstance(result, PermissionResultDeny)
+        assert "not allowed" in result.message
+    finally:
+        set_dont_ask(True)
+
+
+def test_dont_ask_allows_session_allowed():
+    reset()
+    set_dont_ask(True)
+    session_allow("WebFetch")
+    try:
+        result = _run(
+            handle_tool_permission(
+                "WebFetch", {"url": "https://example.com"}, ToolPermissionContext()
+            )
+        )
+
+        assert isinstance(result, PermissionResultAllow)
+    finally:
+        set_dont_ask(True)
+        reset()
+
+
+def test_dont_ask_off_reaches_approval_flow():
+    """When dontAsk is off and no channel set, hits the assertion (approval flow entered)."""
+    reset()
+    set_dont_ask(False)
+    from ollim_bot.permissions import set_channel
+
+    set_channel(None)
+    try:
+        with pytest.raises(AssertionError, match="set_channel"):
+            _run(
+                handle_tool_permission(
+                    "Bash", {"command": "ls"}, ToolPermissionContext()
+                )
+            )
+    finally:
+        set_dont_ask(True)
