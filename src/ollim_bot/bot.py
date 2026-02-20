@@ -292,6 +292,13 @@ def create_bot() -> commands.Bot:
             return
         permissions.resolve_approval(payload.message_id, str(payload.emoji))
 
+    @bot.tree.command(name="interrupt", description="Stop the current response")
+    async def slash_interrupt(interaction: discord.Interaction):
+        if agent.lock().locked():
+            await agent.interrupt()
+        await interaction.response.defer()
+        await interaction.delete_original_response()
+
     @bot.tree.command(name="permissions", description="Set permission mode")
     @discord.app_commands.describe(mode="Permission mode to use")
     @discord.app_commands.choices(
