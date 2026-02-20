@@ -121,9 +121,12 @@ def create_bot() -> commands.Bot:
     def _fork_topic_prompt(topic: str) -> str:
         return (
             f"[fork-started] You are now inside an interactive forked session. "
-            f"Your task: {topic}\n\n"
-            "Work on this. When done, use save_context to promote to main, "
-            "report_updates(message) to send a summary, or exit_fork to discard."
+            f"Topic: {topic}\n\n"
+            f"Respond to the topic, then wait for {USER_NAME} to reply before "
+            "considering exit — they started this fork to have a conversation. "
+            "Once they've engaged and the work is complete, present an embed "
+            "with all 3 exit options (save_context / report_updates / exit_fork) "
+            f"so {USER_NAME} can choose."
         )
 
     async def _check_fork_transitions(
