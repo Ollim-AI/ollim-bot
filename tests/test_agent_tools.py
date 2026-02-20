@@ -111,7 +111,7 @@ def test_save_context_blocked_in_bg_fork():
     result = _run(_save_ctx({}))
 
     assert "Error" in result["content"][0]["text"]
-    assert "not in an interactive fork" in result["content"][0]["text"]
+    assert "not available in background forks" in result["content"][0]["text"]
     set_in_fork(False)
 
 
@@ -124,7 +124,7 @@ def test_report_updates_not_in_fork():
     result = _run(_report({"message": "test"}))
 
     assert "Error" in result["content"][0]["text"]
-    assert "not in a forked background session" in result["content"][0]["text"]
+    assert "not in a forked session" in result["content"][0]["text"]
 
 
 def test_report_updates_appends_to_file():
@@ -214,15 +214,16 @@ def test_save_context_in_interactive_fork():
     set_interactive_fork(False)
 
 
-def test_save_context_prefers_interactive_over_bg():
-    """Interactive fork check takes priority over bg fork check."""
+def test_save_context_blocked_in_bg_fork_even_with_interactive():
+    """Bg fork check is authoritative — blocks save_context even if interactive fork exists."""
     set_in_fork(True)
     set_interactive_fork(True, idle_timeout=10)
 
     result = _run(_save_ctx({}))
 
-    assert "promoted" in result["content"][0]["text"].lower()
-    assert pop_exit_action() is ForkExitAction.SAVE
+    assert "Error" in result["content"][0]["text"]
+    assert "not available in background forks" in result["content"][0]["text"]
+    assert pop_exit_action() is ForkExitAction.NONE
     set_interactive_fork(False)
     set_in_fork(False)
 
@@ -232,6 +233,7 @@ def test_save_context_prefers_interactive_over_bg():
 
 def test_report_updates_in_interactive_fork():
     pop_pending_updates()
+    set_in_fork(False)
     set_interactive_fork(True, idle_timeout=10)
 
     _run(_report({"message": "found 3 papers"}))
