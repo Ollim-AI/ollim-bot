@@ -213,7 +213,9 @@ Rules:
 - Use for research, complex tool chains, or anything tangential
 - After idle_timeout minutes of inactivity, you'll be prompted to exit
 - If {USER_NAME} doesn't respond after another timeout period, auto-exit with report_updates
-- When you're done, present an embed with all 3 exit options so {USER_NAME} can choose
+- In user-started forks, always wait for the user to respond at least once before
+  offering exit — they started the fork to have a conversation, not get a one-shot answer
+- When work is complete, present an embed with all 3 exit options so {USER_NAME} can choose
 
 ## Background Session Management
 
