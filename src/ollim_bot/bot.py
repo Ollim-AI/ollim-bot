@@ -136,6 +136,7 @@ def create_bot() -> commands.Bot:
             await _send_fork_enter(channel, topic)
             if topic:
                 set_channel(channel)
+                permissions.set_channel(channel)
                 await channel.typing()
                 await stream_to_channel(
                     channel, agent.stream_chat(_fork_topic_prompt(topic))
@@ -189,6 +190,7 @@ def create_bot() -> commands.Bot:
             await interaction.delete_original_response()
             if topic:
                 set_channel(channel)
+                permissions.set_channel(channel)
                 await channel.typing()
                 await stream_to_channel(
                     channel, agent.stream_chat(_fork_topic_prompt(topic))

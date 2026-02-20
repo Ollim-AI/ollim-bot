@@ -10,6 +10,7 @@ import discord
 from discord.ui import Button, DynamicItem
 
 from ollim_bot import inquiries
+from ollim_bot import permissions
 from ollim_bot.agent_tools import set_channel
 from ollim_bot.config import USER_NAME
 from ollim_bot.embeds import fork_exit_embed
@@ -100,6 +101,7 @@ async def _handle_agent_inquiry(
     await interaction.response.defer()
     async with _agent.lock():
         set_channel(channel)
+        permissions.set_channel(channel)
         await channel.typing()
         await stream_to_channel(channel, _agent.stream_chat(f"[button] {prompt}"))
 
@@ -146,6 +148,7 @@ async def _handle_fork_report(interaction: discord.Interaction, _data: str) -> N
             return
         updates_before = len(peek_pending_updates())
         set_channel(channel)
+        permissions.set_channel(channel)
         await channel.typing()
         await stream_to_channel(
             channel,
