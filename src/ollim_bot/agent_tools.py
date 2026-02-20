@@ -3,7 +3,7 @@
 import subprocess
 from contextvars import ContextVar
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal
 
 from claude_agent_sdk import create_sdk_mcp_server, tool
 
@@ -74,6 +74,15 @@ def set_chain_context(ctx: ChainContext | None) -> None:
 def set_fork_chain_context(ctx: ChainContext | None) -> None:
     """Set chain context via contextvar — used by bg reminders."""
     _chain_context_var.set(ctx)
+
+
+def _source() -> Literal["main", "bg", "fork"]:  # duplicate-ok
+    """Return the execution context: main session, bg fork, or interactive fork."""
+    if in_bg_fork():
+        return "bg"
+    if in_interactive_fork():
+        return "fork"
+    return "main"
 
 
 @tool(
@@ -148,11 +157,20 @@ async def discord_embed(args: dict[str, Any]) -> dict[str, Any]:
     },
 )
 async def ping_user(args: dict[str, Any]) -> dict[str, Any]:
+    if _source() != "bg":
+        return {
+            "content": [
+                {
+                    "type": "text",
+                    "text": "Error: ping_user is only available in background forks",
+                }
+            ]
+        }
     channel = _channel_var.get() or _channel
     if channel is None:
         return {"content": [{"type": "text", "text": "Error: no active channel"}]}
 
-    await channel.send(args["message"])
+    await channel.send(f"[bg] {args['message']}")
     return {"content": [{"type": "text", "text": "Message sent."}]}
 
 
