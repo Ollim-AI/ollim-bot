@@ -75,6 +75,8 @@ ADHD-friendly Discord bot with proactive reminders, powered by Claude.
 - `/permissions` slash command: switches SDK permission mode (default, acceptEdits, bypassPermissions)
 - Permission mode is fork-scoped (only affects active client); `/model` is shared (affects both)
 - `cancel_pending()` called on interrupt, fork exit, and `/clear`
+- Channel sync invariant: every path into `stream_chat` must call BOTH `agent_tools.set_channel` AND `permissions.set_channel`
+- 6 entry points: `_dispatch` (bot.py), `_check_fork_transitions` (bot.py), `slash_fork` (bot.py), `send_agent_dm` (forks.py), button handlers (views.py), `_check_fork_idle` (scheduler.py)
 
 ## Google integration
 - OAuth credentials: `~/.ollim-bot/credentials.json` (from Google Cloud Console)
