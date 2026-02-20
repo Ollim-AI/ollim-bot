@@ -83,11 +83,18 @@ def clear_pending_updates() -> None:
         _UPDATES_FILE.unlink()
 
 
-def pop_pending_updates() -> list[str]:
-    """Read and clear all pending updates."""
-    updates = peek_pending_updates()
-    clear_pending_updates()
-    return updates
+async def pop_pending_updates() -> list[str]:
+    """Read and clear all pending updates.
+
+    Lock ensures atomicity with concurrent _append_update calls —
+    without it a bg fork's append can re-introduce already-popped updates.
+    """
+    async with _updates_lock:
+        if not _UPDATES_FILE.exists():
+            return []
+        updates = json.loads(_UPDATES_FILE.read_text())
+        _UPDATES_FILE.unlink()
+        return [u["message"] for u in updates]
 
 
 # ---------------------------------------------------------------------------
