@@ -136,6 +136,9 @@ async def discord_embed(args: dict[str, Any]) -> dict[str, Any]:
         buttons=tuple(ButtonConfig(**b) for b in args.get("buttons", [])),
     )
     embed = build_embed(config)
+    source = _source()
+    if source != "main":
+        embed.set_footer(text=source)
     view = build_view(config.buttons)
     await channel.send(embed=embed, view=view)
     return {"content": [{"type": "text", "text": "Embed sent."}]}

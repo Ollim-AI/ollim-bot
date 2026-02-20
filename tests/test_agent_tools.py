@@ -292,3 +292,42 @@ def test_ping_user_prefixed_in_bg_fork():
     assert result["content"][0]["text"] == "Message sent."
     assert ch.messages[0]["content"] == "[bg] check your tasks"
     set_in_fork(False)
+
+
+# --- discord_embed footer ---  # duplicate-ok (implementing from plan)
+
+
+def test_embed_no_footer_on_main():
+    ch = InMemoryChannel()
+    set_channel(ch)
+    set_in_fork(False)
+    set_interactive_fork(False)
+
+    _run(_embed({"title": "Tasks"}))
+
+    assert ch.messages[0]["embed"].footer.text is None
+    set_channel(None)
+
+
+def test_embed_footer_bg_fork():
+    ch = InMemoryChannel()
+    set_fork_channel(ch)
+    set_in_fork(True)
+
+    _run(_embed({"title": "Tasks"}))
+
+    assert ch.messages[0]["embed"].footer.text == "bg"
+    set_in_fork(False)
+
+
+def test_embed_footer_interactive_fork():
+    ch = InMemoryChannel()
+    set_fork_channel(None)  # clear contextvar from prior bg fork test
+    set_channel(ch)
+    set_interactive_fork(True, idle_timeout=10)
+
+    _run(_embed({"title": "Tasks"}))
+
+    assert ch.messages[0]["embed"].footer.text == "fork"
+    set_interactive_fork(False)
+    set_channel(None)
