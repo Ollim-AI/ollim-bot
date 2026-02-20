@@ -58,8 +58,28 @@ def load_session_id() -> str | None:
     return text
 
 
+_swap_in_progress: bool = False  # duplicate-ok
+
+
+def set_swap_in_progress(active: bool) -> None:
+    global _swap_in_progress
+    _swap_in_progress = active
+
+
 def save_session_id(session_id: str) -> None:
-    """Atomic write -- safe to call mid-stream without corrupting concurrent reads."""
+    """Atomic write with auto-detection of session lifecycle events.
+
+    Logs 'created' when no prior session ID exists, 'compacted' when the ID
+    changes (SDK auto-compaction). Suppressed when _swap_in_progress is set
+    because swap_client() logs its own 'swapped' event.
+    """
+    if not _swap_in_progress:
+        current = load_session_id()
+        if current is None:
+            log_session_event(session_id, "created")
+        elif current != session_id:
+            log_session_event(session_id, "compacted", parent_session_id=current)
+
     SESSIONS_FILE.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=SESSIONS_FILE.parent, suffix=".tmp")
     os.write(fd, session_id.encode())
