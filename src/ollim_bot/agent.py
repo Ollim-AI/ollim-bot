@@ -2,7 +2,6 @@
 
 import asyncio
 import contextlib
-import json
 from collections.abc import AsyncGenerator
 from dataclasses import replace
 from datetime import datetime
@@ -19,13 +18,10 @@ from claude_agent_sdk import (
     SystemMessage,
     TextBlock,
 )
-from claude_agent_sdk.types import (
-    PermissionResultDeny,
-    StreamEvent,
-    ToolPermissionContext,
-)
+from claude_agent_sdk.types import StreamEvent
 
 from ollim_bot.agent_tools import agent_server
+from ollim_bot.formatting import format_tool_label
 from ollim_bot.forks import (
     ForkExitAction,
     peek_pending_updates,
@@ -33,6 +29,11 @@ from ollim_bot.forks import (
     pop_pending_updates,
     set_interactive_fork,
     touch_activity,
+)
+from ollim_bot.permissions import (
+    cancel_pending,
+    handle_tool_permission,
+    reset as reset_permissions,
 )
 from ollim_bot.prompts import (
     GMAIL_READER_PROMPT,
@@ -48,69 +49,6 @@ from ollim_bot.sessions import (
 )
 
 ModelName = Literal["opus", "sonnet", "haiku"]
-
-# Tool name → input key(s) to extract for informative labels.
-_TOOL_LABEL_KEYS: dict[str, str | tuple[str, ...]] = {
-    "Read": "file_path",
-    "Write": "file_path",
-    "Edit": "file_path",
-    "Bash": "command",
-    "Grep": ("pattern", "path"),
-    "Glob": "pattern",
-    "WebSearch": "query",
-    "WebFetch": "url",
-    "Task": "description",
-}
-
-
-def _shorten_path(path: str) -> str:
-    """Reduce a path to its last two components."""
-    parts = path.rstrip("/").split("/")
-    return "/".join(parts[-2:]) if len(parts) > 2 else path
-
-
-def _escape_md(s: str) -> str:
-    """Escape characters that break Discord italic markdown."""
-    return s.replace("*", "\\*").replace("_", "\\_")
-
-
-def _format_tool_label(name: str, input_json: str) -> str:
-    """Build a descriptive tool-use label like ``Write(reminders/foo.md)``."""
-    if name.startswith("mcp__discord__"):
-        return name.removeprefix("mcp__discord__")
-
-    try:
-        inp = json.loads(input_json) if input_json else {}
-    except json.JSONDecodeError:
-        return name
-
-    keys = _TOOL_LABEL_KEYS.get(name)
-    if keys is None:
-        return name
-    if isinstance(keys, str):
-        keys = (keys,)
-
-    parts: list[str] = []
-    for key in keys:
-        val = inp.get(key, "")
-        if not val:
-            continue
-        if key == "file_path":
-            val = _shorten_path(val)
-        elif key == "command":
-            val = val.split("\n")[0][:50]
-        parts.append(_escape_md(str(val)))
-
-    return f"{name}({', '.join(parts)})" if parts else name
-
-
-async def _deny_unlisted_tools(
-    tool_name: str,
-    input_data: dict,
-    context: ToolPermissionContext,
-) -> PermissionResultDeny:
-    """Deny any tool not already auto-approved by allowed_tools."""
-    return PermissionResultDeny(message=f"{tool_name} is not allowed")
 
 
 def _timestamp() -> str:
@@ -137,7 +75,7 @@ class Agent:
         self.options = ClaudeAgentOptions(
             cwd=SESSIONS_FILE.parent,
             include_partial_messages=True,
-            can_use_tool=_deny_unlisted_tools,
+            can_use_tool=handle_tool_permission,
             system_prompt=SYSTEM_PROMPT,
             mcp_servers={"discord": agent_server},
             allowed_tools=[
@@ -202,10 +140,12 @@ class Agent:
         return self._lock
 
     async def interrupt(self) -> None:
+        cancel_pending()
         if self._client:
             await self._client.interrupt()
 
     async def clear(self) -> None:
+        reset_permissions()
         if self._fork_client:
             await self.exit_interactive_fork(ForkExitAction.EXIT)
         await self._drop_client()
@@ -218,6 +158,16 @@ class Agent:
             await self._client.set_model(model)
         if self._fork_client:
             await self._fork_client.set_model(model)
+
+    async def set_permission_mode(self, mode: str) -> None:
+        """Switch SDK permission mode. Fork-scoped when in interactive fork."""
+        if self._fork_client:
+            await self._fork_client.set_permission_mode(mode)
+        elif self._client:
+            await self._client.set_permission_mode(mode)
+            self.options = replace(self.options, permission_mode=mode)
+        else:
+            self.options = replace(self.options, permission_mode=mode)
 
     async def _drop_client(self) -> None:
         """Teardown: interrupt + disconnect.
@@ -256,6 +206,7 @@ class Agent:
 
     async def exit_interactive_fork(self, action: ForkExitAction) -> None:
         """Exit interactive fork: promote (SAVE), report (REPORT), or discard (EXIT)."""
+        cancel_pending()
         client = self._fork_client
         session_id = self._fork_session_id
         self._fork_client = None
@@ -434,7 +385,7 @@ class Agent:
 
                 elif etype == "content_block_stop":
                     if tool_name is not None:
-                        label = _format_tool_label(tool_name, tool_input_buf)
+                        label = format_tool_label(tool_name, tool_input_buf)
                         streamed = True
                         yield f"\n-# *{label}*\n"
                         tool_name = None

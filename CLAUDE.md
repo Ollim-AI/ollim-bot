@@ -13,6 +13,8 @@ ADHD-friendly Discord bot with proactive reminders, powered by Claude.
 - `storage.py` -- Shared JSONL I/O, markdown I/O (`read_md_dir`/`write_md`/`remove_md`), and git auto-commit (`~/.ollim-bot/` data repo)
 - `streamer.py` -- Streams agent responses to Discord (throttled edits, 2000-char overflow)
 - `sessions.py` -- Persists Agent SDK session ID (plain string file) for conversation resumption across restarts
+- `permissions.py` -- Discord-based tool approval (canUseTool callback, reaction-based approval, session-allowed set)
+- `formatting.py` -- Tool-label formatting helpers (shared by agent and permissions)
 - `embeds.py` -- Embed/button types, builders, maps, and `build_embed`/`build_view` (shared by agent_tools and views)
 - `inquiries.py` -- Persists button inquiry prompts to `~/.ollim-bot/inquiries.json` (7-day TTL)
 - `google/` -- Google API integration sub-package
@@ -48,8 +50,10 @@ ADHD-friendly Discord bot with proactive reminders, powered by Claude.
 - `/cost` -- show token usage via SDK's native `/cost`
 - `/model <opus|sonnet|haiku>` -- switch model (update options + drop client, next message reconnects)
 - `/fork [topic]` -- start interactive forked conversation
+- `/permissions <default|acceptEdits|bypassPermissions>` -- switch SDK permission mode (fork-scoped)
 - `Agent.slash()` -- generic method routing SDK slash commands, captures SystemMessage + AssistantMessage + ResultMessage
 - `Agent.set_model()` -- uses `dataclasses.replace()` on shared options + updates live client
+- `Agent.set_permission_mode()` -- fork-scoped: only updates active client (differs from `/model`)
 - Synced via `bot.tree.sync()` in `on_ready`
 
 ## Discord embeds & buttons
@@ -61,6 +65,16 @@ ADHD-friendly Discord bot with proactive reminders, powered by Claude.
 - Fork actions (fork_save, fork_report, fork_exit): exit interactive fork with chosen strategy
 - `DynamicItem[Button]` for persistent buttons across restarts
 - Inquiry prompts persisted to `~/.ollim-bot/inquiries.json` (survive restarts, 7-day TTL)
+
+## Permissions
+- `permissions.py` -- Discord-based tool approval via reactions, session-allowed set, permission mode switching
+- `formatting.py` -- Tool-label formatting helpers (extracted from agent.py, shared by agent and permissions)
+- `canUseTool` callback routes through Discord for main/interactive-fork sessions; bg forks get immediate deny
+- Approval flow: send message with tool label, add reactions (approve/deny/always), await Future (60s timeout, auto-deny)
+- `_session_allowed` set: shared across main + interactive forks, reset on `/clear`
+- `/permissions` slash command: switches SDK permission mode (default, acceptEdits, bypassPermissions)
+- Permission mode is fork-scoped (only affects active client); `/model` is shared (affects both)
+- `cancel_pending()` called on interrupt, fork exit, and `/clear`
 
 ## Google integration
 - OAuth credentials: `~/.ollim-bot/credentials.json` (from Google Cloud Console)
