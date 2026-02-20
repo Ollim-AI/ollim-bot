@@ -147,7 +147,7 @@ async def handle_tool_permission(
     input_data: dict[str, Any],
     context: ToolPermissionContext,
 ) -> PermissionResult:
-    """canUseTool callback — routes bg forks to deny, everything else to Discord."""
+    """canUseTool callback — bg forks: deny; dontAsk: silent deny; else: Discord approval."""
     if in_bg_fork():
         return PermissionResultDeny(message=f"{tool_name} is not allowed")
     if _dont_ask:
