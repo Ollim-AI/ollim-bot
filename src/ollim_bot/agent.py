@@ -381,6 +381,19 @@ class Agent:
 
         async for msg in client.receive_response():
             if isinstance(msg, StreamEvent):
+                # Capture fork session ID from first StreamEvent
+                if (
+                    self._fork_client is not None
+                    and client is self._fork_client
+                    and self._fork_session_id is None
+                ):
+                    self._fork_session_id = msg.session_id
+                    log_session_event(
+                        msg.session_id,
+                        "interactive_fork",
+                        parent_session_id=load_session_id(),
+                    )
+
                 event = msg.event
                 etype = event.get("type")
 
@@ -413,7 +426,8 @@ class Agent:
                 if msg.result:
                     result_text = msg.result
                 if self._fork_client is not None and client is self._fork_client:
-                    self._fork_session_id = msg.session_id
+                    if self._fork_session_id is None:
+                        self._fork_session_id = msg.session_id
                 elif self._client is client:
                     save_session_id(msg.session_id)
 
@@ -448,7 +462,13 @@ class Agent:
                 if msg.result:
                     result_text = msg.result
                 if self._fork_client is not None and client is self._fork_client:
-                    self._fork_session_id = msg.session_id
+                    if self._fork_session_id is None:
+                        self._fork_session_id = msg.session_id
+                        log_session_event(
+                            msg.session_id,
+                            "interactive_fork",
+                            parent_session_id=load_session_id(),
+                        )
                 elif self._client is client:
                     save_session_id(msg.session_id)
 
