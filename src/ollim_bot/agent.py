@@ -46,7 +46,9 @@ from ollim_bot.sessions import (
     SESSIONS_FILE,
     delete_session_id,
     load_session_id,
+    log_session_event,
     save_session_id,
+    set_swap_in_progress,
 )
 
 ModelName = Literal["opus", "sonnet", "haiku"]
@@ -150,6 +152,9 @@ class Agent:
         reset_permissions()
         if self._fork_client:
             await self.exit_interactive_fork(ForkExitAction.EXIT)
+        current = load_session_id()
+        if current:
+            log_session_event(current, "cleared")
         await self._drop_client()
         delete_session_id()
 
@@ -188,11 +193,19 @@ class Agent:
         with contextlib.suppress(RuntimeError):
             await client.disconnect()
 
-    async def swap_client(self, client: ClaudeSDKClient, session_id: str) -> None:
+    async def swap_client(
+        self, client: ClaudeSDKClient, session_id: str
+    ) -> None:  # duplicate-ok
         """Promote a forked client to the main client, replacing the old one."""
         old = self._client
+        old_session_id = load_session_id()
         self._client = client
-        save_session_id(session_id)
+        set_swap_in_progress(True)
+        try:
+            save_session_id(session_id)
+        finally:
+            set_swap_in_progress(False)
+        log_session_event(session_id, "swapped", parent_session_id=old_session_id)
         if old:
             with contextlib.suppress(CLIConnectionError):
                 await old.interrupt()
