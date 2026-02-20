@@ -264,9 +264,6 @@ def setup_scheduler(
     async def check_fork_timeout() -> None:
         if not in_interactive_fork():
             return
-        # Don't block scheduler if agent is busy — retry next cycle
-        if agent.lock().locked():
-            return
 
         if should_auto_exit():
             dm = await owner.create_dm()
