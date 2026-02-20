@@ -28,8 +28,6 @@ from ollim_bot.agent_tools import (
 from ollim_bot.config import USER_NAME
 from ollim_bot.embeds import fork_exit_embed
 from ollim_bot.forks import (
-    ForkExitAction,
-    _append_update,
     idle_timeout,
     in_interactive_fork,
     is_idle,
@@ -274,41 +272,38 @@ def setup_scheduler(
             _fork_check_busy = False
 
     async def _do_fork_check() -> None:
-        if should_auto_exit():
-            dm = await owner.create_dm()
-            await _append_update("fork auto-exited after idle timeout")
-            async with agent.lock():
-                await agent.exit_interactive_fork(ForkExitAction.REPORT)
-                await dm.send(
-                    embed=fork_exit_embed(
-                        ForkExitAction.REPORT,
-                        "auto-exited after idle timeout",
-                    )
-                )
+        if not is_idle():
             return
 
-        if is_idle():
-            set_prompted_at()
-            dm = await owner.create_dm()
-            timeout = idle_timeout()
-            async with agent.lock():
-                set_channel(dm)
-                permissions.set_channel(dm)
-                await dm.typing()
-                await stream_to_channel(
-                    dm,
-                    agent.stream_chat(
-                        f"[fork-timeout] This fork has been idle for {timeout} minutes. "
-                        "Decide what to do: use `save_context` to promote to main session, "
-                        "`report_updates(message)` to send a summary, or `exit_fork` to discard. "
-                        f"If {USER_NAME} is still engaged, ask them what they'd like to do."
-                    ),
-                )
-                result = await agent.pop_fork_exit()
-                if result:
-                    action, summary = result
-                    await dm.send(embed=fork_exit_embed(action, summary))
-                else:
-                    touch_activity()
+        escalated = should_auto_exit()
+        set_prompted_at()
+        dm = await owner.create_dm()
+        timeout = idle_timeout()
+
+        if escalated:
+            prompt = (
+                f"[fork-timeout] REMINDER: This fork has been idle for over {timeout * 2} minutes "
+                "and you already received a timeout notice. You MUST exit now: "
+                "use `save_context`, `report_updates(message)`, or `exit_fork`."
+            )
+        else:
+            prompt = (
+                f"[fork-timeout] This fork has been idle for {timeout} minutes. "
+                "Decide what to do: use `save_context` to promote to main session, "
+                "`report_updates(message)` to send a summary, or `exit_fork` to discard. "
+                f"If {USER_NAME} is still engaged, ask them what they'd like to do."
+            )
+
+        async with agent.lock():
+            set_channel(dm)
+            permissions.set_channel(dm)
+            await dm.typing()
+            await stream_to_channel(dm, agent.stream_chat(prompt))
+            result = await agent.pop_fork_exit()
+            if result:
+                action, summary = result
+                await dm.send(embed=fork_exit_embed(action, summary))
+            else:
+                touch_activity()
 
     return scheduler
