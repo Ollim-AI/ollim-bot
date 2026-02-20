@@ -99,6 +99,8 @@ async def _handle_agent_inquiry(
     channel = interaction.channel
     assert isinstance(channel, discord.abc.Messageable)
     await interaction.response.defer()
+    if _agent.lock().locked():
+        await _agent.interrupt()
     async with _agent.lock():
         set_channel(channel)
         permissions.set_channel(channel)

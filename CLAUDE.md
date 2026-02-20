@@ -51,6 +51,7 @@ ADHD-friendly Discord bot with proactive reminders, powered by Claude.
 - `/cost` -- show token usage via SDK's native `/cost`
 - `/model <opus|sonnet|haiku>` -- switch model (update options + drop client, next message reconnects)
 - `/fork [topic]` -- start interactive forked conversation
+- `/interrupt` -- stop current response (fire-and-forget, no lock, silent)
 - `/permissions <dontAsk|default|acceptEdits|bypassPermissions>` -- switch permission mode (fork-scoped); `dontAsk` is the default
 - `Agent.slash()` -- generic method routing SDK slash commands, captures SystemMessage + AssistantMessage + ResultMessage
 - `Agent.set_model()` -- uses `dataclasses.replace()` on shared options + updates live client
