@@ -8,6 +8,7 @@ import discord
 from discord.ext import commands
 from discord.ui import Button, View
 
+from ollim_bot import permissions
 from ollim_bot.agent import Agent
 from ollim_bot.agent_tools import set_channel
 from ollim_bot.config import BOT_NAME, USER_NAME
@@ -81,6 +82,7 @@ def create_bot() -> commands.Bot:
     ) -> None:
         """set_channel -> typing -> stream. Caller must hold agent.lock()."""
         set_channel(channel)
+        permissions.set_channel(channel)
         await channel.typing()
         await stream_to_channel(channel, agent.stream_chat(prompt, images=images))
 
@@ -278,5 +280,28 @@ def create_bot() -> commands.Bot:
 
         with contextlib.suppress(discord.NotFound):
             await message.remove_reaction("\N{EYES}", bot.user)
+
+    @bot.event
+    async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
+        if bot.user and payload.user_id == bot.user.id:
+            return
+        permissions.resolve_approval(payload.message_id, str(payload.emoji))
+
+    @bot.tree.command(name="permissions", description="Set permission mode")
+    @discord.app_commands.describe(mode="Permission mode to use")
+    @discord.app_commands.choices(
+        mode=[
+            discord.app_commands.Choice(name="default", value="default"),
+            discord.app_commands.Choice(name="acceptEdits", value="acceptEdits"),
+            discord.app_commands.Choice(
+                name="bypassPermissions", value="bypassPermissions"
+            ),
+        ]
+    )
+    async def slash_permissions(
+        interaction: discord.Interaction, mode: discord.app_commands.Choice[str]
+    ):
+        await agent.set_permission_mode(mode.value)
+        await interaction.response.send_message(f"permissions: {mode.value}")
 
     return bot

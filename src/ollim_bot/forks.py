@@ -229,6 +229,9 @@ async def run_agent_background(
 
     dm = await owner.create_dm()
     set_fork_channel(dm)
+    # CRITICAL: set_in_fork(True) must precede create_forked_client() so the
+    # contextvar propagates through the SDK's task-group spawn chain to reach
+    # the can_use_tool callback. See design doc for details.
     set_in_fork(True)
 
     try:
