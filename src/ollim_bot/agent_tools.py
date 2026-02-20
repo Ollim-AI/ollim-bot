@@ -224,6 +224,12 @@ async def follow_up_chain(args: dict[str, Any]) -> dict[str, Any]:
     },
 )
 async def save_context(args: dict[str, Any]) -> dict[str, Any]:
+    if in_bg_fork():
+        return {
+            "content": [
+                {"type": "text", "text": "Error: not available in background forks"}
+            ]
+        }
     if not in_interactive_fork():
         return {
             "content": [{"type": "text", "text": "Error: not in an interactive fork"}]
@@ -258,6 +264,16 @@ async def save_context(args: dict[str, Any]) -> dict[str, Any]:
     },
 )
 async def report_updates(args: dict[str, Any]) -> dict[str, Any]:
+    if in_bg_fork():
+        await _append_update(args["message"])
+        return {
+            "content": [
+                {
+                    "type": "text",
+                    "text": "Update reported -- summary will appear in main session.",
+                }
+            ]
+        }
     if in_interactive_fork():
         set_exit_action(ForkExitAction.REPORT)
         await _append_update(args["message"])
@@ -270,21 +286,7 @@ async def report_updates(args: dict[str, Any]) -> dict[str, Any]:
                 }
             ]
         }
-    if not in_bg_fork():
-        return {
-            "content": [
-                {"type": "text", "text": "Error: not in a forked background session"}
-            ]
-        }
-    await _append_update(args["message"])
-    return {
-        "content": [
-            {
-                "type": "text",
-                "text": "Update reported -- summary will appear in main session.",
-            }
-        ]
-    }
+    return {"content": [{"type": "text", "text": "Error: not in a forked session"}]}
 
 
 @tool(
@@ -329,6 +331,12 @@ async def enter_fork(args: dict[str, Any]) -> dict[str, Any]:
     {"type": "object", "properties": {}},
 )
 async def exit_fork(args: dict[str, Any]) -> dict[str, Any]:
+    if in_bg_fork():
+        return {
+            "content": [
+                {"type": "text", "text": "Error: not available in background forks"}
+            ]
+        }
     if not in_interactive_fork():
         return {
             "content": [{"type": "text", "text": "Error: not in an interactive fork"}]
