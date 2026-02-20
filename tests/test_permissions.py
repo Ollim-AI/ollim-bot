@@ -143,6 +143,7 @@ def test_handle_tool_permission_denies_bg_fork():
 
 def test_handle_tool_permission_allows_session_allowed():
     reset()
+    set_dont_ask(False)
     session_allow("WebFetch")
     try:
         result = _run(
@@ -153,6 +154,7 @@ def test_handle_tool_permission_allows_session_allowed():
 
         assert isinstance(result, PermissionResultAllow)
     finally:
+        set_dont_ask(True)
         reset()
 
 
