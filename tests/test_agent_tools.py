@@ -128,12 +128,12 @@ def test_report_updates_not_in_fork():
 
 
 def test_report_updates_appends_to_file():
-    pop_pending_updates()
+    _run(pop_pending_updates())
     set_in_fork(True)
 
     _run(_report({"message": "Found 2 actionable emails"}))
 
-    updates = pop_pending_updates()
+    updates = _run(pop_pending_updates())
     assert updates == ["Found 2 actionable emails"]
     set_in_fork(False)
 
@@ -232,12 +232,12 @@ def test_save_context_blocked_in_bg_fork_even_with_interactive():
 
 
 def test_report_updates_in_interactive_fork():
-    pop_pending_updates()
+    _run(pop_pending_updates())
     set_in_fork(False)
     set_interactive_fork(True, idle_timeout=10)
 
     _run(_report({"message": "found 3 papers"}))
 
     assert pop_exit_action() is ForkExitAction.REPORT
-    assert pop_pending_updates() == ["found 3 papers"]
+    assert _run(pop_pending_updates()) == ["found 3 papers"]
     set_interactive_fork(False)

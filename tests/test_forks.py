@@ -30,7 +30,7 @@ def _run(coro):
 
 
 def test_peek_reads_without_clearing():
-    pop_pending_updates()
+    _run(pop_pending_updates())
     from ollim_bot.forks import _append_update
 
     _run(_append_update("peeked"))
@@ -40,31 +40,31 @@ def test_peek_reads_without_clearing():
 
     assert first == ["peeked"]
     assert second == ["peeked"]
-    pop_pending_updates()
+    _run(pop_pending_updates())
 
 
 def test_pop_clears_updates():
-    pop_pending_updates()
+    _run(pop_pending_updates())
     from ollim_bot.forks import _append_update
 
     _run(_append_update("cleared"))
-    pop_pending_updates()
+    _run(pop_pending_updates())
 
-    assert pop_pending_updates() == []
+    assert _run(pop_pending_updates()) == []
 
 
 def test_multiple_updates_accumulate():
-    pop_pending_updates()
+    _run(pop_pending_updates())
     from ollim_bot.forks import _append_update
 
     _run(_append_update("first"))
     _run(_append_update("second"))
 
-    assert pop_pending_updates() == ["first", "second"]
+    assert _run(pop_pending_updates()) == ["first", "second"]
 
 
 def test_clear_is_idempotent():
-    pop_pending_updates()
+    _run(pop_pending_updates())
 
     clear_pending_updates()
     clear_pending_updates()

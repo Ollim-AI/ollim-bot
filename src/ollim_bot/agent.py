@@ -118,14 +118,14 @@ def _timestamp() -> str:
     return now.strftime("[%Y-%m-%d %a %I:%M %p PT]")
 
 
-def _prepend_context(message: str, *, clear: bool = True) -> str:
+async def _prepend_context(message: str, *, clear: bool = True) -> str:
     """Prepend timestamp and any pending background updates to a user message.
 
     clear=True (default): pops updates (main session clears the file).
     clear=False: peeks updates (fork reads without clearing).
     """
     ts = _timestamp()
-    updates = pop_pending_updates() if clear else peek_pending_updates()
+    updates = (await pop_pending_updates()) if clear else peek_pending_updates()
     if updates:
         header = "RECENT BACKGROUND UPDATES:\n" + "\n".join(f"- {u}" for u in updates)
         return f"{ts} {header}\n\n{message}"
@@ -299,7 +299,7 @@ class Agent:
 
     async def run_on_client(self, client: ClaudeSDKClient, message: str) -> str:
         """Send a message on an explicit client, discard output, return session_id."""
-        message = _prepend_context(message, clear=False)
+        message = await _prepend_context(message, clear=False)
         await client.query(message)
 
         session_id: str | None = None
@@ -371,9 +371,9 @@ class Agent:
         """
         if self._fork_client is not None:
             client = self._fork_client
-            message = _prepend_context(message, clear=False)
+            message = await _prepend_context(message, clear=False)
         else:
-            message = _prepend_context(message)
+            message = await _prepend_context(message)
             client = await self._get_client()
 
         if images:
@@ -465,9 +465,9 @@ class Agent:
         """
         if self._fork_client is not None:
             client = self._fork_client
-            message = _prepend_context(message, clear=False)
+            message = await _prepend_context(message, clear=False)
         else:
-            message = _prepend_context(message)
+            message = await _prepend_context(message)
             client = await self._get_client()
         await client.query(message)
 
