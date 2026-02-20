@@ -12,7 +12,7 @@ ADHD-friendly Discord bot with proactive reminders, powered by Claude.
 - `views.py` -- Persistent button handlers via `DynamicItem` (delegates to google/, forks, and streamer)
 - `storage.py` -- Shared JSONL I/O, markdown I/O (`read_md_dir`/`write_md`/`remove_md`), and git auto-commit (`~/.ollim-bot/` data repo)
 - `streamer.py` -- Streams agent responses to Discord (throttled edits, 2000-char overflow)
-- `sessions.py` -- Persists Agent SDK session ID (plain string file) for conversation resumption across restarts
+- `sessions.py` -- Persists Agent SDK session ID (plain string file) + session history JSONL log (lifecycle events)
 - `permissions.py` -- Discord-based tool approval (canUseTool callback, reaction-based approval, session-allowed set)
 - `formatting.py` -- Tool-label formatting helpers (shared by agent and permissions)
 - `config.py` -- Env vars: `OLLIM_USER_NAME`, `OLLIM_BOT_NAME` (loaded from `.env` via dotenv)
@@ -66,6 +66,14 @@ ADHD-friendly Discord bot with proactive reminders, powered by Claude.
 - Fork actions (fork_save, fork_report, fork_exit): exit interactive fork with chosen strategy
 - `DynamicItem[Button]` for persistent buttons across restarts
 - Inquiry prompts persisted to `~/.ollim-bot/inquiries.json` (survive restarts, 7-day TTL)
+
+## Session history
+- `~/.ollim-bot/session_history.jsonl` -- append-only log of session lifecycle events
+- Events: `created`, `compacted`, `swapped`, `cleared`, `interactive_fork`, `bg_fork`
+- `save_session_id()` auto-detects `created` (no prior ID) and `compacted` (ID changed)
+- `_swap_in_progress` flag prevents `save_session_id()` from logging `compacted` during `swap_client()`
+- Fork session IDs captured from first `StreamEvent` (interactive) or `ResultMessage` (bg)
+- Uses `storage.append_jsonl()` for writes (git auto-commit)
 
 ## Permissions
 - Default mode is `dontAsk`: non-whitelisted tools silently denied, no Discord prompt
