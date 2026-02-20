@@ -4,12 +4,16 @@ import asyncio
 
 from ollim_bot.agent_tools import (
     ChainContext,
+    discord_embed,
     enter_fork,
     exit_fork,
     follow_up_chain,
+    ping_user,
     report_updates,
     save_context,
     set_chain_context,
+    set_channel,
+    set_fork_channel,
 )
 from ollim_bot.forks import (
     ForkExitAction,
@@ -26,6 +30,18 @@ _save_ctx = save_context.handler
 _report = report_updates.handler
 _enter = enter_fork.handler
 _exit = exit_fork.handler
+_ping = ping_user.handler
+_embed = discord_embed.handler
+
+
+class InMemoryChannel:
+    """Collects messages and embeds sent to a channel."""
+
+    def __init__(self):
+        self.messages: list[dict] = []
+
+    async def send(self, content=None, *, embed=None, view=None):
+        self.messages.append({"content": content, "embed": embed, "view": view})
 
 
 def _run(coro):
@@ -241,3 +257,38 @@ def test_report_updates_in_interactive_fork():
     assert pop_exit_action() is ForkExitAction.REPORT
     assert _run(pop_pending_updates()) == ["found 3 papers"]
     set_interactive_fork(False)
+
+
+# --- ping_user source gating ---
+
+
+def test_ping_user_blocked_on_main():
+    set_in_fork(False)
+    set_interactive_fork(False)
+
+    result = _run(_ping({"message": "hello"}))
+
+    assert "Error" in result["content"][0]["text"]
+    assert "only available in background forks" in result["content"][0]["text"]
+
+
+def test_ping_user_blocked_on_interactive_fork():
+    set_interactive_fork(True, idle_timeout=10)
+
+    result = _run(_ping({"message": "hello"}))
+
+    assert "Error" in result["content"][0]["text"]
+    assert "only available in background forks" in result["content"][0]["text"]
+    set_interactive_fork(False)
+
+
+def test_ping_user_prefixed_in_bg_fork():
+    ch = InMemoryChannel()
+    set_fork_channel(ch)
+    set_in_fork(True)
+
+    result = _run(_ping({"message": "check your tasks"}))
+
+    assert result["content"][0]["text"] == "Message sent."
+    assert ch.messages[0]["content"] == "[bg] check your tasks"
+    set_in_fork(False)
