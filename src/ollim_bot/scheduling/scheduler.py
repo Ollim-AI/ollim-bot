@@ -258,6 +258,9 @@ def setup_scheduler(
                 job.remove()
             _registered_reminders.discard(stale_id)
 
+    # max_instances=2 prevents APScheduler from refusing to schedule a second
+    # invocation (which logs a warning). _fork_check_busy is the real guard:
+    # if a check is already running, the new invocation returns immediately.
     _fork_check_busy = False
 
     @scheduler.scheduled_job(IntervalTrigger(seconds=60), max_instances=2)
@@ -276,7 +279,8 @@ def setup_scheduler(
             return
 
         escalated = should_auto_exit()
-        set_prompted_at()
+        if not escalated:
+            set_prompted_at()
         dm = await owner.create_dm()
         timeout = idle_timeout()
 
