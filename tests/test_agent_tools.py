@@ -516,6 +516,29 @@ def test_embed_not_blocked_on_main_session(data_dir):
     set_channel(None)
 
 
+def test_embed_critical_bypasses_budget_in_bg(data_dir):
+    from datetime import date
+
+    ch = InMemoryChannel()
+    set_fork_channel(ch)
+    set_in_fork(True)
+    ping_budget.save(
+        ping_budget.BudgetState(
+            daily_limit=1,
+            used=1,
+            critical_used=0,
+            last_reset=date.today().isoformat(),
+        )
+    )
+
+    result = _run(_embed({"title": "Urgent", "critical": True}))
+
+    assert result["content"][0]["text"] == "Embed sent."
+    assert ping_budget.load().critical_used == 1
+    assert len(ch.messages) == 1
+    set_in_fork(False)
+
+
 def test_ping_user_decrements_budget(data_dir):
     from datetime import date
 
