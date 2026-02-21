@@ -8,7 +8,7 @@ import discord
 from discord.ext import commands
 from discord.ui import Button, View
 
-from ollim_bot import permissions
+from ollim_bot import permissions, ping_budget
 from ollim_bot.agent import Agent
 from ollim_bot.agent_tools import set_channel
 from ollim_bot.config import BOT_NAME, USER_NAME
@@ -321,5 +321,17 @@ def create_bot() -> commands.Bot:
             permissions.set_dont_ask(False)
             await agent.set_permission_mode(mode.value)
         await interaction.response.send_message(f"permissions: {mode.value}")
+
+    @bot.tree.command(name="ping-budget", description="View or set daily ping budget")
+    @discord.app_commands.describe(limit="New daily limit (omit to view current)")
+    async def slash_ping_budget(
+        interaction: discord.Interaction, limit: int | None = None
+    ):
+        if limit is not None:
+            ping_budget.set_limit(limit)
+            await interaction.response.send_message(f"ping budget set to {limit}/day.")
+        else:
+            status = ping_budget.get_status()
+            await interaction.response.send_message(f"ping budget: {status}.")
 
     return bot
