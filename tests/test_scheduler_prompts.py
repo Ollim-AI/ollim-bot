@@ -12,7 +12,7 @@ from ollim_bot.scheduling.scheduler import (
 def test_routine_prompt_foreground():
     routine = Routine(id="abc", message="Morning briefing", cron="0 8 * * *")
 
-    prompt = _build_routine_prompt(routine)
+    prompt = _build_routine_prompt(routine, reminders=[], routines=[])
 
     assert prompt == "[routine:abc] Morning briefing"
 
@@ -22,7 +22,7 @@ def test_routine_prompt_background():
         id="def", message="Silent check", cron="0 8 * * *", background=True
     )
 
-    prompt = _build_routine_prompt(routine)
+    prompt = _build_routine_prompt(routine, reminders=[], routines=[])
 
     assert prompt.startswith("[routine-bg:def]")
     assert "ping_user" in prompt
@@ -34,7 +34,7 @@ def test_reminder_prompt_plain():
         id="r1", message="Take a break", run_at="2026-02-16T12:00:00-08:00"
     )
 
-    prompt = _build_reminder_prompt(reminder)
+    prompt = _build_reminder_prompt(reminder, reminders=[], routines=[])
 
     assert "[reminder:r1]" in prompt
     assert "Take a break" in prompt
@@ -49,7 +49,7 @@ def test_reminder_prompt_background():
         background=True,
     )
 
-    prompt = _build_reminder_prompt(reminder)
+    prompt = _build_reminder_prompt(reminder, reminders=[], routines=[])
 
     assert "[reminder-bg:r2]" in prompt
     assert "ping_user" in prompt
@@ -64,7 +64,7 @@ def test_reminder_prompt_chain_mid():
         max_chain=3,
     )
 
-    prompt = _build_reminder_prompt(reminder)
+    prompt = _build_reminder_prompt(reminder, reminders=[], routines=[])
 
     assert "CHAIN CONTEXT" in prompt
     assert "check 2 of 4" in prompt
@@ -82,7 +82,7 @@ def test_reminder_prompt_chain_final():
         max_chain=2,
     )
 
-    prompt = _build_reminder_prompt(reminder)
+    prompt = _build_reminder_prompt(reminder, reminders=[], routines=[])
 
     assert "CHAIN CONTEXT" in prompt
     assert "FINAL check" in prompt
@@ -99,10 +99,61 @@ def test_reminder_prompt_chain_first():
         max_chain=2,
     )
 
-    prompt = _build_reminder_prompt(reminder)
+    prompt = _build_reminder_prompt(reminder, reminders=[], routines=[])
 
     assert "check 1 of 3" in prompt
     assert "follow_up_chain" in prompt
+
+
+def test_bg_routine_prompt_includes_budget(data_dir):
+    from datetime import date
+
+    from ollim_bot import ping_budget
+
+    ping_budget.save(
+        ping_budget.BudgetState(
+            daily_limit=10, used=3, critical_used=1, last_reset=date.today().isoformat()
+        )
+    )
+    routine = Routine(
+        id="abc", message="Check tasks", cron="0 8 * * *", background=True
+    )
+
+    prompt = _build_routine_prompt(routine, reminders=[], routines=[routine])
+
+    assert "7/10 remaining today" in prompt
+    assert "1 bg routine" in prompt
+
+
+def test_bg_reminder_prompt_includes_budget(data_dir):
+    from datetime import date, datetime
+    from zoneinfo import ZoneInfo
+
+    from ollim_bot import ping_budget
+
+    tz = ZoneInfo("America/Los_Angeles")
+    now = datetime.now(tz)
+    ping_budget.save(
+        ping_budget.BudgetState(
+            daily_limit=10, used=5, critical_used=0, last_reset=date.today().isoformat()
+        )
+    )
+    reminder = Reminder(
+        id="r1", message="Check email", run_at=now.isoformat(), background=True
+    )
+
+    prompt = _build_reminder_prompt(reminder, reminders=[reminder], routines=[])
+
+    assert "5/10 remaining today" in prompt
+
+
+def test_fg_routine_prompt_unchanged(data_dir):
+    routine = Routine(id="abc", message="Morning briefing", cron="0 8 * * *")
+
+    prompt = _build_routine_prompt(routine, reminders=[], routines=[])
+
+    assert prompt == "[routine:abc] Morning briefing"
+    assert "budget" not in prompt.lower()
 
 
 def test_convert_dow_weekdays():
