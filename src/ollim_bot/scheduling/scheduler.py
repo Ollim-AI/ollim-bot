@@ -18,7 +18,7 @@ from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
-from ollim_bot import permissions
+from ollim_bot import permissions, ping_budget
 from ollim_bot.agent_tools import (
     ChainContext,
     set_chain_context,
@@ -98,13 +98,54 @@ def _convert_dow(dow: str) -> str:
     return ",".join(converted)
 
 
-def _build_routine_prompt(routine: Routine) -> str:
+def _build_bg_preamble(reminders: list[Reminder], routines: list[Routine]) -> str:
+    """Build BG_PREAMBLE with budget status and remaining task count."""
+    bg_reminders, bg_routines = ping_budget.remaining_today(reminders, routines)
+    budget_status = ping_budget.get_status()
+
+    remaining_parts: list[str] = []
+    if bg_reminders > 0:
+        remaining_parts.append(
+            f"{bg_reminders} bg reminder{'s' if bg_reminders != 1 else ''}"
+        )
+    if bg_routines > 0:
+        remaining_parts.append(
+            f"{bg_routines} bg routine{'s' if bg_routines != 1 else ''}"
+        )
+    remaining_line = (
+        f"Remaining today: {', '.join(remaining_parts)} before budget reset.\n"
+        if remaining_parts
+        else ""
+    )
+
+    return (
+        f"{_BG_PREAMBLE}"
+        f"Ping budget: {budget_status}.\n"
+        f"{remaining_line}"
+        "Plan pings carefully -- you may not need to ping for every task. "
+        "Use report_updates for non-urgent summaries. "
+        "Set critical=True only for time-sensitive items (event in <30min, urgent message).\n\n"
+    )
+
+
+def _build_routine_prompt(
+    routine: Routine,
+    *,
+    reminders: list[Reminder],
+    routines: list[Routine],
+) -> str:
     if routine.background:
-        return f"[routine-bg:{routine.id}] {_BG_PREAMBLE}{routine.message}"
+        preamble = _build_bg_preamble(reminders, routines)
+        return f"[routine-bg:{routine.id}] {preamble}{routine.message}"
     return f"[routine:{routine.id}] {routine.message}"
 
 
-def _build_reminder_prompt(reminder: Reminder) -> str:
+def _build_reminder_prompt(
+    reminder: Reminder,
+    *,
+    reminders: list[Reminder],
+    routines: list[Routine],
+) -> str:
     tag = (
         f"reminder-bg:{reminder.id}"
         if reminder.background
@@ -113,7 +154,7 @@ def _build_reminder_prompt(reminder: Reminder) -> str:
     parts = [f"[{tag}]"]
 
     if reminder.background:
-        parts.append(_BG_PREAMBLE.rstrip())
+        parts.append(_build_bg_preamble(reminders, routines).rstrip())
 
     if reminder.max_chain > 0:
         check_num = reminder.chain_depth + 1
@@ -148,9 +189,12 @@ def _register_routine(
         return
     _registered_routines.add(routine.id)
 
-    prompt = _build_routine_prompt(routine)
-
     async def _fire() -> None:
+        prompt = _build_routine_prompt(
+            routine,
+            reminders=list_reminders(),
+            routines=list_routines(),
+        )
         try:
             if routine.background:
                 await run_agent_background(
@@ -186,9 +230,12 @@ def _register_reminder(
         return
     _registered_reminders.add(reminder.id)
 
-    prompt = _build_reminder_prompt(reminder)
-
     async def fire_oneshot() -> None:
+        prompt = _build_reminder_prompt(
+            reminder,
+            reminders=list_reminders(),
+            routines=list_routines(),
+        )
         # follow_up_chain MCP tool reads this to schedule the next link
         chain_ctx = None
         if reminder.max_chain > 0 and reminder.chain_depth < reminder.max_chain:
