@@ -18,7 +18,7 @@ from ollim_bot.embeds import (
 )
 from ollim_bot.forks import (
     ForkExitAction,
-    _append_update,
+    append_update,
     clear_pending_updates,
     in_bg_fork,
     in_interactive_fork,
@@ -301,7 +301,7 @@ async def save_context(args: dict[str, Any]) -> dict[str, Any]:
 )
 async def report_updates(args: dict[str, Any]) -> dict[str, Any]:
     if in_bg_fork():
-        await _append_update(args["message"])
+        await append_update(args["message"])
         _bg_output_sent_var.set(False)
         return {
             "content": [
@@ -313,7 +313,7 @@ async def report_updates(args: dict[str, Any]) -> dict[str, Any]:
         }
     if in_interactive_fork():
         set_exit_action(ForkExitAction.REPORT)
-        await _append_update(args["message"])
+        await append_update(args["message"])
         return {
             "content": [
                 {
