@@ -31,9 +31,9 @@ def _run(coro):
 
 def test_peek_reads_without_clearing():
     _run(pop_pending_updates())
-    from ollim_bot.forks import _append_update
+    from ollim_bot.forks import append_update
 
-    _run(_append_update("peeked"))
+    _run(append_update("peeked"))
 
     first = peek_pending_updates()
     second = peek_pending_updates()
@@ -45,9 +45,9 @@ def test_peek_reads_without_clearing():
 
 def test_pop_clears_updates():
     _run(pop_pending_updates())
-    from ollim_bot.forks import _append_update
+    from ollim_bot.forks import append_update
 
-    _run(_append_update("cleared"))
+    _run(append_update("cleared"))
     _run(pop_pending_updates())
 
     assert _run(pop_pending_updates()) == []
@@ -55,10 +55,10 @@ def test_pop_clears_updates():
 
 def test_multiple_updates_accumulate():
     _run(pop_pending_updates())
-    from ollim_bot.forks import _append_update
+    from ollim_bot.forks import append_update
 
-    _run(_append_update("first"))
-    _run(_append_update("second"))
+    _run(append_update("first"))
+    _run(append_update("second"))
 
     assert _run(pop_pending_updates()) == ["first", "second"]
 

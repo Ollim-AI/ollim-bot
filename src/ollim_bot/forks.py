@@ -51,7 +51,7 @@ _TZ = ZoneInfo("America/Los_Angeles")
 _updates_lock = asyncio.Lock()
 
 
-async def _append_update(message: str) -> None:
+async def append_update(message: str) -> None:
     """Append a timestamped update to the pending updates file.
 
     Lock protects the read-modify-write cycle so concurrent bg forks
@@ -86,7 +86,7 @@ def clear_pending_updates() -> None:
 async def pop_pending_updates() -> list[str]:
     """Read and clear all pending updates.
 
-    Lock ensures atomicity with concurrent _append_update calls —
+    Lock ensures atomicity with concurrent append_update calls —
     without it a bg fork's append can re-introduce already-popped updates.
     """
     async with _updates_lock:
