@@ -25,6 +25,7 @@ These guide your own design proposals. When the user explicitly requests a featu
 - `config.py` -- Env vars: `OLLIM_USER_NAME`, `OLLIM_BOT_NAME` (loaded from `.env` via dotenv)
 - `embeds.py` -- Embed/button types, builders, maps, and `build_embed`/`build_view` (shared by agent_tools and views)
 - `inquiries.py` -- Persists button inquiry prompts to `~/.ollim-bot/inquiries.json` (7-day TTL)
+- `ping_budget.py` -- Daily ping budget for bg fork notifications (state, enforcement, status formatting)
 - `google/` -- Google API integration sub-package
   - `auth.py` -- Shared Google OAuth2 (Tasks + Calendar + Gmail)
   - `tasks.py` -- Google Tasks CLI + API helpers (`complete_task`, `delete_task`)
@@ -60,6 +61,7 @@ These guide your own design proposals. When the user explicitly requests a featu
 - `/fork [topic]` -- start interactive forked conversation
 - `/interrupt` -- stop current response (fire-and-forget, no lock, silent)
 - `/permissions <dontAsk|default|acceptEdits|bypassPermissions>` -- switch permission mode (fork-scoped); `dontAsk` is the default
+- `/ping-budget [limit]` -- view or set daily ping budget (bg fork pings only)
 - `Agent.slash()` -- generic method routing SDK slash commands, captures SystemMessage + AssistantMessage + ResultMessage
 - `Agent.set_model()` -- uses `dataclasses.replace()` on shared options + updates live client
 - `Agent.set_permission_mode()` -- fork-scoped: only updates active client (differs from `/model`)
@@ -74,6 +76,16 @@ These guide your own design proposals. When the user explicitly requests a featu
 - Fork actions (fork_save, fork_report, fork_exit): exit interactive fork with chosen strategy
 - `DynamicItem[Button]` for persistent buttons across restarts
 - Inquiry prompts persisted to `~/.ollim-bot/inquiries.json` (survive restarts, 7-day TTL)
+
+## Ping budget
+- `~/.ollim-bot/ping_budget.json` — ephemeral state (no git commit): `daily_limit`, `used`, `critical_used`, `last_reset`
+- Default 10/day, resets at midnight; configurable via `/ping-budget [limit]`
+- Scope: bg forks only — main session and interactive fork embeds are user-requested, never counted
+- Enforcement: `agent_tools.py` checks budget before `ping_user`/`discord_embed` in bg forks
+- Critical bypass: `critical=True` parameter on both tools; tracked but not capped
+- Over budget: silent drop — tool returns error to agent, user not notified
+- Agent awareness: budget status + remaining bg tasks injected into BG_PREAMBLE at job-fire time
+- `remaining_today(reminders, routines)` counts bg reminders before midnight + bg routine count
 
 ## Session history
 - `~/.ollim-bot/session_history.jsonl` -- append-only log of session lifecycle events
