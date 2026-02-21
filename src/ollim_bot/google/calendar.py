@@ -153,10 +153,13 @@ def _handle_add(args: argparse.Namespace) -> None:
     print(f"created {event['id']}: {args.summary}")
 
 
-def delete_event(event_id: str) -> None:
-    _get_calendar_service().events().delete(
-        calendarId="primary", eventId=event_id
-    ).execute()
+def delete_event(event_id: str) -> str:
+    """Delete a calendar event and return its summary."""
+    service = _get_calendar_service()
+    event = service.events().get(calendarId="primary", eventId=event_id).execute()
+    summary = event.get("summary", event_id)
+    service.events().delete(calendarId="primary", eventId=event_id).execute()
+    return summary
 
 
 def _handle_delete(event_id: str) -> None:

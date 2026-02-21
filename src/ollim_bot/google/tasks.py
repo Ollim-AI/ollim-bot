@@ -96,16 +96,28 @@ def _handle_add(args: argparse.Namespace) -> None:
     print(f"added {task['id']}: {due} -- {args.title}")
 
 
-def complete_task(task_id: str) -> None:
-    _get_tasks_service().tasks().patch(
-        tasklist="@default",
-        task=task_id,
-        body={"status": "completed"},
-    ).execute()
+def complete_task(task_id: str) -> str:
+    """Mark a task as completed and return its title."""
+    result = (
+        _get_tasks_service()
+        .tasks()
+        .patch(
+            tasklist="@default",
+            task=task_id,
+            body={"status": "completed"},
+        )
+        .execute()
+    )
+    return result.get("title", task_id)
 
 
-def delete_task(task_id: str) -> None:
-    _get_tasks_service().tasks().delete(tasklist="@default", task=task_id).execute()
+def delete_task(task_id: str) -> str:
+    """Delete a task and return its title."""
+    service = _get_tasks_service()
+    task = service.tasks().get(tasklist="@default", task=task_id).execute()
+    title = task.get("title", task_id)
+    service.tasks().delete(tasklist="@default", task=task_id).execute()
+    return title
 
 
 def _handle_done(task_id: str) -> None:
