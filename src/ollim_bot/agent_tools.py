@@ -98,6 +98,24 @@ def _source() -> Literal["main", "bg", "fork"]:  # duplicate-ok
     return "main"
 
 
+def _check_bg_budget(args: dict[str, Any]) -> dict[str, Any] | None:
+    """Check ping budget for bg forks. Returns error dict if exhausted, None if OK."""
+    critical = args.get("critical", False)
+    if not critical and not ping_budget.try_use():
+        return {
+            "content": [
+                {
+                    "type": "text",
+                    "text": "Budget exhausted (0 remaining). Use critical=True "
+                    "only for genuinely urgent items.",
+                }
+            ]
+        }
+    if critical:
+        ping_budget.record_critical()
+    return None
+
+
 @tool(
     "discord_embed",
     "Send a rich embed message with optional action buttons to the Discord channel. "
@@ -146,19 +164,8 @@ async def discord_embed(args: dict[str, Any]) -> dict[str, Any]:
         return {"content": [{"type": "text", "text": "Error: no active channel"}]}
 
     if _source() == "bg":
-        critical = args.get("critical", False)
-        if not critical and not ping_budget.try_use():
-            return {
-                "content": [
-                    {
-                        "type": "text",
-                        "text": "Budget exhausted (0 remaining). Use critical=True "
-                        "only for genuinely urgent items.",
-                    }
-                ]
-            }
-        if critical:
-            ping_budget.record_critical()
+        if budget_error := _check_bg_budget(args):
+            return budget_error
 
     config = EmbedConfig(
         title=args["title"],
@@ -207,19 +214,8 @@ async def ping_user(args: dict[str, Any]) -> dict[str, Any]:
                 }
             ]
         }
-    critical = args.get("critical", False)
-    if not critical and not ping_budget.try_use():
-        return {
-            "content": [
-                {
-                    "type": "text",
-                    "text": "Budget exhausted (0 remaining). Use critical=True "
-                    "only for genuinely urgent items.",
-                }
-            ]
-        }
-    if critical:
-        ping_budget.record_critical()
+    if budget_error := _check_bg_budget(args):
+        return budget_error
     channel = _channel_var.get() or _channel
     if channel is None:
         return {"content": [{"type": "text", "text": "Error: no active channel"}]}
