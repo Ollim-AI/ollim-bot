@@ -15,6 +15,7 @@ from ollim_bot.agent_tools import (
     set_channel,
     set_fork_channel,
 )
+from ollim_bot import ping_budget
 from ollim_bot.forks import (
     ForkExitAction,
     pop_enter_fork,
@@ -282,7 +283,7 @@ def test_ping_user_blocked_on_interactive_fork():
     set_interactive_fork(False)
 
 
-def test_ping_user_prefixed_in_bg_fork():
+def test_ping_user_prefixed_in_bg_fork(data_dir):
     ch = InMemoryChannel()
     set_fork_channel(ch)
     set_in_fork(True)
@@ -310,7 +311,7 @@ def test_embed_no_footer_on_main():
     set_channel(None)
 
 
-def test_embed_footer_bg_fork():
+def test_embed_footer_bg_fork(data_dir):
     ch = InMemoryChannel()
     set_fork_channel(ch)
     set_in_fork(True)
@@ -321,7 +322,7 @@ def test_embed_footer_bg_fork():
     set_in_fork(False)
 
 
-def test_embed_footer_interactive_fork():
+def test_embed_footer_interactive_fork(data_dir):
     ch = InMemoryChannel()
     set_fork_channel(None)  # clear contextvar from prior bg fork test
     set_channel(ch)
@@ -337,7 +338,7 @@ def test_embed_footer_interactive_fork():
 # --- bg output tracking + stop hook ---  # duplicate-ok (implementing from plan)
 
 
-def test_bg_output_flag_set_on_ping():
+def test_bg_output_flag_set_on_ping(data_dir):
     from ollim_bot.agent_tools import bg_output_sent
 
     ch = InMemoryChannel()
@@ -352,7 +353,7 @@ def test_bg_output_flag_set_on_ping():
     set_in_fork(False)
 
 
-def test_bg_output_flag_set_on_embed():
+def test_bg_output_flag_set_on_embed(data_dir):
     from ollim_bot.agent_tools import bg_output_sent
 
     ch = InMemoryChannel()
@@ -367,7 +368,7 @@ def test_bg_output_flag_set_on_embed():
     set_in_fork(False)
 
 
-def test_bg_output_flag_cleared_on_report():
+def test_bg_output_flag_cleared_on_report(data_dir):
     from ollim_bot.agent_tools import bg_output_sent
 
     ch = InMemoryChannel()
@@ -405,7 +406,7 @@ def test_stop_hook_allows_bg_stop_without_output():
     set_in_fork(False)
 
 
-def test_stop_hook_blocks_bg_stop_with_unreported_output():
+def test_stop_hook_blocks_bg_stop_with_unreported_output(data_dir):
     from ollim_bot.agent_tools import require_report_hook
 
     ch = InMemoryChannel()
@@ -419,4 +420,118 @@ def test_stop_hook_blocks_bg_stop_with_unreported_output():
     result = _run(_check())
 
     assert "report_updates" in result.get("systemMessage", "")
+    set_in_fork(False)
+
+
+# --- ping budget enforcement ---
+
+
+def test_ping_user_blocked_when_budget_exhausted(data_dir):
+    from datetime import date
+
+    ch = InMemoryChannel()
+    set_fork_channel(ch)
+    set_in_fork(True)
+    ping_budget.save(
+        ping_budget.BudgetState(
+            daily_limit=2,
+            used=2,
+            critical_used=0,
+            last_reset=date.today().isoformat(),
+        )
+    )
+
+    result = _run(_ping({"message": "hello"}))
+
+    assert "Budget exhausted" in result["content"][0]["text"]
+    assert len(ch.messages) == 0
+    set_in_fork(False)
+
+
+def test_ping_user_critical_bypasses_budget(data_dir):
+    from datetime import date
+
+    ch = InMemoryChannel()
+    set_fork_channel(ch)
+    set_in_fork(True)
+    ping_budget.save(
+        ping_budget.BudgetState(
+            daily_limit=2,
+            used=2,
+            critical_used=0,
+            last_reset=date.today().isoformat(),
+        )
+    )
+
+    result = _run(_ping({"message": "urgent!", "critical": True}))
+
+    assert result["content"][0]["text"] == "Message sent."
+    assert ping_budget.load().critical_used == 1
+    set_in_fork(False)
+
+
+def test_embed_blocked_when_budget_exhausted_in_bg(data_dir):
+    from datetime import date
+
+    ch = InMemoryChannel()
+    set_fork_channel(ch)
+    set_in_fork(True)
+    ping_budget.save(
+        ping_budget.BudgetState(
+            daily_limit=1,
+            used=1,
+            critical_used=0,
+            last_reset=date.today().isoformat(),
+        )
+    )
+
+    result = _run(_embed({"title": "Tasks"}))
+
+    assert "Budget exhausted" in result["content"][0]["text"]
+    assert len(ch.messages) == 0
+    set_in_fork(False)
+
+
+def test_embed_not_blocked_on_main_session(data_dir):
+    from datetime import date
+
+    ch = InMemoryChannel()
+    set_fork_channel(None)
+    set_channel(ch)
+    set_in_fork(False)
+    set_interactive_fork(False)
+    ping_budget.save(
+        ping_budget.BudgetState(
+            daily_limit=1,
+            used=1,
+            critical_used=0,
+            last_reset=date.today().isoformat(),
+        )
+    )
+
+    result = _run(_embed({"title": "Tasks"}))
+
+    assert result["content"][0]["text"] == "Embed sent."
+    assert len(ch.messages) == 1
+    set_channel(None)
+
+
+def test_ping_user_decrements_budget(data_dir):
+    from datetime import date
+
+    ch = InMemoryChannel()
+    set_fork_channel(ch)
+    set_in_fork(True)
+    ping_budget.save(
+        ping_budget.BudgetState(
+            daily_limit=5,
+            used=0,
+            critical_used=0,
+            last_reset=date.today().isoformat(),
+        )
+    )
+
+    _run(_ping({"message": "test"}))
+
+    assert ping_budget.load().used == 1
     set_in_fork(False)

@@ -8,6 +8,7 @@ from typing import Any, Literal
 from claude_agent_sdk import create_sdk_mcp_server, tool
 from claude_agent_sdk.types import HookContext, HookInput, SyncHookJSONOutput
 
+from ollim_bot import ping_budget
 from ollim_bot.config import USER_NAME
 from ollim_bot.embeds import (
     ButtonConfig,
@@ -131,6 +132,10 @@ def _source() -> Literal["main", "bg", "fork"]:  # duplicate-ok
                     "required": ["label", "action"],
                 },
             },
+            "critical": {
+                "type": "boolean",
+                "description": "Set true only for genuinely urgent/time-sensitive items",
+            },
         },
         "required": ["title"],
     },
@@ -139,6 +144,21 @@ async def discord_embed(args: dict[str, Any]) -> dict[str, Any]:
     channel = _channel_var.get() or _channel
     if channel is None:
         return {"content": [{"type": "text", "text": "Error: no active channel"}]}
+
+    if _source() == "bg":
+        critical = args.get("critical", False)
+        if not critical and not ping_budget.try_use():
+            return {
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "Budget exhausted (0 remaining). Use critical=True "
+                        "only for genuinely urgent items.",
+                    }
+                ]
+            }
+        if critical:
+            ping_budget.record_critical()
 
     config = EmbedConfig(
         title=args["title"],
@@ -169,6 +189,10 @@ async def discord_embed(args: dict[str, Any]) -> dict[str, Any]:
                 "type": "string",
                 "description": "The message to send",
             },
+            "critical": {
+                "type": "boolean",
+                "description": "Set true only for genuinely urgent/time-sensitive items",
+            },
         },
         "required": ["message"],
     },
@@ -183,6 +207,19 @@ async def ping_user(args: dict[str, Any]) -> dict[str, Any]:
                 }
             ]
         }
+    critical = args.get("critical", False)
+    if not critical and not ping_budget.try_use():
+        return {
+            "content": [
+                {
+                    "type": "text",
+                    "text": "Budget exhausted (0 remaining). Use critical=True "
+                    "only for genuinely urgent items.",
+                }
+            ]
+        }
+    if critical:
+        ping_budget.record_critical()
     channel = _channel_var.get() or _channel
     if channel is None:
         return {"content": [{"type": "text", "text": "Error: no active channel"}]}
