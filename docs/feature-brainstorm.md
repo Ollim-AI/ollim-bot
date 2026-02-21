@@ -79,6 +79,57 @@ Save main session IDs to a JSONL log for claude-history lookup efficiency.
 `dontAsk` is the default permission mode. Non-whitelisted tools silently denied.
 Switch via `/permissions` slash command.
 
+## Backlog
+
+### Owner Identity Guard
+Verify `interaction.user` / `message.author` is the bot owner before processing.
+
+- Currently safe: bot is private, invite-link controlled
+- Needed before making the project public
+- Check `app_info.owner` against sender in `on_message`, slash commands, reaction handlers, button handlers
+- Without this, any Discord user who can DM or mention the bot gets full access
+
+### External Content Sanitization
+Tag external content (emails, calendar events, web pages) as untrusted in agent context.
+
+- Emails, calendar events, and web content are injected as raw text
+- A malicious email body could contain instruction-shaped text
+- gmail-reader subagent is a partial barrier but summaries flow back as plain text
+- `report_updates` is a second-hop injection path (bg fork reads malicious content, queues adversarial summary)
+- Options: content tagging/fencing, length caps, instruction stripping
+
+### Irreversible Action Confirmation
+Add confirmation step before destructive actions.
+
+- Task/event deletion via buttons executes immediately with no "are you sure?"
+- System prompt says "don't delete tasks" but that's a soft preference
+- Agent can also call `ollim-bot tasks delete` and `ollim-bot cal delete` directly
+- Options: Discord confirmation modal, two-step button flow, agent-level instruction to always confirm
+
+### Background Fork Timeouts
+Add execution timeouts to `run_agent_background()` and related calls.
+
+- Currently awaits SDK call indefinitely if it hangs
+- Google API calls in button handlers and CLI have no timeout
+- `subprocess.run` in `storage.py` has no timeout
+- A hung bg fork holds resources forever with no cancellation
+
+### Silent Button Handler Failures
+Surface errors when Google API calls fail in button handlers.
+
+- discord.py silently swallows unhandled exceptions in view callbacks
+- User clicks "delete," gets no response, action didn't happen
+- Failed one-shot reminders are also lost (no retry, no alert)
+- Options: try/except with ephemeral error response, retry queue
+
+### Agent Uncertainty Instructions
+Add system prompt guidance for what to do when uncertain.
+
+- No instruction to ask before acting on ambiguous information
+- No instruction to push back on counterproductive requests
+- No guidance on confirming irreversible actions
+- May be addressed as part of a broader system prompt refactor (user-configurable prompts)
+
 ## Under Consideration
 
 ### Memory Flush Before Compaction
