@@ -92,8 +92,6 @@ These guide your own design proposals. When the user explicitly requests a featu
 - `_session_allowed` set: shared across main + interactive forks, reset on `/clear`
 - Permission mode is fork-scoped (only affects active client); `/model` is shared (affects both)
 - `cancel_pending()` called on interrupt, fork exit, and `/clear`
-- Channel sync invariant: every path into `stream_chat` must call BOTH `agent_tools.set_channel` AND `permissions.set_channel`
-- 6 entry points: `_dispatch` (bot.py), `_check_fork_transitions` (bot.py), `slash_fork` (bot.py), `send_agent_dm` (forks.py), button handlers (views.py), `_check_fork_idle` (scheduler.py)
 
 ## Google integration
 - OAuth credentials: `~/.ollim-bot/credentials.json` (from Google Cloud Console)
@@ -158,7 +156,7 @@ When rules conflict, follow this priority:
 ## Code health rules
 
 **Hard invariants** (violation = bugs):
-- **Channel-sync invariant** — every path into `stream_chat` must call BOTH `agent_tools.set_channel` AND `permissions.set_channel`. Check `_dispatch`, `_check_fork_transitions`, `slash_fork`, `send_agent_dm`, button handlers, and `_check_fork_idle`. Adding a new entry point without both calls is a runtime bug.
+- **Channel-sync invariant** — every path into `stream_chat` must call BOTH `agent_tools.set_channel` AND `permissions.set_channel`. Check `_dispatch`, `_check_fork_transitions`, `slash_fork`, `send_agent_dm`, button handlers in views.py, and `check_fork_timeout` in scheduler.py. Adding a new entry point without both calls is a runtime bug.
 
 **Design rules** (violation = tech debt):
 - **No utils/helpers/common files** — every function belongs in a domain module. If it belongs nowhere, you're missing a domain concept.
