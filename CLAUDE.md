@@ -7,6 +7,8 @@ ADHD-friendly Discord bot with proactive reminders, powered by Claude.
 - **Quality over breadth** — high-quality, well-tested features over shotgun coverage. Say no to features that don't earn their complexity.
 - **Real-use grounded** — evaluate against actual daily use, not hypothetical scenarios. If a feature isn't used weekly, question whether it belongs.
 
+These guide your own design proposals. When the user explicitly requests a feature, build it — don't gatekeep with philosophy.
+
 ## Architecture
 - `bot.py` -- Discord interface (DMs, @mentions, slash commands, reaction ack, interrupt-on-new-message)
 - `agent.py` -- Claude Agent SDK brain (persistent sessions, MCP tools, subagents, slash command routing)
@@ -144,15 +146,26 @@ uv run pytest              # Run tests
 Required env vars (set in `.env`): `DISCORD_TOKEN`, `OLLIM_USER_NAME`, `OLLIM_BOT_NAME`
 
 ## Principles
-Read the python-principles skill.
+
+Read the `python-principles` skill when writing, reviewing, or refactoring Python code.
+
+When rules conflict, follow this priority:
+1. User's explicit request (they asked for it — build it)
+2. Hard invariants (channel-sync, no circular deps — violation = runtime bug)
+3. Code health rules below (violation = tech debt)
+4. Product philosophy (guides your own proposals, not veto power over the user)
 
 ## Code health rules
+
+**Hard invariants** (violation = bugs):
+- **Channel-sync invariant** — every path into `stream_chat` must call BOTH `agent_tools.set_channel` AND `permissions.set_channel`. Check `_dispatch`, `_check_fork_transitions`, `slash_fork`, `send_agent_dm`, button handlers, and `_check_fork_idle`. Adding a new entry point without both calls is a runtime bug.
+
+**Design rules** (violation = tech debt):
 - **No utils/helpers/common files** — every function belongs in a domain module. If it belongs nowhere, you're missing a domain concept.
 - **No catch-all directories** — name for what it does (`google/`, `scheduling/`), not what it is (`infra/`, `shared/`).
-- **Max ~400 lines per file** — if approaching this, split by responsibility. `agent_tools.py` (421) and `prompts.py` (402) are at the threshold.
-- **No duplicate logic across modules** — if 2 modules implement the same pattern, note it. If 3 do, extract it. Extraction without adoption is worse than duplication.
-- **One logging system** — `logging.getLogger(__name__)` for library code, `print()` only in CLI commands (`main.py`, `*_cmd.py`).
-- **Channel-sync invariant** — any new `stream_chat` entry point must call BOTH `agent_tools.set_channel` AND `permissions.set_channel`. Currently 6 paths; adding a 7th without both calls is a bug.
+- **Max ~400 lines per file** — when approaching this, split by responsibility, because large files accumulate unrelated concerns that make changes risky. Check `wc -l` rather than relying on memorized counts.
+- **No duplicate logic across modules** — if 2 modules implement the same pattern, note it. If 3 do, extract it. Extraction without adoption is worse than duplication, because it creates the illusion of shared code while each caller reinvents its own version.
+- **One logging system** — `logging.getLogger(__name__)` for library code, `print()` only in CLI commands (`main.py`, `*_cmd.py`), because mixed systems make centralized log routing impossible and `print()` in library code pollutes test output.
 
 ## Plan mode
 Before proposing the plan (ExitPlanMode), load the `python-principles` skill and re-review the plan to ensure it introduces no new violations.
