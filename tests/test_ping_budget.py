@@ -1,9 +1,14 @@
 """Tests for ping_budget.py — daily ping budget tracking."""
 
-from datetime import date
+from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from ollim_bot import ping_budget
-from ollim_bot.ping_budget import BudgetState
+from ollim_bot.ping_budget import BudgetState, remaining_today
+from ollim_bot.scheduling.reminders import Reminder
+from ollim_bot.scheduling.routines import Routine
+
+TZ = ZoneInfo("America/Los_Angeles")
 
 
 def test_load_returns_defaults_when_no_file(data_dir):
@@ -103,3 +108,30 @@ def test_get_status_after_use(data_dir):
     assert "7/10 remaining today" in status
     assert "3 used" in status
     assert "1 critical" in status
+
+
+def test_remaining_today_counts_bg_only(data_dir):
+    now = datetime.now(TZ)
+    later = now + timedelta(hours=2)
+    tomorrow = now + timedelta(days=1)
+
+    reminders = [
+        Reminder(
+            id="r1", message="bg today", run_at=later.isoformat(), background=True
+        ),
+        Reminder(
+            id="r2", message="fg today", run_at=later.isoformat(), background=False
+        ),
+        Reminder(
+            id="r3", message="bg tomorrow", run_at=tomorrow.isoformat(), background=True
+        ),
+    ]
+    routines = [
+        Routine(id="t1", message="bg routine", cron="0 * * * *", background=True),
+        Routine(id="t2", message="fg routine", cron="0 * * * *", background=False),
+    ]
+
+    bg_reminders, bg_routines = remaining_today(reminders, routines)
+
+    assert bg_reminders == 1  # only r1
+    assert bg_routines == 1  # only t1
