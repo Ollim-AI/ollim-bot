@@ -8,6 +8,7 @@ from collections.abc import AsyncGenerator
 
 import discord
 
+from ollim_bot.forks import enter_fork_requested
 from ollim_bot.sessions import track_message
 
 # Discord allows ~5 edits per 5 seconds per channel.  0.5s gives a
@@ -94,6 +95,6 @@ async def stream_to_channel(
     stale = True
     await flush()
 
-    if not buf:
+    if not buf and not enter_fork_requested():
         msg = await channel.send("hmm, I didn't have a response for that.")
         track_message(msg.id)
