@@ -105,6 +105,15 @@ These guide your own design proposals. When the user explicitly requests a featu
 - Permission mode is fork-scoped (only affects active client); `/model` is shared (affects both)
 - `cancel_pending()` called on interrupt, fork exit, and `/clear`
 
+## Reply-to-fork
+- Replying to a bg fork message starts an interactive fork that resumes from that bg fork's session
+- `sessions.py` tracks Discord message IDs → fork session IDs via `~/.ollim-bot/fork_messages.json` (7-day TTL)
+- Collector API: `start_message_collector()` / `track_message(msg_id)` / `flush_message_collector()` — contextvar-scoped
+- `streamer.py` and MCP tools (`ping_user`, `discord_embed`) call `track_message()` after sending
+- `run_agent_background` calls `start_message_collector()` before and `flush_message_collector()` after
+- `enter_interactive_fork(resume_session_id=)` overrides which session to fork from
+- Replying to a non-fork message prepends quoted context: plain text from `.content`, or title + description + fields from first embed (truncated to 500 chars)
+
 ## Google integration
 - OAuth credentials: `~/.ollim-bot/credentials.json` (from Google Cloud Console)
 - Token: `~/.ollim-bot/token.json` (auto-generated on first auth)
