@@ -25,6 +25,7 @@ from ollim_bot.agent_tools import agent_server, require_report_hook
 from ollim_bot.formatting import format_tool_label
 from ollim_bot.forks import (
     ForkExitAction,
+    enter_fork_requested,
     peek_pending_updates,
     pop_exit_action,
     pop_pending_updates,
@@ -400,6 +401,12 @@ class Agent:
 
         async for msg in client.receive_response():
             if isinstance(msg, StreamEvent):
+                # Interrupt immediately if fork entry was requested
+                if enter_fork_requested():
+                    with contextlib.suppress(CLIConnectionError):
+                        await client.interrupt()
+                    break
+
                 # Capture fork session ID from first StreamEvent
                 if (
                     self._fork_client is not None
