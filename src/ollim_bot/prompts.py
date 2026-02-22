@@ -404,3 +404,11 @@ Suggestions:
 - <specific actionable suggestion>
 
 Be concise. Data-driven. No fluff."""
+
+
+def fork_bg_resume_prompt(inquiry_prompt: str) -> str:
+    return (
+        f"[fork-started] You are in an interactive fork continuing from the background "
+        f"routine you just ran. {USER_NAME} clicked a button in response to your output. "
+        f"Button action: {inquiry_prompt}\n\nRespond to their action."
+    )
