@@ -18,8 +18,15 @@ def _summary(r: Routine) -> str:
 def _fmt_schedule(r: Routine) -> str:
     sched = f"cron '{r.cron}'"
     if r.background:
-        tag = "[bg,queue]" if not r.skip_if_busy else "[bg]"
+        parts = ["bg"]
+        if r.isolated:
+            parts.append("isolated")
+        if not r.skip_if_busy:
+            parts.append("queue")
+        tag = f"[{','.join(parts)}]"
         sched = f"{tag} {sched}"
+    if r.model:
+        sched += f"  (model: {r.model})"
     return sched
 
 
@@ -35,6 +42,10 @@ def run_routine_command(argv: list[str]) -> None:
     add_p.add_argument("--description", "-d", default="", help="Short summary for list")
     add_p.add_argument("--background", action="store_true", help="Silent mode")
     add_p.add_argument("--no-skip", action="store_true", help="Always run (bg only)")
+    add_p.add_argument("--model", default=None, help="Model override (bg only)")
+    add_p.add_argument(
+        "--isolated", action="store_true", help="Fresh context (bg only)"
+    )
 
     sub.add_parser("list", help="Show all routines")
 
@@ -65,6 +76,8 @@ def _handle_add(args: argparse.Namespace) -> None:
         description=args.description,
         background=args.background,
         skip_if_busy=not args.no_skip,
+        model=args.model,
+        isolated=args.isolated,
     )
     append_routine(routine)
     print(f"scheduled {routine.id}: {_fmt_schedule(routine)} -- {_summary(routine)}")

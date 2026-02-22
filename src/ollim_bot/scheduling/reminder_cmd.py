@@ -18,8 +18,15 @@ def _summary(r: Reminder) -> str:
 def _fmt_schedule(r: Reminder) -> str:
     sched = f"at {r.run_at[:16]}"
     if r.background:
-        tag = "[bg,queue]" if not r.skip_if_busy else "[bg]"
+        parts = ["bg"]
+        if r.isolated:
+            parts.append("isolated")
+        if not r.skip_if_busy:
+            parts.append("queue")
+        tag = f"[{','.join(parts)}]"
         sched = f"{tag} {sched}"
+    if r.model:
+        sched += f"  (model: {r.model})"
     if r.max_chain > 0:
         sched += f"  (chain {r.chain_depth}/{r.max_chain})"
     return sched
@@ -41,6 +48,10 @@ def run_reminder_command(argv: list[str]) -> None:
     # Internal flags used by follow_up_chain MCP tool — not documented to the agent
     add_p.add_argument("--chain-depth", type=int, default=0)
     add_p.add_argument("--chain-parent", type=str, default=None)
+    add_p.add_argument("--model", default=None, help="Model override (bg only)")
+    add_p.add_argument(
+        "--isolated", action="store_true", help="Fresh context (bg only)"
+    )
 
     sub.add_parser("list", help="Show pending reminders")
 
@@ -70,6 +81,8 @@ def _handle_add(args: argparse.Namespace) -> None:
         max_chain=args.max_chain,
         chain_depth=args.chain_depth,
         chain_parent=args.chain_parent,
+        model=args.model,
+        isolated=args.isolated,
     )
     append_reminder(reminder)
     print(f"scheduled {reminder.id}: {_fmt_schedule(reminder)} -- {_summary(reminder)}")

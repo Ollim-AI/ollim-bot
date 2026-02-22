@@ -56,3 +56,35 @@ def test_remove_routine(data_dir):
 
 def test_remove_routine_not_found(data_dir):
     assert remove_routine("nonexistent") is False
+
+
+def test_routine_new_defaults_model_isolated():
+    routine = Routine.new(message="test", cron="0 9 * * *")
+
+    assert routine.model is None
+    assert routine.isolated is False
+
+
+def test_routine_new_with_model_isolated():
+    routine = Routine.new(
+        message="check", cron="0 9 * * *", model="haiku", isolated=True
+    )
+
+    assert routine.model == "haiku"
+    assert routine.isolated is True
+
+
+def test_routine_model_isolated_roundtrip(data_dir):
+    routine = Routine.new(
+        message="check",
+        cron="0 9 * * *",
+        model="sonnet",
+        isolated=True,
+        background=True,
+    )
+    append_routine(routine)
+
+    loaded = list_routines()[0]
+
+    assert loaded.model == "sonnet"
+    assert loaded.isolated is True

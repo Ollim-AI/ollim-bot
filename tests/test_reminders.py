@@ -107,3 +107,56 @@ def test_chain_roundtrip_preserves_fields(data_dir):
     assert loaded.max_chain == 2
     assert loaded.chain_parent == "parent_id"
     assert loaded.background is True
+
+
+def test_reminder_new_defaults_model_isolated():
+    reminder = Reminder.new(message="test", delay_minutes=30)
+
+    assert reminder.model is None
+    assert reminder.isolated is False
+
+
+def test_reminder_new_with_model_isolated():
+    reminder = Reminder.new(
+        message="check", delay_minutes=30, model="haiku", isolated=True
+    )
+
+    assert reminder.model == "haiku"
+    assert reminder.isolated is True
+
+
+def test_reminder_model_isolated_roundtrip(data_dir):
+    reminder = Reminder.new(
+        message="check",
+        delay_minutes=30,
+        model="sonnet",
+        isolated=True,
+        background=True,
+    )
+    append_reminder(reminder)
+
+    loaded = list_reminders()[0]
+
+    assert loaded.model == "sonnet"
+    assert loaded.isolated is True
+
+
+def test_chain_roundtrip_preserves_model_isolated(data_dir):
+    original = Reminder.new(
+        message="chain test",
+        delay_minutes=60,
+        background=True,
+        max_chain=2,
+        chain_depth=1,
+        chain_parent="parent_id",
+        model="haiku",
+        isolated=True,
+    )
+    append_reminder(original)
+
+    loaded = list_reminders()[0]
+
+    assert loaded.model == "haiku"
+    assert loaded.isolated is True
+    assert loaded.chain_depth == 1
+    assert loaded.max_chain == 2

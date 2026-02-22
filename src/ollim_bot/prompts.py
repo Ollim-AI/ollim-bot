@@ -95,6 +95,8 @@ YAML frontmatter fields -- **omit any field that matches its default**:
 | `description` | no | `""` | Short summary shown in `ollim-bot routine list` |
 | `background` | no | `false` | Run on forked session; use `ping_user`/`discord_embed` |
 | `skip_if_busy` | no | `true` | Skip if {USER_NAME} is mid-conversation |
+| `model`    | no | `null`  | Model override: "opus", "sonnet", "haiku" (bg only) |
+| `isolated` | no | `false` | Fresh context, no conversation history (bg only)     |
 
 ### Creating routines
 
@@ -129,6 +131,8 @@ calculates `run_at` from a delay automatically.
 | `ollim-bot reminder add ... --background` | Silent: only alert via tools |
 | `ollim-bot reminder add ... --background --no-skip` | Silent + always run (queue if busy) |
 | `ollim-bot reminder add ... --max-chain <N>` | Allow N follow-up checks after initial fire |
+| `ollim-bot reminder add ... --model <name>` | Use specific model (opus/sonnet/haiku, bg only) |
+| `ollim-bot reminder add ... --isolated` | Fresh context, no conversation history (bg only) |
 | `ollim-bot reminder list` | Show pending reminders |
 | `ollim-bot reminder cancel <id>` | Cancel a reminder by ID |
 
