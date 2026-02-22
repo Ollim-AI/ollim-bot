@@ -3,6 +3,9 @@
 ADHD-friendly Discord bot with proactive reminders, powered by Claude.
 
 ## Product philosophy
+
+See `docs/design-philosophy.md` for the full rationale behind framework choices, patterns, and architecture.
+
 - **Productivity assistant first** — not a general-purpose autonomous agent. Every feature must serve ADHD-friendly task/time management.
 - **Quality over breadth** — high-quality, well-tested features over shotgun coverage. Say no to features that don't earn their complexity.
 - **Real-use grounded** — evaluate against actual daily use, not hypothetical scenarios. If a feature isn't used weekly, question whether it belongs.
