@@ -8,9 +8,13 @@ import ollim_bot.sessions as sessions_mod
 from ollim_bot.sessions import (
     SessionEvent,
     delete_session_id,
+    flush_message_collector,
     log_session_event,
+    lookup_fork_session,
     save_session_id,
     set_swap_in_progress,
+    start_message_collector,
+    track_message,
 )
 
 
@@ -126,3 +130,64 @@ def test_delete_then_save_logs_created(sessions, history):
     lines = history.read_text().strip().splitlines()
     assert len(lines) == 1
     assert json.loads(lines[0])["event"] == "created"
+
+
+# --- fork message tracking ---
+
+
+@pytest.fixture()
+def fork_messages(tmp_path, monkeypatch):
+    path = tmp_path / "fork_messages.json"
+    monkeypatch.setattr(sessions_mod, "FORK_MESSAGES_FILE", path)
+    return path
+
+
+def test_track_message_noop_without_collector(fork_messages):
+    track_message(111)
+
+    assert not fork_messages.exists()
+
+
+def test_collector_roundtrip(fork_messages):
+    start_message_collector()
+    track_message(100)
+    track_message(200)
+    flush_message_collector("fork-abc", "parent-xyz")
+
+    assert lookup_fork_session(100) == "fork-abc"
+    assert lookup_fork_session(200) == "fork-abc"
+
+
+def test_lookup_unknown_returns_none(fork_messages):
+    assert lookup_fork_session(999) is None
+
+
+def test_flush_clears_collector(fork_messages):
+    start_message_collector()
+    track_message(100)
+    flush_message_collector("fork-abc", "parent-xyz")
+
+    start_message_collector()
+    flush_message_collector("fork-def", "parent-xyz")
+
+    assert lookup_fork_session(100) == "fork-abc"
+
+
+def test_expired_records_pruned(fork_messages):
+    import time
+
+    old_ts = time.time() - (8 * 24 * 3600)
+    fork_messages.write_text(
+        json.dumps(
+            [
+                {
+                    "message_id": 100,
+                    "fork_session_id": "old-fork",
+                    "parent_session_id": "old-parent",
+                    "ts": old_ts,
+                }
+            ]
+        )
+    )
+
+    assert lookup_fork_session(100) is None
