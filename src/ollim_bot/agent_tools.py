@@ -395,9 +395,7 @@ async def enter_fork(args: dict[str, Any]) -> dict[str, Any]:
         "content": [
             {
                 "type": "text",
-                "text": "Fork will start after you finish responding — "
-                "further tool calls delay the fork and run on the "
-                "main session, not the fork.",
+                "text": "Entering fork — interrupting current turn.",
             }
         ]
     }
