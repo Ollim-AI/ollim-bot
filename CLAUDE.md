@@ -133,6 +133,8 @@ These guide your own design proposals. When the user explicitly requests a featu
 - Prompt tags: `[routine:ID]`, `[routine-bg:ID]`, `[reminder:ID]`, `[reminder-bg:ID]`
 - Background mode: runs on forked session; text output discarded, agent uses `ping_user`/`discord_embed` to alert
 - Forked sessions: `run_agent_background` creates disposable forked client (`fork_session=True`)
+  - Isolated mode: `isolated: true` in YAML — `create_isolated_client` (no resume, no fork, no conversation history)
+  - Model override: `model: "haiku"` in YAML — passed to `create_isolated_client(model=)`; bg-only, ignored on non-bg jobs
   - Always discarded — `save_context` blocked in bg forks (only available in interactive forks)
   - `report_updates(message)` MCP tool: persists summary to `~/.ollim-bot/pending_updates.json`
   - Not called: fork silently discarded, zero context bloat
