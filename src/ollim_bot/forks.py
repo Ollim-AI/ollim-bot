@@ -224,6 +224,7 @@ async def run_agent_background(
     """
     from ollim_bot.agent_tools import set_fork_channel
     from ollim_bot.sessions import (
+        cancel_message_collector,
         flush_message_collector,
         load_session_id,
         log_session_event,
@@ -256,6 +257,7 @@ async def run_agent_background(
             await client.disconnect()
     finally:
         set_in_fork(False)
+        cancel_message_collector()
 
 
 async def send_agent_dm(

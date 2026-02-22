@@ -118,6 +118,11 @@ def start_message_collector() -> None:
     _msg_collector.set([])
 
 
+def cancel_message_collector() -> None:
+    """Discard any collected message IDs without writing. Safe to call if already flushed."""
+    _msg_collector.set(None)
+
+
 def track_message(message_id: int) -> None:
     """Append a Discord message ID to the active collector. No-op if no collector."""
     collector = _msg_collector.get()
