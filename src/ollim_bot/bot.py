@@ -63,6 +63,30 @@ async def _read_images(
     return images
 
 
+_MAX_QUOTE_LEN = 500
+
+
+def _quote_message(msg: discord.Message) -> str:
+    """Extract quotable text from a message's content or embeds."""
+    if msg.content:
+        text = msg.content
+    elif msg.embeds:
+        embed = msg.embeds[0]
+        parts: list[str] = []
+        if embed.title:
+            parts.append(f"**{embed.title}**")
+        if embed.description:
+            parts.append(embed.description)
+        for field in embed.fields:
+            parts.append(f"**{field.name}**: {field.value}")
+        text = "\n".join(parts)
+    else:
+        return ""
+    if len(text) > _MAX_QUOTE_LEN:
+        text = text[:_MAX_QUOTE_LEN] + "..."
+    return "\n".join(f"> {line}" for line in text.splitlines())
+
+
 def create_bot() -> commands.Bot:
     """Image attachments are sniffed by magic bytes rather than Discord's unreliable content_type."""
     intents = discord.Intents.default()
@@ -282,8 +306,9 @@ def create_bot() -> commands.Bot:
                     replied = ref.resolved or await message.channel.fetch_message(
                         ref.message_id
                     )
-                    if replied and replied.content:
-                        content = f"> {replied.content}\n\n{content}"
+                    if isinstance(replied, discord.Message):
+                        if quoted := _quote_message(replied):
+                            content = f"{quoted}\n\n{content}"
                 except discord.NotFound:
                     pass
 
