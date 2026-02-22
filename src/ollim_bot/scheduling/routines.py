@@ -19,6 +19,8 @@ class Routine:
     cron: str
     background: bool = False
     skip_if_busy: bool = True
+    model: str | None = None
+    isolated: bool = False
     description: str = ""
 
     @staticmethod
@@ -28,6 +30,8 @@ class Routine:
         cron: str,
         background: bool = False,
         skip_if_busy: bool = True,
+        model: str | None = None,
+        isolated: bool = False,
         description: str = "",
     ) -> "Routine":
         return Routine(
@@ -36,6 +40,8 @@ class Routine:
             cron=cron,
             background=background,
             skip_if_busy=skip_if_busy,
+            model=model,
+            isolated=isolated,
             description=description,
         )
 

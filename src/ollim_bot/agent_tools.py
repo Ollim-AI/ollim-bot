@@ -60,6 +60,8 @@ class ChainContext:
     max_chain: int
     chain_parent: str
     background: bool
+    model: str | None = None
+    isolated: bool = False
 
 
 _chain_context: ChainContext | None = None
