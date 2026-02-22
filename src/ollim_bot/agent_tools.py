@@ -129,7 +129,10 @@ def _check_bg_budget(args: dict[str, Any]) -> dict[str, Any] | None:
         "properties": {
             "title": {"type": "string", "description": "Embed title"},
             "description": {"type": "string", "description": "Embed body text"},
-            "color": {"type": "string", "description": "blue, green, red, or yellow"},
+            "color": {
+                "type": "string",
+                "description": "blue (info), green (success), red (urgent), yellow (warning)",
+            },
             "fields": {
                 "type": "array",
                 "items": {
@@ -148,8 +151,15 @@ def _check_bg_budget(args: dict[str, Any]) -> dict[str, Any] | None:
                     "type": "object",
                     "properties": {
                         "label": {"type": "string"},
-                        "style": {"type": "string"},
-                        "action": {"type": "string"},
+                        "style": {
+                            "type": "string",
+                            "description": "success, danger, primary, or secondary",
+                        },
+                        "action": {
+                            "type": "string",
+                            "description": "task_done:<task_id>, task_del:<task_id>, "
+                            "event_del:<event_id>, or agent:<prompt>",
+                        },
                     },
                     "required": ["label", "action"],
                 },

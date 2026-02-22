@@ -41,7 +41,8 @@ feature, build it — don't gatekeep with philosophy.
 - `bot.py` -- Discord interface (DMs, @mentions, slash commands, reaction ack, interrupt-on-new-message)
 - `agent.py` -- Claude Agent SDK brain (persistent sessions, MCP tools, subagents, slash command routing)
 - `main.py` -- CLI entry point and command router (`ollim-bot` dispatches to bot, routines, reminders, tasks, cal, gmail)
-- `prompts.py` -- System prompts for agent and subagents (extracted from agent.py)
+- `prompts.py` -- System prompt for the main agent and fork prompt helpers
+- `subagent_prompts.py` -- System prompts for subagents (gmail-reader, history-reviewer, responsiveness-reviewer)
 - `agent_tools.py` -- MCP tools: `discord_embed`, `ping_user`, `follow_up_chain`, `save_context`, `report_updates`, `enter_fork`, `exit_fork`
 - `forks.py` -- Fork state (bg + interactive), pending updates I/O, `run_agent_background`, `send_agent_dm`
 - `views.py` -- Persistent button handlers via `DynamicItem` (delegates to google/, forks, and streamer)

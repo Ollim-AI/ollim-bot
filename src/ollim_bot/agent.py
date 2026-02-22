@@ -37,11 +37,11 @@ from ollim_bot.permissions import (
     handle_tool_permission,
     reset as reset_permissions,
 )
-from ollim_bot.prompts import (
+from ollim_bot.prompts import SYSTEM_PROMPT
+from ollim_bot.subagent_prompts import (
     GMAIL_READER_PROMPT,
     HISTORY_REVIEWER_PROMPT,
     RESPONSIVENESS_REVIEWER_PROMPT,
-    SYSTEM_PROMPT,
 )
 from ollim_bot.sessions import (
     SESSIONS_FILE,
