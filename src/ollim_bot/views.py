@@ -131,8 +131,13 @@ async def _handle_agent_inquiry(
         )
         await stream_to_channel(channel, _agent.stream_chat(message))
         if fork_session_id:
-            touch_activity()
-            clear_prompted()
+            result = await _agent.pop_fork_exit()
+            if result:
+                action, summary = result
+                await channel.send(embed=fork_exit_embed(action, summary))
+            else:
+                touch_activity()
+                clear_prompted()
 
 
 async def _handle_dismiss(interaction: discord.Interaction, _data: str) -> None:
