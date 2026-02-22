@@ -21,7 +21,7 @@ from ollim_bot.forks import (
     touch_activity,
 )
 from ollim_bot.scheduling import setup_scheduler
-from ollim_bot.sessions import load_session_id
+from ollim_bot.sessions import load_session_id, lookup_fork_session
 from ollim_bot.streamer import stream_to_channel
 from ollim_bot.views import ActionButton
 from ollim_bot.views import init as init_views
@@ -270,6 +270,23 @@ def create_bot() -> commands.Bot:
 
         images = await _read_images(message.attachments)
 
+        # Reply handling: fork-from-reply or quote context
+        ref = message.reference
+        fork_session_id: str | None = None
+        if ref and ref.message_id:
+            fork_session_id = lookup_fork_session(ref.message_id)
+            if fork_session_id and agent.in_fork:
+                fork_session_id = None
+            if not fork_session_id:
+                try:
+                    replied = ref.resolved or await message.channel.fetch_message(
+                        ref.message_id
+                    )
+                    if replied and replied.content:
+                        content = f"> {replied.content}\n\n{content}"
+                except discord.NotFound:
+                    pass
+
         await message.add_reaction("\N{EYES}")
 
         # Interrupt so the user's new message gets a fresh response
@@ -277,6 +294,9 @@ def create_bot() -> commands.Bot:
             await agent.interrupt()
 
         async with agent.lock():
+            if fork_session_id:
+                await agent.enter_interactive_fork(resume_session_id=fork_session_id)
+                await _send_fork_enter(message.channel, None)
             await _dispatch(message.channel, content, images=images or None)
             if in_interactive_fork():
                 touch_activity()
