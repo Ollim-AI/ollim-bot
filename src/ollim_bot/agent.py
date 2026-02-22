@@ -218,7 +218,8 @@ class Agent:
     ) -> None:
         """Create an interactive fork client and switch routing to it."""
         self._fork_client = await self.create_forked_client(
-            session_id=resume_session_id
+            session_id=resume_session_id,
+            fork=resume_session_id is None,
         )
         self._fork_session_id = None
         set_interactive_fork(True, idle_timeout=idle_timeout)
@@ -255,12 +256,16 @@ class Agent:
         return action, summary
 
     async def create_forked_client(
-        self, session_id: str | None = None
+        self, session_id: str | None = None, *, fork: bool = True
     ) -> ClaudeSDKClient:
-        """Create a disposable client that forks from a given or current session."""
+        """Create a disposable client that forks from a given or current session.
+
+        fork=False resumes the session directly without branching. Use when the
+        target is a completed bg fork session that may not support re-forking.
+        """
         sid = session_id or load_session_id()
         if sid:
-            opts = replace(self.options, resume=sid, fork_session=True)
+            opts = replace(self.options, resume=sid, fork_session=fork)
         else:
             opts = self.options
         client = ClaudeSDKClient(opts)
