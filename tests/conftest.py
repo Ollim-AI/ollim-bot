@@ -27,4 +27,7 @@ def data_dir(tmp_path, monkeypatch):
     monkeypatch.setattr(
         sessions_mod, "HISTORY_FILE", tmp_path / "session_history.jsonl"
     )
+    monkeypatch.setattr(
+        sessions_mod, "FORK_MESSAGES_FILE", tmp_path / "fork_messages.json"
+    )
     return tmp_path
