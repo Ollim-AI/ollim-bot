@@ -20,6 +20,7 @@ class Routine:
     background: bool = False
     skip_if_busy: bool = True
     model: str | None = None
+    thinking: bool = True
     isolated: bool = False
     description: str = ""
 
@@ -31,6 +32,7 @@ class Routine:
         background: bool = False,
         skip_if_busy: bool = True,
         model: str | None = None,
+        thinking: bool = True,
         isolated: bool = False,
         description: str = "",
     ) -> "Routine":
@@ -41,6 +43,7 @@ class Routine:
             background=background,
             skip_if_busy=skip_if_busy,
             model=model,
+            thinking=thinking,
             isolated=isolated,
             description=description,
         )

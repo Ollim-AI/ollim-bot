@@ -61,6 +61,7 @@ class ChainContext:
     chain_parent: str
     background: bool
     model: str | None = None
+    thinking: bool = True
     isolated: bool = False
 
 
@@ -275,6 +276,8 @@ async def follow_up_chain(args: dict[str, Any]) -> dict[str, Any]:
         cmd.append("--background")
     if ctx.model:
         cmd.extend(["--model", ctx.model])
+    if not ctx.thinking:
+        cmd.append("--no-thinking")
     if ctx.isolated:
         cmd.append("--isolated")
     result = subprocess.run(cmd, capture_output=True, text=True)

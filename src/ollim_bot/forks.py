@@ -217,6 +217,7 @@ async def run_agent_background(
     *,
     skip_if_busy: bool,
     model: str | None = None,
+    thinking: bool = True,
     isolated: bool = False,
 ) -> None:
     """Run agent on a disposable forked session — no lock needed.
@@ -247,7 +248,7 @@ async def run_agent_background(
 
     try:
         if isolated:
-            client = await agent.create_isolated_client(model=model)
+            client = await agent.create_isolated_client(model=model, thinking=thinking)
         else:
             client = await agent.create_forked_client()
         try:

@@ -286,12 +286,14 @@ class Agent:
         return client
 
     async def create_isolated_client(
-        self, *, model: str | None = None
+        self, *, model: str | None = None, thinking: bool = True
     ) -> ClaudeSDKClient:
         """Create a standalone client with no conversation history."""
         opts = self.options
         if model:
             opts = replace(opts, model=model)
+        thinking_tokens = 10000 if thinking else None
+        opts = replace(opts, max_thinking_tokens=thinking_tokens)
         client = ClaudeSDKClient(opts)
         await client.connect()
         return client
