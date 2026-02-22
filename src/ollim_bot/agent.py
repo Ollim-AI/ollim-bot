@@ -212,9 +212,13 @@ class Agent:
             with contextlib.suppress(RuntimeError):
                 await old.disconnect()
 
-    async def enter_interactive_fork(self, *, idle_timeout: int = 10) -> None:
+    async def enter_interactive_fork(
+        self, *, idle_timeout: int = 10, resume_session_id: str | None = None
+    ) -> None:
         """Create an interactive fork client and switch routing to it."""
-        self._fork_client = await self.create_forked_client()
+        self._fork_client = await self.create_forked_client(
+            session_id=resume_session_id
+        )
         self._fork_session_id = None
         set_interactive_fork(True, idle_timeout=idle_timeout)
         touch_activity()
@@ -249,14 +253,13 @@ class Agent:
         await self.exit_interactive_fork(action)
         return action, summary
 
-    async def create_forked_client(self) -> ClaudeSDKClient:
-        """Create a disposable client that forks the current session.
-
-        Not stored in self._client -- the caller disconnects it after use.
-        """
-        session_id = load_session_id()
-        if session_id:
-            opts = replace(self.options, resume=session_id, fork_session=True)
+    async def create_forked_client(
+        self, session_id: str | None = None
+    ) -> ClaudeSDKClient:
+        """Create a disposable client that forks from a given or current session."""
+        sid = session_id or load_session_id()
+        if sid:
+            opts = replace(self.options, resume=sid, fork_session=True)
         else:
             opts = self.options
         client = ClaudeSDKClient(opts)
