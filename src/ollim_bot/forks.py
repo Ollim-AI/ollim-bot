@@ -259,7 +259,10 @@ async def run_agent_background(
                 "isolated_bg" if isolated else "bg_fork",
                 parent_session_id=None if isolated else main_session_id,
             )
-            flush_message_collector(fork_session_id, main_session_id)
+            flush_message_collector(
+                fork_session_id,
+                None if isolated else main_session_id,
+            )
         finally:
             await client.disconnect()
     finally:
