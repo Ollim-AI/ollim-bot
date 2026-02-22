@@ -74,17 +74,33 @@ _EMOJI_RE = re.compile(
 )
 
 
+def _unescape_newlines(text: str | None) -> str | None:
+    """Replace literal backslash-n sequences with real newlines.
+
+    LLMs sometimes emit escaped newlines (``\\n``) in JSON strings instead of
+    actual newline characters.  Discord renders them as visible text, so we
+    convert them here.
+    """
+    if text is None:
+        return None
+    return text.replace("\\n", "\n")
+
+
 def build_embed(config: EmbedConfig) -> discord.Embed:
     """Strips emoji from the title to keep Discord embed headings clean."""
     color = COLOR_MAP[config.color]
     title = _EMOJI_RE.sub("", config.title).strip() if config.title else None
     embed = discord.Embed(
         title=title,
-        description=config.description,
+        description=_unescape_newlines(config.description),
         color=color,
     )
     for ef in config.fields:
-        embed.add_field(name=ef.name, value=ef.value, inline=ef.inline)
+        embed.add_field(
+            name=ef.name,
+            value=_unescape_newlines(ef.value) or ef.value,
+            inline=ef.inline,
+        )
     return embed
 
 
