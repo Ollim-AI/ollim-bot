@@ -398,64 +398,74 @@ class Agent:
         result_text: str | None = None
         tool_name: str | None = None
         tool_input_buf = ""
+        fork_interrupted = False
 
-        async for msg in client.receive_response():
-            if isinstance(msg, StreamEvent):
-                # Interrupt immediately if fork entry was requested
-                if enter_fork_requested():
-                    with contextlib.suppress(CLIConnectionError):
-                        await client.interrupt()
-                    break
+        try:
+            async for msg in client.receive_response():
+                if isinstance(msg, StreamEvent):
+                    # Interrupt once when enter_fork tool fires; suppress
+                    # remaining StreamEvents but let the loop end naturally
+                    # so ResultMessage still saves the session ID.
+                    if not fork_interrupted and enter_fork_requested():
+                        fork_interrupted = True
+                        with contextlib.suppress(CLIConnectionError):
+                            await client.interrupt()
+                        continue
+                    if fork_interrupted:
+                        continue
 
-                # Capture fork session ID from first StreamEvent
-                if (
-                    self._fork_client is not None
-                    and client is self._fork_client
-                    and self._fork_session_id is None
-                ):
-                    self._fork_session_id = msg.session_id
-                    log_session_event(
-                        msg.session_id,
-                        "interactive_fork",
-                        parent_session_id=load_session_id(),
-                    )
-
-                event = msg.event
-                etype = event.get("type")
-
-                if etype == "content_block_start":
-                    block = event["content_block"]
-                    if block["type"] == "tool_use":
-                        tool_name = block["name"]
-                        tool_input_buf = ""
-
-                elif etype == "content_block_delta":
-                    delta = event["delta"]
-                    if delta.get("type") == "input_json_delta":
-                        tool_input_buf += delta.get("partial_json", "")
-                    elif text := delta.get("text", ""):
-                        streamed = True
-                        yield text
-
-                elif etype == "content_block_stop":
-                    if tool_name is not None:
-                        label = format_tool_label(tool_name, tool_input_buf)
-                        streamed = True
-                        yield f"\n-# *{label}*\n"
-                        tool_name = None
-
-            elif isinstance(msg, AssistantMessage) and not streamed:
-                for block in msg.content:
-                    if isinstance(block, TextBlock):
-                        fallback_parts.append(block.text)
-            elif isinstance(msg, ResultMessage):
-                if msg.result:
-                    result_text = msg.result
-                if self._fork_client is not None and client is self._fork_client:
-                    if self._fork_session_id is None:
+                    # Capture fork session ID from first StreamEvent
+                    if (
+                        self._fork_client is not None
+                        and client is self._fork_client
+                        and self._fork_session_id is None
+                    ):
                         self._fork_session_id = msg.session_id
-                elif self._client is client:
-                    save_session_id(msg.session_id)
+                        log_session_event(
+                            msg.session_id,
+                            "interactive_fork",
+                            parent_session_id=load_session_id(),
+                        )
+
+                    event = msg.event
+                    etype = event.get("type")
+
+                    if etype == "content_block_start":
+                        block = event["content_block"]
+                        if block["type"] == "tool_use":
+                            tool_name = block["name"]
+                            tool_input_buf = ""
+
+                    elif etype == "content_block_delta":
+                        delta = event["delta"]
+                        if delta.get("type") == "input_json_delta":
+                            tool_input_buf += delta.get("partial_json", "")
+                        elif text := delta.get("text", ""):
+                            streamed = True
+                            yield text
+
+                    elif etype == "content_block_stop":
+                        if tool_name is not None:
+                            label = format_tool_label(tool_name, tool_input_buf)
+                            streamed = True
+                            yield f"\n-# *{label}*\n"
+                            tool_name = None
+
+                elif isinstance(msg, AssistantMessage) and not streamed:
+                    for block in msg.content:
+                        if isinstance(block, TextBlock):
+                            fallback_parts.append(block.text)
+                elif isinstance(msg, ResultMessage):
+                    if msg.result:
+                        result_text = msg.result
+                    if self._fork_client is not None and client is self._fork_client:
+                        if self._fork_session_id is None:
+                            self._fork_session_id = msg.session_id
+                    elif self._client is client:
+                        save_session_id(msg.session_id)
+        except CLIConnectionError:
+            if not fork_interrupted:
+                raise
 
         if not streamed:
             if fallback_parts:
