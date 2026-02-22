@@ -8,6 +8,16 @@ from ollim_bot.embeds import fork_enter_embed, fork_enter_view
 from ollim_bot.prompts import fork_bg_resume_prompt
 
 
+def _run(coro):
+    # Use a fresh loop rather than asyncio.run() — asyncio.run() calls
+    # set_event_loop(None) on exit, which breaks get_event_loop() in other tests.
+    loop = asyncio.new_event_loop()
+    try:
+        return loop.run_until_complete(coro)
+    finally:
+        loop.close()
+
+
 def test_fork_enter_embed_no_topic():
     embed = fork_enter_embed()
 
@@ -23,14 +33,14 @@ def test_fork_enter_embed_with_topic():
 
 def test_fork_enter_view_has_three_buttons():
     # discord.ui.View.__init__ creates an asyncio.Future, requiring a running loop
-    view = asyncio.run(_build_view())
+    view = _run(_build_view())
 
     custom_ids = {item.custom_id for item in view.children}
     assert custom_ids == {"act:fork_save:_", "act:fork_report:_", "act:fork_exit:_"}
 
 
 def test_fork_enter_view_button_styles():
-    view = asyncio.run(_build_view())
+    view = _run(_build_view())
 
     styles = {item.custom_id: item.style for item in view.children}
     assert styles["act:fork_save:_"] == discord.ButtonStyle.success
