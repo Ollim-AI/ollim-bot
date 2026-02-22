@@ -167,6 +167,19 @@ class Agent:
         if self._fork_client:
             await self._fork_client.set_model(model)
 
+    async def set_thinking(self, enabled: bool) -> None:
+        """Toggle extended thinking. Drops clients to apply (no live setter)."""
+        tokens = 10000 if enabled else None
+        self.options = replace(self.options, max_thinking_tokens=tokens)
+        await self._drop_client()
+        if self._fork_client:
+            fork = self._fork_client
+            self._fork_client = None
+            with contextlib.suppress(CLIConnectionError):
+                await fork.interrupt()
+            with contextlib.suppress(RuntimeError):
+                await fork.disconnect()
+
     async def set_permission_mode(self, mode: str) -> None:
         """Switch SDK permission mode. Fork-scoped when in interactive fork."""
         if self._fork_client:

@@ -86,12 +86,14 @@ feature, build it — don't gatekeep with philosophy.
 - `/compact [instructions]` -- compress context via SDK's native `/compact`
 - `/cost` -- show token usage via SDK's native `/cost`
 - `/model <opus|sonnet|haiku>` -- switch model (update options + drop client, next message reconnects)
+- `/thinking <on|off>` -- toggle extended thinking (update options + drop client, next message reconnects)
 - `/fork [topic]` -- start interactive forked conversation
 - `/interrupt` -- stop current response (fire-and-forget, no lock, silent)
 - `/permissions <dontAsk|default|acceptEdits|bypassPermissions>` -- switch permission mode (fork-scoped); `dontAsk` is the default
 - `/ping-budget [limit]` -- view or set daily ping budget (bg fork pings only)
 - `Agent.slash()` -- generic method routing SDK slash commands, captures SystemMessage + AssistantMessage + ResultMessage
 - `Agent.set_model()` -- uses `dataclasses.replace()` on shared options + updates live client
+- `Agent.set_thinking()` -- updates `max_thinking_tokens` on shared options + drops client (no live setter)
 - `Agent.set_permission_mode()` -- fork-scoped: only updates active client (differs from `/model`)
 - Synced via `bot.tree.sync()` in `on_ready`
 
