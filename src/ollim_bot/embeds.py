@@ -54,6 +54,40 @@ def fork_exit_embed(
     )
 
 
+def fork_enter_embed(topic: str | None = None) -> discord.Embed:
+    return discord.Embed(
+        title="Forked Session",
+        description=f"Topic: {topic}" if topic else "Open session",
+        color=discord.Color.purple(),
+    )
+
+
+def fork_enter_view() -> View:
+    view = View(timeout=None)
+    view.add_item(
+        Button(
+            label="Save Context",
+            style=discord.ButtonStyle.success,
+            custom_id="act:fork_save:_",
+        )
+    )
+    view.add_item(
+        Button(
+            label="Report",
+            style=discord.ButtonStyle.primary,
+            custom_id="act:fork_report:_",
+        )
+    )
+    view.add_item(
+        Button(
+            label="Exit Fork",
+            style=discord.ButtonStyle.danger,
+            custom_id="act:fork_exit:_",
+        )
+    )
+    return view
+
+
 STYLE_MAP: dict[ButtonStyle, discord.ButtonStyle] = {
     "primary": discord.ButtonStyle.primary,
     "secondary": discord.ButtonStyle.secondary,

@@ -6,13 +6,12 @@ from typing import Literal
 
 import discord
 from discord.ext import commands
-from discord.ui import Button, View
 
 from ollim_bot import permissions, ping_budget
 from ollim_bot.agent import Agent
 from ollim_bot.agent_tools import set_channel
 from ollim_bot.config import BOT_NAME, USER_NAME
-from ollim_bot.embeds import fork_exit_embed
+from ollim_bot.embeds import fork_enter_embed, fork_enter_view, fork_exit_embed
 from ollim_bot.forks import (
     clear_prompted,
     enter_fork_requested,
@@ -113,34 +112,7 @@ def create_bot() -> commands.Bot:
     async def _send_fork_enter(
         channel: discord.abc.Messageable, topic: str | None
     ) -> None:
-        embed = discord.Embed(
-            title="Forked Session",
-            description=f"Topic: {topic}" if topic else "Open session",
-            color=discord.Color.purple(),
-        )
-        view = View(timeout=None)
-        view.add_item(
-            Button(
-                label="Save Context",
-                style=discord.ButtonStyle.success,
-                custom_id="act:fork_save:_",
-            )
-        )
-        view.add_item(
-            Button(
-                label="Report",
-                style=discord.ButtonStyle.primary,
-                custom_id="act:fork_report:_",
-            )
-        )
-        view.add_item(
-            Button(
-                label="Exit Fork",
-                style=discord.ButtonStyle.danger,
-                custom_id="act:fork_exit:_",
-            )
-        )
-        await channel.send(embed=embed, view=view)
+        await channel.send(embed=fork_enter_embed(topic), view=fork_enter_view())
 
     def _fork_topic_prompt(topic: str) -> str:
         return (
