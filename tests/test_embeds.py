@@ -64,7 +64,7 @@ def test_fork_bg_resume_prompt_contains_action():
     assert "snooze 1 hour" in result
 
 
-def test_fork_bg_resume_prompt_references_bg_task():
+def test_fork_bg_resume_prompt_references_bg_routine():
     result = fork_bg_resume_prompt("yes")
 
-    assert "background task" in result
+    assert "background routine" in result
