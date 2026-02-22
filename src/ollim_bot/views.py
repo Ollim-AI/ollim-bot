@@ -132,16 +132,15 @@ async def _handle_agent_inquiry(
             fork_bg_resume_prompt(prompt) if fork_session_id else f"[button] {prompt}"
         )
         await stream_to_channel(channel, _agent.stream_chat(message))
-        if fork_session_id:
-            if enter_fork_requested():
-                pop_enter_fork()  # agent can't nest forks; drain stale request
-            result = await _agent.pop_fork_exit()
-            if result:
-                action, summary = result
-                await channel.send(embed=fork_exit_embed(action, summary))
-            else:
-                touch_activity()
-                clear_prompted()
+        if enter_fork_requested():
+            pop_enter_fork()  # drain; fork entry requires the bot.py loop
+        result = await _agent.pop_fork_exit()
+        if result:
+            action, summary = result
+            await channel.send(embed=fork_exit_embed(action, summary))
+        elif fork_session_id:
+            touch_activity()
+            clear_prompted()
 
 
 async def _handle_dismiss(interaction: discord.Interaction, _data: str) -> None:
