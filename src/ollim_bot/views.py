@@ -15,7 +15,9 @@ from ollim_bot.agent_tools import set_channel
 from ollim_bot.forks import (
     append_update,
     clear_prompted,
+    enter_fork_requested,
     in_interactive_fork,
+    pop_enter_fork,
     touch_activity,
 )
 from ollim_bot.config import USER_NAME
@@ -131,6 +133,8 @@ async def _handle_agent_inquiry(
         )
         await stream_to_channel(channel, _agent.stream_chat(message))
         if fork_session_id:
+            if enter_fork_requested():
+                pop_enter_fork()  # agent can't nest forks; drain stale request
             result = await _agent.pop_fork_exit()
             if result:
                 action, summary = result
