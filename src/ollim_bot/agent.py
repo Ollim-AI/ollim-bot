@@ -266,9 +266,25 @@ class Agent:
         await client.connect()
         return client
 
-    async def run_on_client(self, client: ClaudeSDKClient, message: str) -> str:
+    async def create_isolated_client(
+        self, *, model: str | None = None
+    ) -> ClaudeSDKClient:
+        """Create a standalone client with no conversation history."""
+        opts = self.options
+        if model:
+            opts = replace(opts, model=model)
+        client = ClaudeSDKClient(opts)
+        await client.connect()
+        return client
+
+    async def run_on_client(
+        self, client: ClaudeSDKClient, message: str, *, prepend_updates: bool = True
+    ) -> str:
         """Send a message on an explicit client, discard output, return session_id."""
-        message = await _prepend_context(message, clear=False)
+        if prepend_updates:
+            message = await _prepend_context(message, clear=False)
+        else:
+            message = f"{_timestamp()} {message}"
         await client.query(message)
 
         session_id: str | None = None

@@ -216,6 +216,8 @@ async def run_agent_background(
     prompt: str,
     *,
     skip_if_busy: bool,
+    model: str | None = None,
+    isolated: bool = False,
 ) -> None:
     """Run agent on a disposable forked session — no lock needed.
 
@@ -244,13 +246,18 @@ async def run_agent_background(
     start_message_collector()
 
     try:
-        client = await agent.create_forked_client()
+        if isolated:
+            client = await agent.create_isolated_client(model=model)
+        else:
+            client = await agent.create_forked_client()
         try:
-            fork_session_id = await agent.run_on_client(client, prompt)
+            fork_session_id = await agent.run_on_client(
+                client, prompt, prepend_updates=not isolated
+            )
             log_session_event(
                 fork_session_id,
-                "bg_fork",
-                parent_session_id=main_session_id,
+                "isolated_bg" if isolated else "bg_fork",
+                parent_session_id=None if isolated else main_session_id,
             )
             flush_message_collector(fork_session_id, main_session_id)
         finally:
