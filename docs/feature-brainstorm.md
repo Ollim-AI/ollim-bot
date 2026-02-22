@@ -19,26 +19,13 @@ Open questions:
 - Should the agent write the summary (costs a turn) or extract it post-hoc from JSONL?
 - How does this surface to the agent? System prompt injection? MCP tool to search?
 
-### Isolated Routine Mode
-Routines/reminders that run with fresh context (no main session history).
+### ~~Isolated Routine Mode~~ ✓ Implemented
+`isolated: true` in routine/reminder YAML frontmatter. Creates standalone throwaway
+client with no conversation history. Combined with per-job model overrides.
 
-- `isolated: true` in routine/reminder YAML frontmatter
-- Creates a standalone throwaway client (not a fork -- no parent session)
-- Just system prompt + routine prompt, no conversation history
-- Saves tokens for context-independent jobs (email triage, history review)
-- Still has access to all MCP tools
-
-Open questions:
-- Does it need its own session ID persistence? Probably not (throwaway).
-- Should `report_updates` still work? (Yes -- same bg fork output mechanism.)
-
-### Per-Job Model Overrides
-Routines/reminders specify which model to use.
-
-- `model: haiku` in routine/reminder YAML frontmatter
-- Background email triage doesn't need Opus
-- Morning planning gets Opus, periodic checks get Haiku
-- Immediate cost savings, tiny change
+### ~~Per-Job Model Overrides~~ ✓ Implemented
+`model: "haiku"` in routine/reminder YAML frontmatter. Background jobs only —
+isolated mode is where model overrides clearly pay off (no cache miss on forked context).
 
 ### Webhook Endpoints (External Triggers)
 HTTP endpoints that trigger agent turns from external services.
