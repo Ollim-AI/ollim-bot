@@ -12,11 +12,18 @@ from discord.ui import Button, DynamicItem
 from ollim_bot import inquiries
 from ollim_bot import permissions
 from ollim_bot.agent_tools import set_channel
-from ollim_bot.forks import append_update
+from ollim_bot.forks import (
+    append_update,
+    clear_prompted,
+    in_interactive_fork,
+    touch_activity,
+)
 from ollim_bot.config import USER_NAME
-from ollim_bot.embeds import fork_exit_embed
+from ollim_bot.embeds import fork_enter_embed, fork_enter_view, fork_exit_embed
 from ollim_bot.google.calendar import delete_event
 from ollim_bot.google.tasks import complete_task, delete_task
+from ollim_bot.prompts import fork_bg_resume_prompt
+from ollim_bot.sessions import lookup_fork_session
 from ollim_bot.streamer import stream_to_channel
 
 if TYPE_CHECKING:
@@ -102,14 +109,30 @@ async def _handle_agent_inquiry(
     assert _agent is not None
     channel = interaction.channel
     assert isinstance(channel, discord.abc.Messageable)
+
+    fork_session_id = lookup_fork_session(interaction.message.id)
+
+    if fork_session_id and in_interactive_fork():
+        await interaction.response.send_message("already in a fork.", ephemeral=True)
+        return
+
     await interaction.response.defer()
     if _agent.lock().locked():
         await _agent.interrupt()
     async with _agent.lock():
+        if fork_session_id:
+            await _agent.enter_interactive_fork(resume_session_id=fork_session_id)
+            await channel.send(embed=fork_enter_embed(), view=fork_enter_view())
         set_channel(channel)
         permissions.set_channel(channel)
         await channel.typing()
-        await stream_to_channel(channel, _agent.stream_chat(f"[button] {prompt}"))
+        message = (
+            fork_bg_resume_prompt(prompt) if fork_session_id else f"[button] {prompt}"
+        )
+        await stream_to_channel(channel, _agent.stream_chat(message))
+        if fork_session_id:
+            touch_activity()
+            clear_prompted()
 
 
 async def _handle_dismiss(interaction: discord.Interaction, _data: str) -> None:
