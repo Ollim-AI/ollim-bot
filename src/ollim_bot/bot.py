@@ -215,6 +215,20 @@ def create_bot() -> commands.Bot:
         await agent.set_model(name.value)
         await interaction.response.send_message(f"switched to {name.value}.")
 
+    @bot.tree.command(name="thinking", description="Toggle extended thinking")
+    @discord.app_commands.describe(enabled="Turn thinking on or off")
+    @discord.app_commands.choices(
+        enabled=[
+            discord.app_commands.Choice(name="on", value="on"),
+            discord.app_commands.Choice(name="off", value="off"),
+        ]
+    )
+    async def slash_thinking(
+        interaction: discord.Interaction, enabled: discord.app_commands.Choice[str]
+    ):
+        await agent.set_thinking(enabled.value == "on")
+        await interaction.response.send_message(f"thinking: {enabled.value}.")
+
     @bot.event
     async def on_ready():
         nonlocal _ready_fired
