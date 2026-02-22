@@ -153,6 +153,11 @@ def create_bot() -> commands.Bot:
             f"so {USER_NAME} can choose."
         )
 
+    _FORK_NO_TOPIC_PROMPT = (
+        f"[fork-started] You are now inside an interactive forked session. "
+        f"No topic was given — {USER_NAME} will lead. Wait for their message."
+    )
+
     async def _check_fork_transitions(
         channel: discord.abc.Messageable,
     ) -> None:
@@ -161,15 +166,13 @@ def create_bot() -> commands.Bot:
             topic, timeout = pop_enter_fork()
             await agent.enter_interactive_fork(idle_timeout=timeout)
             await _send_fork_enter(channel, topic)
-            if topic:
-                set_channel(channel)
-                permissions.set_channel(channel)
-                await channel.typing()
-                await stream_to_channel(
-                    channel, agent.stream_chat(_fork_topic_prompt(topic))
-                )
-                touch_activity()
-                await _check_fork_transitions(channel)
+            prompt = _fork_topic_prompt(topic) if topic else _FORK_NO_TOPIC_PROMPT
+            set_channel(channel)
+            permissions.set_channel(channel)
+            await channel.typing()
+            await stream_to_channel(channel, agent.stream_chat(prompt))
+            touch_activity()
+            await _check_fork_transitions(channel)
             return
 
         result = await agent.pop_fork_exit()
@@ -215,15 +218,13 @@ def create_bot() -> commands.Bot:
             assert isinstance(channel, discord.abc.Messageable)
             await _send_fork_enter(channel, topic)
             await interaction.delete_original_response()
-            if topic:
-                set_channel(channel)
-                permissions.set_channel(channel)
-                await channel.typing()
-                await stream_to_channel(
-                    channel, agent.stream_chat(_fork_topic_prompt(topic))
-                )
-                touch_activity()
-                await _check_fork_transitions(channel)
+            prompt = _fork_topic_prompt(topic) if topic else _FORK_NO_TOPIC_PROMPT
+            set_channel(channel)
+            permissions.set_channel(channel)
+            await channel.typing()
+            await stream_to_channel(channel, agent.stream_chat(prompt))
+            touch_activity()
+            await _check_fork_transitions(channel)
 
     @bot.tree.command(name="model", description="Switch the AI model")
     @discord.app_commands.describe(name="Model to use")
