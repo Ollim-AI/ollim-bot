@@ -23,6 +23,7 @@ SessionEventType = Literal[
     "cleared",
     "interactive_fork",
     "bg_fork",
+    "isolated_bg",
 ]
 
 _TZ = ZoneInfo("America/Los_Angeles")

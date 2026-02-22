@@ -24,6 +24,8 @@ class Reminder:
     chain_depth: int = 0
     max_chain: int = 0  # 0 = plain one-shot, N = allow N continuations
     chain_parent: str | None = None
+    model: str | None = None
+    isolated: bool = False
     description: str = ""
 
     @staticmethod
@@ -36,6 +38,8 @@ class Reminder:
         max_chain: int = 0,
         chain_depth: int = 0,
         chain_parent: str | None = None,
+        model: str | None = None,
+        isolated: bool = False,
         description: str = "",
     ) -> "Reminder":
         """Create a reminder, auto-setting chain_parent to own ID for chain roots."""
@@ -53,6 +57,8 @@ class Reminder:
             chain_depth=chain_depth,
             max_chain=max_chain,
             chain_parent=chain_parent or (rid if max_chain > 0 else None),
+            model=model,
+            isolated=isolated,
             description=description,
         )
 
