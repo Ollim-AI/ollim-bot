@@ -273,6 +273,10 @@ async def follow_up_chain(args: dict[str, Any]) -> dict[str, Any]:
     ]
     if ctx.background:
         cmd.append("--background")
+    if ctx.model:
+        cmd.extend(["--model", ctx.model])
+    if ctx.isolated:
+        cmd.append("--isolated")
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
         return {

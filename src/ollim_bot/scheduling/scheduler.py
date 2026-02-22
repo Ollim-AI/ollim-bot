@@ -198,9 +198,19 @@ def _register_routine(
         try:
             if routine.background:
                 await run_agent_background(
-                    owner, agent, prompt, skip_if_busy=routine.skip_if_busy
+                    owner,
+                    agent,
+                    prompt,
+                    skip_if_busy=routine.skip_if_busy,
+                    model=routine.model,
+                    isolated=routine.isolated,
                 )
             else:
+                if routine.model or routine.isolated:
+                    log.warning(
+                        "Routine %s: model/isolated only apply to background routines",
+                        routine.id,
+                    )
                 await send_agent_dm(owner, agent, prompt)
         except Exception:
             log.exception("Routine %s failed", routine.id)
@@ -246,6 +256,8 @@ def _register_reminder(
                 max_chain=reminder.max_chain,
                 chain_parent=reminder.chain_parent or reminder.id,
                 background=reminder.background,
+                model=reminder.model,
+                isolated=reminder.isolated,
             )
 
         try:
@@ -253,9 +265,19 @@ def _register_reminder(
                 if chain_ctx:
                     set_fork_chain_context(chain_ctx)
                 await run_agent_background(
-                    owner, agent, prompt, skip_if_busy=reminder.skip_if_busy
+                    owner,
+                    agent,
+                    prompt,
+                    skip_if_busy=reminder.skip_if_busy,
+                    model=reminder.model,
+                    isolated=reminder.isolated,
                 )
             else:
+                if reminder.model or reminder.isolated:
+                    log.warning(
+                        "Reminder %s: model/isolated only apply to background reminders",
+                        reminder.id,
+                    )
                 if chain_ctx:
                     set_chain_context(chain_ctx)
                 await send_agent_dm(owner, agent, prompt)
