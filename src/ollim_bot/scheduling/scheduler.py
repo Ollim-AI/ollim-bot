@@ -203,6 +203,7 @@ def _register_routine(
                     prompt,
                     skip_if_busy=routine.skip_if_busy,
                     model=routine.model,
+                    thinking=routine.thinking,
                     isolated=routine.isolated,
                 )
             else:
@@ -257,6 +258,7 @@ def _register_reminder(
                 chain_parent=reminder.chain_parent or reminder.id,
                 background=reminder.background,
                 model=reminder.model,
+                thinking=reminder.thinking,
                 isolated=reminder.isolated,
             )
 
@@ -270,6 +272,7 @@ def _register_reminder(
                     prompt,
                     skip_if_busy=reminder.skip_if_busy,
                     model=reminder.model,
+                    thinking=reminder.thinking,
                     isolated=reminder.isolated,
                 )
             else:

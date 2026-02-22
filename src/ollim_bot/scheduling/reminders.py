@@ -25,6 +25,7 @@ class Reminder:
     max_chain: int = 0  # 0 = plain one-shot, N = allow N continuations
     chain_parent: str | None = None
     model: str | None = None
+    thinking: bool = True
     isolated: bool = False
     description: str = ""
 
@@ -39,6 +40,7 @@ class Reminder:
         chain_depth: int = 0,
         chain_parent: str | None = None,
         model: str | None = None,
+        thinking: bool = True,
         isolated: bool = False,
         description: str = "",
     ) -> "Reminder":
@@ -58,6 +60,7 @@ class Reminder:
             max_chain=max_chain,
             chain_parent=chain_parent or (rid if max_chain > 0 else None),
             model=model,
+            thinking=thinking,
             isolated=isolated,
             description=description,
         )

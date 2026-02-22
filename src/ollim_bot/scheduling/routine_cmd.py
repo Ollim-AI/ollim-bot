@@ -27,6 +27,8 @@ def _fmt_schedule(r: Routine) -> str:
         sched = f"{tag} {sched}"
     if r.model:
         sched += f"  (model: {r.model})"
+    if not r.thinking:
+        sched += "  (no-thinking)"
     return sched
 
 
@@ -43,6 +45,11 @@ def run_routine_command(argv: list[str]) -> None:
     add_p.add_argument("--background", action="store_true", help="Silent mode")
     add_p.add_argument("--no-skip", action="store_true", help="Always run (bg only)")
     add_p.add_argument("--model", default=None, help="Model override (bg only)")
+    add_p.add_argument(
+        "--no-thinking",
+        action="store_true",
+        help="Disable extended thinking (bg only)",
+    )
     add_p.add_argument(
         "--isolated", action="store_true", help="Fresh context (bg only)"
     )
@@ -77,6 +84,7 @@ def _handle_add(args: argparse.Namespace) -> None:
         background=args.background,
         skip_if_busy=not args.no_skip,
         model=args.model,
+        thinking=not args.no_thinking,
         isolated=args.isolated,
     )
     append_routine(routine)

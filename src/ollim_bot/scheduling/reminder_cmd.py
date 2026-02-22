@@ -27,6 +27,8 @@ def _fmt_schedule(r: Reminder) -> str:
         sched = f"{tag} {sched}"
     if r.model:
         sched += f"  (model: {r.model})"
+    if not r.thinking:
+        sched += "  (no-thinking)"
     if r.max_chain > 0:
         sched += f"  (chain {r.chain_depth}/{r.max_chain})"
     return sched
@@ -49,6 +51,11 @@ def run_reminder_command(argv: list[str]) -> None:
     add_p.add_argument("--chain-depth", type=int, default=0)
     add_p.add_argument("--chain-parent", type=str, default=None)
     add_p.add_argument("--model", default=None, help="Model override (bg only)")
+    add_p.add_argument(
+        "--no-thinking",
+        action="store_true",
+        help="Disable extended thinking (bg only)",
+    )
     add_p.add_argument(
         "--isolated", action="store_true", help="Fresh context (bg only)"
     )
@@ -82,6 +89,7 @@ def _handle_add(args: argparse.Namespace) -> None:
         chain_depth=args.chain_depth,
         chain_parent=args.chain_parent,
         model=args.model,
+        thinking=not args.no_thinking,
         isolated=args.isolated,
     )
     append_reminder(reminder)
