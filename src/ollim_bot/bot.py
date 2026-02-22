@@ -164,6 +164,8 @@ def create_bot() -> commands.Bot:
         """Check if agent requested fork entry/exit during last response."""
         if enter_fork_requested():
             topic, timeout = pop_enter_fork()
+            if agent.in_fork:
+                return
             await agent.enter_interactive_fork(idle_timeout=timeout)
             await _send_fork_enter(channel, topic)
             prompt = _fork_topic_prompt(topic) if topic else _FORK_NO_TOPIC_PROMPT
