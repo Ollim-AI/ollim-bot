@@ -98,11 +98,19 @@ Add to `src/ollim_bot/sessions.py`:
 import json
 import time
 from contextvars import ContextVar
+from typing import TypedDict
 
 FORK_MESSAGES_FILE = Path.home() / ".ollim-bot" / "fork_messages.json"
 _MAX_AGE = 7 * 24 * 3600  # 7 days
 
 _msg_collector: ContextVar[list[int] | None] = ContextVar("_msg_collector", default=None)
+
+
+class _ForkMessageRecord(TypedDict):
+    message_id: int
+    fork_session_id: str
+    parent_session_id: str | None
+    ts: float
 
 
 def start_message_collector() -> None:
@@ -129,12 +137,12 @@ def flush_message_collector(
     ts = time.time()
     for mid in collector:
         records.append(
-            {
-                "message_id": mid,
-                "fork_session_id": fork_session_id,
-                "parent_session_id": parent_session_id,
-                "ts": ts,
-            }
+            _ForkMessageRecord(
+                message_id=mid,
+                fork_session_id=fork_session_id,
+                parent_session_id=parent_session_id,
+                ts=ts,
+            )
         )
     _write_fork_messages(records)
 
@@ -147,15 +155,15 @@ def lookup_fork_session(message_id: int) -> str | None:
     return None
 
 
-def _read_fork_messages() -> list[dict]:
+def _read_fork_messages() -> list[_ForkMessageRecord]:
     if not FORK_MESSAGES_FILE.exists():
         return []
-    data = json.loads(FORK_MESSAGES_FILE.read_text())
+    data: list[_ForkMessageRecord] = json.loads(FORK_MESSAGES_FILE.read_text())
     cutoff = time.time() - _MAX_AGE
-    return [r for r in data if r.get("ts", 0) > cutoff]
+    return [r for r in data if r["ts"] > cutoff]
 
 
-def _write_fork_messages(records: list[dict]) -> None:
+def _write_fork_messages(records: list[_ForkMessageRecord]) -> None:
     FORK_MESSAGES_FILE.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=FORK_MESSAGES_FILE.parent, suffix=".tmp")
     os.write(fd, json.dumps(records).encode())
