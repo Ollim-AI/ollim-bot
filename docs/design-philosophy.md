@@ -1,84 +1,128 @@
 # Design Philosophy
 
-Why ollim-bot exists, why it's built the way it is, and why not something else.
+Why ollim-bot is built the way it is — the decisions behind the frameworks,
+patterns, and architecture.
 
-## Why build this?
+## Why ollim-bot exists
 
-Existing productivity tools (Todoist, Notion, Things) are passive -- they store tasks and wait for you to check them. For ADHD, that's the failure mode: out of sight, out of mind. ollim-bot is an active companion that knows your context, reaches out proactively, and meets you where you already are (Discord on your phone).
+Existing productivity tools fall into two traps. Traditional tools (Todoist,
+Notion, Apple Reminders) are passive — they store your tasks but never push
+back. You have to remember to check them, which is the exact problem they're
+supposed to solve. For someone with ADHD, a tool that waits to be opened is a
+tool that doesn't get used.
 
-It's not a general-purpose AI agent. It's a single-user productivity assistant that happens to be powered by one.
+AI agent tools have a different problem. They try to do too much — spray
+features and hope something sticks. Or they lock you into complex workflow
+patterns with poor observability, where understanding what the agent is doing
+feels like learning a new language. Templates and rigid workflows give you
+structure without context, which produces generic results.
 
-## Why not existing tools?
+ollim-bot exists because a useful assistant needs to be proactive, deeply
+contextual, and simple enough that using it doesn't become another task. It's a
+personal productivity assistant, not an autonomous agent platform.
 
-**Why not a Todoist/Notion bot?** Those tools are the storage layer, not the intelligence. Bolting an AI onto Todoist gives you a chatbot that can add tasks -- not one that remembers you said "I'll do that after lunch" three hours ago and follows up.
+## Context is the product
 
-**Why not an existing AI assistant bot?** General-purpose Discord bots (ChatGPT bots, etc.) are stateless and multi-tenant. They don't know your calendar, your task list, or that you've been putting off that email since Tuesday. ollim-bot is a single persistent conversation with full context.
+The core belief behind this project: a useful assistant is only as useful as how
+well it understands you in your current moment. That's what builds trust.
+Autonomy, features, integrations — they're all secondary. Their ceiling can only
+be as high as the agent's contextual understanding.
 
-**Why not just use Claude directly?** Claude doesn't have your Google Tasks, your calendar, your reminders. It can't ping you at 9am or notice you went quiet. ollim-bot wraps Claude with the integrations and proactivity that make it a productivity tool instead of a chat window.
+This shapes every design decision. Persistent sessions over stateless calls. A
+single long-running conversation over disconnected threads. Background tasks
+that fork from the main context rather than starting fresh. The agent earns
+autonomy by knowing what's going on, not by being given permissions.
 
-## Key decisions
+## Meet the user where they are
 
-### Discord as the interface
+Yet another app is bad design for agents. Productivity needs the context of
+where you already are, not more isolation. Discord is already open all day —
+phone and desktop — so the bot meets you there instead of demanding you open
+something new. Cross-device notifications come free without building a mobile
+app.
 
-Discord is already open all day. DMs are a natural conversational interface. Rich embeds and buttons give structured interactions (task cards with "done" buttons, calendar events with "delete"). Mobile push notifications are free. No custom app to build and maintain.
+The same logic applies to integrations. Google Tasks, Calendar, and Gmail are
+the existing ecosystem — integrate with what's already in use rather than
+migrating to something new. Google Tasks is intentionally simple, which matches
+the ADHD-friendly philosophy: Notion-level complexity is the enemy, not the
+goal. New integrations can expand over time, but only when the complexity is
+justified.
 
-### Claude Agent SDK as the brain
+## The agent model
 
-The bot needs persistent multi-turn conversation, tool use, and the ability to reason about ambiguous requests ("move that meeting to after my dentist appointment"). The Agent SDK provides all of this with session persistence, MCP tools, and subagents. Claude Code OAuth means no API key management.
+The Claude Agent SDK is essentially a wrapper around Claude Code. It's the best
+framework for turning a user prompt into real action — existing tools plus bash
+make it extremely versatile, and file-based workflows keep things simple. No DSL
+to learn, no workflow engine to configure — just code as tools (MCP or CLI-based
+bash).
 
-The alternative was raw API calls with manual context management. The SDK handles compaction, tool routing, and session resumption -- infrastructure that would otherwise be half the codebase.
+This matters because framework lock-in is one of the traps this project avoids.
+Other agent frameworks impose complex workflow patterns, abstract away the agent
+loop behind proprietary concepts, and make debugging feel like spelunking. The
+Agent SDK is a thin layer: it handles the agent loop, persistent sessions,
+compaction, and streaming, but everything else is just Python and bash. What the
+agent does is visible, debuggable, and changeable without learning a
+framework-specific language.
 
-### Single-user architecture
+## Proactive by default
 
-ollim-bot is a personal tool, not a platform. Single-user means:
-- One persistent conversation (no session multiplexing)
-- Direct file I/O for state (no database)
-- No auth layer beyond Discord's invite system
-- The agent's system prompt can be deeply personalized
+Most AI assistants are reactive — they wait for you to start a conversation. For
+ADHD, that's the wrong model. Forgetting to check is the problem, so the bot
+needs to come to you, not wait for you to come to it.
 
-Multi-tenancy would 10x the complexity for zero benefit. If someone else wants this, they fork it and run their own instance.
+Scheduled routines and reminders create ambient awareness. Regular check-ins
+build shared context over time — the bot knows what's going on because it's been
+keeping up, not because you remembered to tell it. This bridges attention gaps:
+when something falls through the cracks between active sessions, a scheduled
+nudge catches it.
 
-### Forking model for parallel work
+A good assistant doesn't wait to be asked. It surfaces relevant information at
+the right time. That's the core ADHD value proposition — not more features, but
+fewer things forgotten.
 
-The main conversation is sacred -- it's the persistent thread of daily interaction. But background tasks (routine check-ins, reminder follow-ups) and deep dives (planning a trip, debugging a schedule conflict) shouldn't pollute it.
+## Conversation management
 
-Forks solve this: background forks run silently and report back via `pending_updates`. Interactive forks branch off for focused work and can either save context back to main or discard cleanly. The main session stays coherent either way.
+DM-based chat makes context management complicated. You need to balance
+remembering context from an endlessly scrolling conversation while keeping
+updates contained so context doesn't get sidetracked. The fork model solves
+this.
 
-### Markdown files over a database
+The main session is the persistent conversation — the core assistant
+relationship. It stays focused on what matters. Interactive forks let you
+brainstorm, research, or go on tangents without the penalty of losing the core
+assistant to context pollution. Background forks let routine tasks (email triage,
+task reviews) run grounded in the latest conversation while keeping only short
+summary updates.
 
-Routines and reminders are YAML-frontmatter markdown files in `~/.ollim-bot/`. This means:
-- **Human-readable** -- you can `cat` a reminder to see what it does
-- **Git-trackable** -- every change is auto-committed, full history for free
-- **Agent-editable** -- Claude can read/write/edit files directly via MCP, no ORM or API layer needed
-- **Portable** -- the entire bot state is one directory you can copy
+Selective persistence is key: after a fork, you choose what comes back. Save the
+full context, report a summary, or discard entirely. This gives you control over
+what sticks in the main conversation without having to manage it manually.
 
-A database would add a dependency, require migrations, and force every agent interaction through an API. Files are the right tool at this scale.
+## Files as shared language
 
-### Google Tasks/Calendar as the source of truth
+Markdown is the common language between human and agent. Both can read and write
+it natively — no ORM, no SQL, no adapter layer. Routines and reminders are
+markdown files with YAML frontmatter: open one in any editor and you see exactly
+what it does. The agent creates them the same way you would.
 
-Tasks and calendar events live in Google, not in the bot. The bot reads and writes to Google's APIs. This means:
-- Mobile access through Google's own apps (no custom mobile client)
-- No sync conflicts -- Google is the single source of truth
-- Existing data stays where it is
+JSONL is for data consumed only by code — session logs, pending updates, inquiry
+state. It's append-friendly and machine-readable, but not something you'd edit
+by hand.
 
-The bot is a better *interface* to your existing tools, not a replacement for them.
+Git tracking on the data directory means every change is versioned, diffable,
+and recoverable. No database migrations, no schema management, no server to run.
+The storage model is as simple as the tools that operate on it.
 
-### APScheduler for proactive behavior
+## Single-user, on purpose
 
-Routines (recurring crons) and reminders (one-shot triggers) run via APScheduler, in-process. The scheduler polls markdown files every 10 seconds and syncs jobs. No external scheduler service, no message queue, no cron daemon.
+This system is built to serve one human. Adding more users to interface with
+would confuse the project goals — the entire value comes from deep personal
+context, and multi-user dilutes that.
 
-The alternative was system-level cron or a separate scheduler service. In-process means the scheduler shares the event loop with Discord and the agent -- it can fire a background fork directly without IPC.
+Single-user is also a simplicity constraint. No auth system, no tenant
+isolation, no concurrent session management, no per-user config. Every design
+decision gets simpler when there's exactly one person to serve.
 
-### MCP tools for agent-initiated actions
-
-The agent decides when to ping the user, send embeds, fork conversations, and chain reminders. These aren't user commands -- they're agent capabilities exposed as MCP tools. This keeps the agent in control of its own proactive behavior rather than being a passive command executor.
-
-### Contextvars for fork isolation
-
-Background forks run concurrently with the main session. Rather than locking or class hierarchies, fork-scoped state (channel, chain context, in-fork flag) uses Python's `contextvars`. Each background fork gets its own context automatically via `asyncio.create_task`, no explicit passing needed.
-
-## What this is not
-
-- **Not a framework** -- it's one bot for one person. No plugin system, no extensibility API, no multi-bot orchestration.
-- **Not a general-purpose agent** -- every feature serves ADHD-friendly task/time management. If it doesn't help with productivity, it doesn't belong.
-- **Not a demo** -- it runs daily. Features are evaluated against real use, not hypothetical scenarios.
+Others can clone the project and modify it for themselves. The architecture is
+transparent enough to fork and adapt. But the design assumes one user, and that
+assumption runs deep — it's a feature, not a limitation.
