@@ -4,13 +4,38 @@ ADHD-friendly Discord bot with proactive reminders, powered by Claude.
 
 ## Product philosophy
 
-See `docs/design-philosophy.md` for the full rationale behind framework choices, patterns, and architecture.
+See `docs/design-philosophy.md` for the full rationale behind framework choices,
+patterns, and architecture.
 
-- **Productivity assistant first** — not a general-purpose autonomous agent. Every feature must serve ADHD-friendly task/time management.
-- **Quality over breadth** — high-quality, well-tested features over shotgun coverage. Say no to features that don't earn their complexity.
-- **Real-use grounded** — evaluate against actual daily use, not hypothetical scenarios. If a feature isn't used weekly, question whether it belongs.
+Core beliefs, in priority order:
 
-These guide your own design proposals. When the user explicitly requests a feature, build it — don't gatekeep with philosophy.
+1. **Context quality is the product** — a useful assistant is only as useful as
+   how well it understands you right now. Every design decision should ask: does
+   this improve or degrade contextual understanding? Autonomy, features, and
+   integrations are secondary — their ceiling is the agent's context quality.
+2. **Proactive over reactive** — the bot reaches out, not the other way around.
+   ADHD means forgetting to check is the problem, so features that wait to be
+   invoked solve nothing. Default to push.
+3. **Meet the user where they are** — integrate with existing tools (Discord,
+   Google), don't add new surfaces. Yet another app is bad design for agents —
+   productivity needs the context of where the user already is.
+4. **Files as shared language** — markdown is the common language between human
+   and agent. Use it for anything both sides touch (routines, reminders, config).
+   JSONL for code-only data. No databases — the agent reads and writes files
+   natively.
+5. **Single-user by design** — built to serve one human deeply, not many
+   shallowly. Don't add auth, multi-tenancy, or per-user config. Others fork
+   the repo.
+
+Feature selection:
+
+- **Quality over breadth** — high-quality, well-tested features over shotgun
+  coverage. Say no to features that don't earn their complexity.
+- **Real-use grounded** — evaluate against actual daily use, not hypothetical
+  scenarios. If a feature isn't used weekly, question whether it belongs.
+
+These guide your own design proposals. When the user explicitly requests a
+feature, build it — don't gatekeep with philosophy.
 
 ## Architecture
 - `bot.py` -- Discord interface (DMs, @mentions, slash commands, reaction ack, interrupt-on-new-message)
