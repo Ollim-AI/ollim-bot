@@ -35,6 +35,14 @@ _ping = ping_user.handler
 _embed = discord_embed.handler
 
 
+class _FakeMessage:
+    _next_id = 1
+
+    def __init__(self):
+        self.id = _FakeMessage._next_id
+        _FakeMessage._next_id += 1
+
+
 class InMemoryChannel:
     """Collects messages and embeds sent to a channel."""
 
@@ -43,6 +51,7 @@ class InMemoryChannel:
 
     async def send(self, content=None, *, embed=None, view=None):
         self.messages.append({"content": content, "embed": embed, "view": view})
+        return _FakeMessage()
 
 
 def _run(coro):

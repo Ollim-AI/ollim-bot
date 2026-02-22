@@ -10,6 +10,7 @@ from claude_agent_sdk.types import HookContext, HookInput, SyncHookJSONOutput
 
 from ollim_bot import ping_budget
 from ollim_bot.config import USER_NAME
+from ollim_bot.sessions import track_message
 from ollim_bot.embeds import (
     ButtonConfig,
     EmbedConfig,
@@ -179,7 +180,8 @@ async def discord_embed(args: dict[str, Any]) -> dict[str, Any]:
     if source != "main":
         embed.set_footer(text=source)
     view = build_view(config.buttons)
-    await channel.send(embed=embed, view=view)
+    msg = await channel.send(embed=embed, view=view)
+    track_message(msg.id)
     if source == "bg":
         _bg_output_sent_var.set(True)
     return {"content": [{"type": "text", "text": "Embed sent."}]}
@@ -220,7 +222,8 @@ async def ping_user(args: dict[str, Any]) -> dict[str, Any]:
     if channel is None:
         return {"content": [{"type": "text", "text": "Error: no active channel"}]}
 
-    await channel.send(f"[bg] {args['message']}")
+    msg = await channel.send(f"[bg] {args['message']}")
+    track_message(msg.id)
     _bg_output_sent_var.set(True)
     return {"content": [{"type": "text", "text": "Message sent."}]}
 

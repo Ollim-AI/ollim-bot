@@ -8,6 +8,8 @@ from collections.abc import AsyncGenerator
 
 import discord
 
+from ollim_bot.sessions import track_message
+
 # Discord allows ~5 edits per 5 seconds per channel.  0.5s gives a
 # responsive feel; discord.py handles any 429s transparently.
 EDIT_INTERVAL = 0.5
@@ -41,6 +43,7 @@ async def stream_to_channel(
             return
         if msg is None:
             msg = await channel.send(chunk[:MAX_MSG_LEN])
+            track_message(msg.id)
         else:
             await msg.edit(content=chunk[:MAX_MSG_LEN])
         # Only overflow when the snapshot itself exceeded the limit.
@@ -55,6 +58,7 @@ async def stream_to_channel(
             remaining = buf[msg_start:]
             if remaining:
                 msg = await channel.send(remaining[:MAX_MSG_LEN])
+                track_message(msg.id)
         stale = False
 
     async def _wait(seconds: float) -> None:
@@ -91,4 +95,5 @@ async def stream_to_channel(
     await flush()
 
     if not buf:
-        await channel.send("hmm, I didn't have a response for that.")
+        msg = await channel.send("hmm, I didn't have a response for that.")
+        track_message(msg.id)
