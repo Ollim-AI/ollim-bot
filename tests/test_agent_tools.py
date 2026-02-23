@@ -21,6 +21,7 @@ from ollim_bot.forks import (
     pop_enter_fork,
     pop_exit_action,
     pop_pending_updates,
+    set_busy,
     set_in_fork,
     set_interactive_fork,
 )
@@ -574,3 +575,62 @@ def test_ping_user_decrements_budget(data_dir):
 
     assert ping_budget.load().used == 1
     set_in_fork(False)
+
+
+# --- busy enforcement ---
+
+
+def test_ping_user_blocked_when_busy():
+    ch = InMemoryChannel()
+    set_fork_channel(ch)
+    set_in_fork(True)
+    set_busy(True)
+
+    result = _run(_ping({"message": "hey"}))
+
+    assert "mid-conversation" in result["content"][0]["text"]
+    assert len(ch.messages) == 0
+    set_in_fork(False)
+    set_busy(False)
+
+
+def test_ping_user_critical_bypasses_busy(data_dir):
+    ch = InMemoryChannel()
+    set_fork_channel(ch)
+    set_in_fork(True)
+    set_busy(True)
+
+    result = _run(_ping({"message": "urgent", "critical": True}))
+
+    assert result["content"][0]["text"] == "Message sent."
+    assert len(ch.messages) == 1
+    set_in_fork(False)
+    set_busy(False)
+
+
+def test_embed_blocked_when_busy():
+    ch = InMemoryChannel()
+    set_fork_channel(ch)
+    set_in_fork(True)
+    set_busy(True)
+
+    result = _run(_embed({"title": "test"}))
+
+    assert "mid-conversation" in result["content"][0]["text"]
+    assert len(ch.messages) == 0
+    set_in_fork(False)
+    set_busy(False)
+
+
+def test_embed_critical_bypasses_busy(data_dir):
+    ch = InMemoryChannel()
+    set_fork_channel(ch)
+    set_in_fork(True)
+    set_busy(True)
+
+    result = _run(_embed({"title": "Urgent", "critical": True}))
+
+    assert result["content"][0]["text"] == "Embed sent."
+    assert len(ch.messages) == 1
+    set_in_fork(False)
+    set_busy(False)
