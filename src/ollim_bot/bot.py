@@ -365,16 +365,25 @@ def create_bot() -> commands.Bot:
             await agent.set_permission_mode(mode.value)
         await interaction.response.send_message(f"permissions: {mode.value}")
 
-    @bot.tree.command(name="ping-budget", description="View or set daily ping budget")
-    @discord.app_commands.describe(limit="New daily limit (omit to view current)")
+    @bot.tree.command(name="ping-budget", description="View or set ping budget")
+    @discord.app_commands.describe(
+        capacity="Max pings (omit to view current)",
+        refill_rate="Minutes per refill (default 90)",
+    )
     async def slash_ping_budget(
-        interaction: discord.Interaction, limit: int | None = None
+        interaction: discord.Interaction,
+        capacity: int | None = None,
+        refill_rate: int | None = None,
     ):
-        if limit is not None:
-            ping_budget.set_limit(limit)
-            await interaction.response.send_message(f"ping budget set to {limit}/day.")
-        else:
+        if capacity is not None:
+            ping_budget.set_capacity(capacity)
+        if refill_rate is not None:
+            ping_budget.set_refill_rate(refill_rate)
+        if capacity is not None or refill_rate is not None:
             status = ping_budget.get_status()
+            await interaction.response.send_message(f"ping budget updated: {status}.")
+        else:
+            status = ping_budget.get_full_status()
             await interaction.response.send_message(f"ping budget: {status}.")
 
     return bot

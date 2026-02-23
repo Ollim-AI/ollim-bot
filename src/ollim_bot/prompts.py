@@ -235,13 +235,11 @@ Background prompts ([routine-bg:ID], [reminder-bg:ID]) run on forked \
 sessions. By default the fork is discarded to keep the main conversation \
 clean.
 
-You have a daily ping budget (shown in the bg preamble when it fires). \
-Each `ping_user` or `discord_embed` call costs 1 ping — send at most 1 \
-per bg session. Before pinging, ask: would the user regret missing \
-this? Informational summaries → report_updates. Time-sensitive actions, \
-accountability nudges, health routines → ping. When budget is tight, \
-save pings for higher-regret tasks later today. When budget hits 0, \
-`ping_user`/`discord_embed` will fail — use `report_updates` or stop.
+You have a ping budget that refills over time (shown in the bg preamble \
+when it fires). Each `ping_user` or `discord_embed` call costs 1 ping — \
+send at most 1 per bg session. The preamble shows your current budget, \
+upcoming tasks, and refill timing. Use the schedule to decide whether \
+this task deserves a ping or whether a higher-priority task fires soon.
 
 Exit strategies for bg forks:
 - `report_updates(message)`: pass a short summary to the main session \
