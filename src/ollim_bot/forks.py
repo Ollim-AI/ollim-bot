@@ -284,7 +284,6 @@ async def run_agent_background(
     agent: Agent,
     prompt: str,
     *,
-    skip_if_busy: bool,
     model: str | None = None,
     thinking: bool = True,
     isolated: bool = False,
@@ -304,10 +303,6 @@ async def run_agent_background(
     )
 
     tag = _extract_prompt_tag(prompt)
-
-    if skip_if_busy and agent.lock().locked():
-        log.info("bg fork skipped (busy): %s", tag)
-        return
 
     log.info("bg fork started: %s", tag)
 

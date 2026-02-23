@@ -267,11 +267,7 @@ def test_bg_fork_timeout_cancels_and_notifies(monkeypatch, data_dir):
     # Shrink timeout to 0.1s so the test runs fast
     monkeypatch.setattr(forks_mod, "BG_FORK_TIMEOUT", 0.1)
 
-    _run(
-        run_agent_background(
-            owner, agent, "[routine-bg:test] do stuff", skip_if_busy=False
-        )
-    )
+    _run(run_agent_background(owner, agent, "[routine-bg:test] do stuff"))
 
     # Client should have been disconnected
     client.disconnect.assert_awaited()

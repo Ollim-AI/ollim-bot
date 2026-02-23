@@ -15,16 +15,12 @@ def test_routine_new_generates_id():
     assert routine.message == "test"
     assert routine.cron == "0 9 * * *"
     assert routine.background is False
-    assert routine.skip_if_busy is True
 
 
 def test_routine_new_with_background():
-    routine = Routine.new(
-        message="bg task", cron="*/5 * * * *", background=True, skip_if_busy=False
-    )
+    routine = Routine.new(message="bg task", cron="*/5 * * * *", background=True)
 
     assert routine.background is True
-    assert routine.skip_if_busy is False
 
 
 def test_append_and_list_routines(data_dir):

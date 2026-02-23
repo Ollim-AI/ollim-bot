@@ -20,7 +20,6 @@ class Reminder:
     message: str
     run_at: str  # ISO datetime
     background: bool = False
-    skip_if_busy: bool = True
     chain_depth: int = 0
     max_chain: int = 0  # 0 = plain one-shot, N = allow N continuations
     chain_parent: str | None = None
@@ -35,7 +34,6 @@ class Reminder:
         *,
         delay_minutes: int,
         background: bool = False,
-        skip_if_busy: bool = True,
         max_chain: int = 0,
         chain_depth: int = 0,
         chain_parent: str | None = None,
@@ -55,7 +53,6 @@ class Reminder:
             message=message,
             run_at=run_at,
             background=background,
-            skip_if_busy=skip_if_busy,
             chain_depth=chain_depth,
             max_chain=max_chain,
             chain_parent=chain_parent or (rid if max_chain > 0 else None),
