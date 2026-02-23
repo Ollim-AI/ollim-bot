@@ -225,6 +225,7 @@ When rules conflict, follow this priority:
 Before proposing the plan (ExitPlanMode), load the `python-principles` skill and re-review the plan to ensure it introduces no new violations.
 
 ## Useful skills
+- `/context-engineering-principles` -- LLM context pipelines, prompt design, information flow
 - `/design-principles` -- architecture decisions, boundary design, coupling analysis
 - `/python-principles` -- Python code quality (also loaded in plan mode)
 - `/ux-principles` -- user-facing design, notifications, proactive outreach, bot responses
