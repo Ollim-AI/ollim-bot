@@ -201,6 +201,7 @@ Required env vars (set in `.env`): `DISCORD_TOKEN`, `OLLIM_USER_NAME`, `OLLIM_BO
 ## Principles
 
 Read the `python-principles` skill when writing, reviewing, or refactoring Python code.
+Read the `ux-principles` skill when designing user-facing features, notifications, or bot responses.
 
 When rules conflict, follow this priority:
 1. User's explicit request (they asked for it — build it)
@@ -226,6 +227,8 @@ Before proposing the plan (ExitPlanMode), load the `python-principles` skill and
 ## Useful skills
 - `/design-principles` -- architecture decisions, boundary design, coupling analysis
 - `/python-principles` -- Python code quality (also loaded in plan mode)
+- `/ux-principles` -- user-facing design, notifications, proactive outreach, bot responses
+- `/async-principles` -- concurrency, fork state, locks, contextvars, file I/O atomicity
 - `/improve-prompt` -- audit and improve agent prompts, system prompts, skill definitions
 - `/learn-skill` -- capture a workflow into a reusable SKILL.md
 - `/mermaid` -- generate architecture/flow diagrams as PNG
