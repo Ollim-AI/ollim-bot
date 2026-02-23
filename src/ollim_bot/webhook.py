@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import hmac
 import logging
 from dataclasses import dataclass
 from typing import Any
@@ -98,3 +99,9 @@ def build_webhook_prompt(
         f"TASK (from your webhook spec -- this is your instruction):\n"
         f"{filled_template}"
     )
+
+
+def verify_auth(auth_header: str, secret: str) -> bool:
+    """Constant-time comparison of Bearer token."""
+    expected = f"Bearer {secret}"
+    return hmac.compare_digest(auth_header, expected)
