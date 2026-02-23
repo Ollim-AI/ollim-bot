@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-import asyncio
 import contextlib
 import json
-from typing import Any
+import logging
+from typing import Any, NamedTuple
 
+import anyio
 import discord
 from claude_agent_sdk.types import (
     PermissionResult,
@@ -15,15 +16,16 @@ from claude_agent_sdk.types import (
     ToolPermissionContext,
 )
 
-from ollim_bot.formatting import format_tool_label
 from ollim_bot.forks import in_bg_fork
+from ollim_bot.formatting import format_tool_label
+
+log = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # State
 # ---------------------------------------------------------------------------
 
 _channel: discord.abc.Messageable | None = None
-_pending: dict[int, asyncio.Future[str]] = {}
 _session_allowed: set[str] = set()
 _dont_ask: bool = True
 
@@ -31,6 +33,14 @@ _dont_ask: bool = True
 APPROVE = "\N{WHITE HEAVY CHECK MARK}"
 DENY = "\N{CROSS MARK}"
 ALWAYS = "\N{OPEN LOCK}"
+
+
+class _PendingApproval(NamedTuple):
+    event: anyio.Event
+    result: list[str]  # mutable container — first element is the emoji
+
+
+_pending: dict[int, _PendingApproval] = {}
 
 
 def dont_ask() -> bool:
@@ -62,28 +72,29 @@ def session_allow(tool_name: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Future resolution
+# Approval resolution
 # ---------------------------------------------------------------------------
 
 
 def resolve_approval(message_id: int, emoji: str) -> None:
-    """Resolve a pending approval Future. Safe to call from any context."""
-    future = _pending.get(message_id)
-    if future is None or future.done():
+    """Resolve a pending approval. Safe to call from any context."""
+    entry = _pending.get(message_id)
+    if entry is None or entry.event.is_set():
         return
-    future.set_result(emoji)
+    entry.result.append(emoji)
+    entry.event.set()
 
 
 def cancel_pending() -> None:
-    """Cancel all pending approval Futures."""
-    for future in _pending.values():
-        if not future.done():
-            future.cancel()
+    """Wake all pending approvals so they return (with empty result → deny)."""
+    for entry in _pending.values():
+        if not entry.event.is_set():
+            entry.event.set()
     _pending.clear()
 
 
 def reset() -> None:
-    """Clear session-allowed set and cancel all pending Futures. Called on /clear."""
+    """Clear session-allowed set and cancel all pending approvals. Called on /clear."""
     cancel_pending()
     _session_allowed.clear()
 
@@ -96,7 +107,13 @@ def reset() -> None:
 async def request_approval(
     tool_name: str, input_data: dict[str, Any]
 ) -> PermissionResult:
-    """Send approval message to Discord, await reaction, return result."""
+    """Send approval message to Discord, await reaction, return result.
+
+    Uses anyio primitives (Event + fail_after) because this callback runs
+    inside the SDK's anyio task group.  Raw asyncio.Future + wait_for can
+    leave the anyio task in a broken state after resolution, causing the
+    SDK's subsequent transport.write() to silently hang.
+    """
     if is_session_allowed(tool_name):
         return PermissionResultAllow()
 
@@ -114,18 +131,26 @@ async def request_approval(
     except discord.DiscordException:
         return PermissionResultDeny(message="failed to send approval request")
 
-    loop = asyncio.get_running_loop()
-    future: asyncio.Future[str] = loop.create_future()
-    _pending[msg.id] = future
+    entry = _PendingApproval(event=anyio.Event(), result=[])
+    _pending[msg.id] = entry
 
     try:
-        emoji = await asyncio.wait_for(future, timeout=60)
-    except (TimeoutError, asyncio.CancelledError):
+        with anyio.fail_after(60):
+            await entry.event.wait()
+    except TimeoutError:
         with contextlib.suppress(discord.DiscordException):
             await msg.edit(content=f"~~{text}~~ — timed out")
         return PermissionResultDeny(message="approval timed out")
     finally:
         _pending.pop(msg.id, None)
+
+    if not entry.result:
+        # Woken by cancel_pending() with no emoji → treat as deny
+        with contextlib.suppress(discord.DiscordException):
+            await msg.edit(content=f"~~{text}~~ — cancelled")
+        return PermissionResultDeny(message="approval cancelled")
+
+    emoji = entry.result[0]
 
     if emoji == APPROVE:
         with contextlib.suppress(discord.DiscordException):

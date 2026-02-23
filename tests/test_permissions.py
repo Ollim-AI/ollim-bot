@@ -2,6 +2,7 @@
 
 import asyncio
 
+import anyio
 import pytest
 from claude_agent_sdk.types import (
     PermissionResultAllow,
@@ -11,6 +12,7 @@ from claude_agent_sdk.types import (
 
 from ollim_bot.forks import set_in_fork
 from ollim_bot.permissions import (
+    _PendingApproval,
     cancel_pending,
     dont_ask,
     handle_tool_permission,
@@ -44,19 +46,17 @@ def test_reset_clears_session_allowed():
     assert is_session_allowed("WebFetch") is False
 
 
-def test_resolve_approval_sets_future():
-    loop = asyncio.new_event_loop()
-    future: asyncio.Future[str] = loop.create_future()
+def test_resolve_approval_sets_result():
     reset()
 
     from ollim_bot.permissions import _pending
 
-    _pending[12345] = future
+    entry = _PendingApproval(event=anyio.Event(), result=[])
+    _pending[12345] = entry
     resolve_approval(12345, "\N{WHITE HEAVY CHECK MARK}")
 
-    assert future.done()
-    assert loop.run_until_complete(future) == "\N{WHITE HEAVY CHECK MARK}"
-    loop.close()
+    assert entry.event.is_set()
+    assert entry.result == ["\N{WHITE HEAVY CHECK MARK}"]
 
 
 def test_resolve_approval_ignores_unknown_message():
@@ -64,59 +64,55 @@ def test_resolve_approval_ignores_unknown_message():
     resolve_approval(99999, "\N{WHITE HEAVY CHECK MARK}")
 
 
-def test_resolve_approval_ignores_already_done():
-    loop = asyncio.new_event_loop()
-    future: asyncio.Future[str] = loop.create_future()
-    future.set_result("\N{WHITE HEAVY CHECK MARK}")
+def test_resolve_approval_ignores_already_set():
     reset()
 
     from ollim_bot.permissions import _pending
 
-    _pending[12345] = future
+    entry = _PendingApproval(event=anyio.Event(), result=["\N{WHITE HEAVY CHECK MARK}"])
+    entry.event.set()
+    _pending[12345] = entry
 
     resolve_approval(12345, "\N{CROSS MARK}")
 
-    assert loop.run_until_complete(future) == "\N{WHITE HEAVY CHECK MARK}"
-    loop.close()
+    assert entry.result == ["\N{WHITE HEAVY CHECK MARK}"]
 
 
-def test_cancel_pending_cancels_all():
-    loop = asyncio.new_event_loop()
-    f1: asyncio.Future[str] = loop.create_future()
-    f2: asyncio.Future[str] = loop.create_future()
+def test_cancel_pending_sets_events():
     reset()
 
     from ollim_bot.permissions import _pending
 
-    _pending[1] = f1
-    _pending[2] = f2
+    e1 = _PendingApproval(event=anyio.Event(), result=[])
+    e2 = _PendingApproval(event=anyio.Event(), result=[])
+    _pending[1] = e1
+    _pending[2] = e2
 
     cancel_pending()
 
-    assert f1.cancelled()
-    assert f2.cancelled()
+    assert e1.event.is_set()
+    assert e2.event.is_set()
+    assert e1.result == []  # no emoji — caller treats as cancel
+    assert e2.result == []
 
     from ollim_bot.permissions import _pending as after
 
     assert len(after) == 0
-    loop.close()
 
 
 def test_reset_cancels_pending_and_clears_allowed():
-    loop = asyncio.new_event_loop()
-    future: asyncio.Future[str] = loop.create_future()
     reset()
 
     from ollim_bot.permissions import _pending
 
-    _pending[1] = future
+    entry = _PendingApproval(event=anyio.Event(), result=[])
+    _pending[1] = entry
     session_allow("Bash")
 
     reset()
 
-    assert future.cancelled()
+    assert entry.event.is_set()
     assert is_session_allowed("Bash") is False
-    loop.close()
 
 
 # --- canUseTool callback ---
