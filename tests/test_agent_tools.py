@@ -695,3 +695,79 @@ def test_report_updates_blocked_when_update_blocked(data_dir):
     assert "disabled" in result["content"][0]["text"].lower()
     set_in_fork(False)
     set_bg_fork_config(BgForkConfig())
+
+
+# --- stop hook update_main_session modes ---
+
+
+def test_stop_hook_blocks_on_always_without_report():
+    from ollim_bot.agent_tools import require_report_hook
+    from ollim_bot.forks import init_bg_output_flag, init_bg_reported_flag
+
+    set_in_fork(True)
+    init_bg_output_flag()
+    init_bg_reported_flag()
+    set_bg_fork_config(BgForkConfig(update_main_session="always"))
+
+    result = _run(require_report_hook({}, None, {"signal": None}))
+
+    assert "report_updates" in result.get("systemMessage", "")
+    set_in_fork(False)
+    set_bg_fork_config(BgForkConfig())
+
+
+def test_stop_hook_allows_on_always_with_report():
+    from ollim_bot.agent_tools import require_report_hook
+    from ollim_bot.forks import (
+        init_bg_output_flag,
+        init_bg_reported_flag,
+        mark_bg_reported,
+    )
+
+    set_in_fork(True)
+    init_bg_output_flag()
+    init_bg_reported_flag()
+    mark_bg_reported()
+    set_bg_fork_config(BgForkConfig(update_main_session="always"))
+
+    result = _run(require_report_hook({}, None, {"signal": None}))
+
+    assert result == {}
+    set_in_fork(False)
+    set_bg_fork_config(BgForkConfig())
+
+
+def test_stop_hook_allows_on_freely_with_unreported_output(data_dir):
+    from ollim_bot.agent_tools import require_report_hook
+    from ollim_bot.forks import init_bg_output_flag
+
+    ch = InMemoryChannel()
+    set_fork_channel(ch)
+    set_in_fork(True)
+    init_bg_output_flag()
+    set_bg_fork_config(BgForkConfig(update_main_session="freely"))
+
+    async def _check():
+        await _ping({"message": "test"})
+        return await require_report_hook({}, None, {"signal": None})
+
+    result = _run(_check())
+
+    assert result == {}
+    set_in_fork(False)
+    set_bg_fork_config(BgForkConfig())
+
+
+def test_stop_hook_allows_on_blocked():
+    from ollim_bot.agent_tools import require_report_hook
+    from ollim_bot.forks import init_bg_output_flag
+
+    set_in_fork(True)
+    init_bg_output_flag()
+    set_bg_fork_config(BgForkConfig(update_main_session="blocked"))
+
+    result = _run(require_report_hook({}, None, {"signal": None}))
+
+    assert result == {}
+    set_in_fork(False)
+    set_bg_fork_config(BgForkConfig())

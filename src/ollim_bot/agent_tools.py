@@ -486,16 +486,28 @@ async def require_report_hook(
     tool_use_id: str | None,
     context: HookContext,
 ) -> SyncHookJSONOutput:
-    """Stop hook: prevent bg fork from stopping with unreported output."""
-    if not in_bg_fork() or not bg_output_sent():
+    """Stop hook: enforce update_main_session policy for bg forks."""
+    if not in_bg_fork():
         return {}
-    return SyncHookJSONOutput(
-        systemMessage=(
-            "You sent visible output (ping/embed) but haven't called "
-            "report_updates. Call it now to bridge your findings to the "
-            "main session."
-        ),
-    )
+    mode = get_bg_fork_config().update_main_session
+    if mode in ("freely", "blocked"):
+        return {}
+    if mode == "always" and not bg_reported():
+        return SyncHookJSONOutput(
+            systemMessage=(
+                "You haven't called report_updates yet. Call it now to update "
+                "the main session on what happened."
+            ),
+        )
+    if mode == "on_ping" and bg_output_sent():
+        return SyncHookJSONOutput(
+            systemMessage=(
+                "You sent visible output (ping/embed) but haven't called "
+                "report_updates. Call it now to update the main session on "
+                "what happened."
+            ),
+        )
+    return {}
 
 
 agent_server = create_sdk_mcp_server(
