@@ -2,16 +2,26 @@
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import copy
 import hmac
 import json as json_mod
 import logging
+import os
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
+from aiohttp import web
 from jsonschema import Draft7Validator
 
 from ollim_bot.storage import DATA_DIR, read_md_dir
+
+if TYPE_CHECKING:
+    import discord
+
+    from ollim_bot.agent import Agent
 
 log = logging.getLogger(__name__)
 
@@ -150,3 +160,127 @@ def parse_screening_response(text: str) -> list[str]:
     except ValueError:
         log.warning("Screening response malformed, treating as safe: %.200s", text)
     return []
+
+
+# ---------------------------------------------------------------------------
+# HTTP handler
+# ---------------------------------------------------------------------------
+
+_MAX_PAYLOAD_SIZE = 10 * 1024  # 10KB
+
+_KEY_SECRET = web.AppKey("secret", str)
+_KEY_AGENT = web.AppKey("agent")
+_KEY_OWNER = web.AppKey("owner")
+_KEY_PROCESS_FN = web.AppKey("process_fn")
+
+
+async def _default_process(
+    agent: Agent,
+    owner: discord.User,
+    spec: WebhookSpec,
+    data: dict[str, Any],
+    prompt: str,
+) -> None:
+    """Default processor: screen with Haiku, then dispatch bg fork."""
+    from ollim_bot.forks import BgForkConfig, run_agent_background
+
+    string_fields = extract_string_fields(spec, data)
+    if string_fields:
+        flagged = await _screen_with_haiku(agent, string_fields)
+        if flagged:
+            log.warning(
+                "Webhook %s: flagged fields %s, skipping dispatch", spec.id, flagged
+            )
+            return
+
+    bg_config = BgForkConfig(
+        update_main_session=spec.update_main_session,
+        allow_ping=spec.allow_ping,
+    )
+    await run_agent_background(
+        owner,
+        agent,
+        prompt,
+        model=spec.model,
+        thinking=spec.thinking,
+        isolated=spec.isolated,
+        bg_config=bg_config,
+    )
+
+
+async def _screen_with_haiku(agent: Agent, string_fields: dict[str, str]) -> list[str]:
+    """Screen string field values for prompt injection via Haiku."""
+    from claude_agent_sdk import AssistantMessage, ResultMessage, TextBlock
+
+    prompt = build_screening_prompt(string_fields)
+    client = await agent.create_isolated_client(model="haiku", thinking=False)
+    try:
+        await client.query(prompt)
+        text = ""
+        async for msg in client.receive_response():
+            if isinstance(msg, AssistantMessage):
+                for block in msg.content:
+                    if isinstance(block, TextBlock):
+                        text += block.text
+            elif isinstance(msg, ResultMessage):
+                if not text and msg.result:
+                    text = msg.result
+        return parse_screening_response(text)
+    except Exception:
+        log.exception("Haiku screening failed, treating as safe")
+        return []
+    finally:
+        with contextlib.suppress(Exception):
+            await client.disconnect()
+
+
+async def _handle_webhook(request: web.Request) -> web.Response:
+    """Handle POST /hook/{slug}."""
+    secret: str = request.app[_KEY_SECRET]
+    if not verify_auth(request.headers.get("Authorization", ""), secret):
+        return web.json_response({"error": "unauthorized"}, status=401)
+
+    slug = request.match_info["slug"]
+    spec = load_webhook(slug)
+    if spec is None:
+        return web.json_response({"error": f"webhook not found: {slug}"}, status=404)
+
+    try:
+        data = await request.json()
+    except Exception:
+        return web.json_response({"error": "invalid json"}, status=400)
+
+    errors = validate_payload(spec.fields, data)
+    if errors:
+        return web.json_response(
+            {"error": "validation failed", "details": errors}, status=400
+        )
+
+    busy = False
+    agent: Agent | None = request.app.get(_KEY_AGENT)
+    if agent:
+        busy = agent.lock().locked()
+
+    prompt = build_webhook_prompt(spec, data, busy=busy)
+    process_fn: Callable = request.app[_KEY_PROCESS_FN]
+    owner = request.app.get(_KEY_OWNER)
+
+    asyncio.create_task(process_fn(agent, owner, spec, data, prompt))
+    return web.json_response({"status": "accepted"}, status=202)
+
+
+def create_app(
+    *,
+    secret: str,
+    agent: Agent | None = None,
+    owner: discord.User | None = None,
+    process_fn: Callable | None = None,
+) -> web.Application:
+    """Create aiohttp application for webhook handling."""
+    app = web.Application(client_max_size=_MAX_PAYLOAD_SIZE)
+    app[_KEY_SECRET] = secret
+    app[_KEY_AGENT] = agent
+    app[_KEY_OWNER] = owner
+    app[_KEY_PROCESS_FN] = process_fn or _default_process
+    app.router.add_post("/hook/{slug}", _handle_webhook)
+    return app

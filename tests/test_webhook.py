@@ -1,9 +1,15 @@
 """Tests for webhook.py — spec parsing, validation, prompt construction, auth."""
 
+import asyncio
+
+import pytest
+from aiohttp.test_utils import TestClient, TestServer
+
 from ollim_bot.webhook import (  # noqa: F401
     WebhookSpec,
     build_screening_prompt,
     build_webhook_prompt,
+    create_app,
     extract_string_fields,
     list_webhooks,
     load_webhook,
@@ -351,3 +357,132 @@ def test_parse_screening_response_malformed():
     flagged = parse_screening_response("I cannot determine this")
 
     assert flagged == []
+
+
+def _write_spec(data_dir):
+    """Write a test webhook spec and return the webhooks dir."""
+    webhooks_dir = data_dir / "webhooks"
+    webhooks_dir.mkdir(exist_ok=True)
+    (webhooks_dir / "ci.md").write_text(
+        "---\n"
+        'id: "ci"\n'
+        "isolated: true\n"
+        'model: "haiku"\n'
+        "fields:\n"
+        "  type: object\n"
+        "  required:\n"
+        "    - repo\n"
+        "    - status\n"
+        "  properties:\n"
+        "    repo:\n"
+        "      type: string\n"
+        "      maxLength: 200\n"
+        "    status:\n"
+        "      type: string\n"
+        "      enum: [success, failure]\n"
+        "  additionalProperties: false\n"
+        "---\n"
+        "CI for {repo}: {status}.\n"
+    )
+
+
+@pytest.mark.asyncio
+async def test_handler_returns_202(data_dir):
+    _write_spec(data_dir)
+    processed = []
+
+    async def record(agent, owner, spec, data, prompt):
+        processed.append({"spec_id": spec.id, "data": data})
+
+    app = create_app(secret="test-secret", process_fn=record)
+    async with TestClient(TestServer(app)) as client:
+        resp = await client.post(
+            "/hook/ci",
+            json={"repo": "ollim-bot", "status": "failure"},
+            headers={"Authorization": "Bearer test-secret"},
+        )
+        assert resp.status == 202
+        body = await resp.json()
+        assert body["status"] == "accepted"
+
+    # Let the fire-and-forget task complete
+    await asyncio.sleep(0.01)
+    assert len(processed) == 1
+    assert processed[0]["spec_id"] == "ci"
+    assert processed[0]["data"] == {"repo": "ollim-bot", "status": "failure"}
+
+
+@pytest.mark.asyncio
+async def test_handler_401_wrong_token(data_dir):
+    app = create_app(secret="real-secret")
+    async with TestClient(TestServer(app)) as client:
+        resp = await client.post(
+            "/hook/ci",
+            json={"repo": "test"},
+            headers={"Authorization": "Bearer wrong"},
+        )
+        assert resp.status == 401
+
+
+@pytest.mark.asyncio
+async def test_handler_401_missing_header(data_dir):
+    app = create_app(secret="real-secret")
+    async with TestClient(TestServer(app)) as client:
+        resp = await client.post("/hook/ci", json={"repo": "test"})
+        assert resp.status == 401
+
+
+@pytest.mark.asyncio
+async def test_handler_404_unknown_slug(data_dir):
+    app = create_app(secret="s")
+    async with TestClient(TestServer(app)) as client:
+        resp = await client.post(
+            "/hook/nonexistent",
+            json={},
+            headers={"Authorization": "Bearer s"},
+        )
+        assert resp.status == 404
+
+
+@pytest.mark.asyncio
+async def test_handler_400_missing_required_field(data_dir):
+    _write_spec(data_dir)
+    app = create_app(secret="s")
+    async with TestClient(TestServer(app)) as client:
+        resp = await client.post(
+            "/hook/ci",
+            json={"repo": "test"},  # missing 'status'
+            headers={"Authorization": "Bearer s"},
+        )
+        assert resp.status == 400
+        body = await resp.json()
+        assert "validation" in body["error"].lower()
+
+
+@pytest.mark.asyncio
+async def test_handler_400_extra_field(data_dir):
+    _write_spec(data_dir)
+    app = create_app(secret="s")
+    async with TestClient(TestServer(app)) as client:
+        resp = await client.post(
+            "/hook/ci",
+            json={"repo": "test", "status": "success", "evil": "inject"},
+            headers={"Authorization": "Bearer s"},
+        )
+        assert resp.status == 400
+
+
+@pytest.mark.asyncio
+async def test_handler_400_invalid_json(data_dir):
+    _write_spec(data_dir)
+    app = create_app(secret="s")
+    async with TestClient(TestServer(app)) as client:
+        resp = await client.post(
+            "/hook/ci",
+            data=b"not json",
+            headers={
+                "Authorization": "Bearer s",
+                "Content-Type": "application/json",
+            },
+        )
+        assert resp.status == 400
