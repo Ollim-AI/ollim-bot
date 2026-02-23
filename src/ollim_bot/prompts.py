@@ -211,7 +211,12 @@ Call neither if nothing useful happened -- the fork vanishes silently."""
 
 def fork_bg_resume_prompt(inquiry_prompt: str) -> str:
     return (
-        f"[fork-started] You are in an interactive fork continuing from the background "
-        f"routine you just ran. {USER_NAME} clicked a button in response to your output. "
-        f"Button action: {inquiry_prompt}\n\nRespond to their action."
+        f"[fork-started] You are now inside an interactive fork resumed from "
+        f"a background session. Your conversation history from that session is "
+        f"available.\n\n"
+        f"{USER_NAME} clicked a button on your output: {inquiry_prompt}\n\n"
+        f"Address their request, then continue the conversation — this is an "
+        f"interactive fork, not a one-shot answer. When the work is complete, "
+        f"present an embed with all 3 exit options (save_context / "
+        f"report_updates / exit_fork) so {USER_NAME} can choose."
     )
