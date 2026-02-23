@@ -64,8 +64,10 @@ async def append_update(message: str) -> None:
         )
         updates.append({"ts": datetime.now(_TZ).isoformat(), "message": message})
         fd, tmp = tempfile.mkstemp(dir=_UPDATES_FILE.parent, suffix=".tmp")
-        os.write(fd, json.dumps(updates).encode())
-        os.close(fd)
+        try:
+            os.write(fd, json.dumps(updates).encode())
+        finally:
+            os.close(fd)
         os.replace(tmp, _UPDATES_FILE)
 
 
@@ -77,10 +79,15 @@ def peek_pending_updates() -> list[str]:
     return [u["message"] for u in updates]
 
 
-def clear_pending_updates() -> None:
-    """Delete the pending updates file if it exists."""
-    if _UPDATES_FILE.exists():
-        _UPDATES_FILE.unlink()
+async def clear_pending_updates() -> None:
+    """Delete the pending updates file if it exists.
+
+    Lock ensures atomicity with concurrent append_update calls —
+    without it a bg fork's in-progress append can restore cleared data.
+    """
+    async with _updates_lock:
+        if _UPDATES_FILE.exists():
+            _UPDATES_FILE.unlink()
 
 
 async def pop_pending_updates() -> list[str]:

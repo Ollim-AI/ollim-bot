@@ -53,8 +53,10 @@ def save(state: BudgetState) -> None:
     """Atomic write via tempfile + os.replace. No git commit — ephemeral state."""
     BUDGET_FILE.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=BUDGET_FILE.parent, suffix=".tmp")
-    os.write(fd, json.dumps(asdict(state)).encode())
-    os.close(fd)
+    try:
+        os.write(fd, json.dumps(asdict(state)).encode())
+    finally:
+        os.close(fd)
     os.replace(tmp, BUDGET_FILE)
 
 

@@ -174,8 +174,10 @@ def write_md(dir_path: Path, item: T, commit_msg: str) -> None:
 
     content = _serialize_md(item)
     fd, tmp = tempfile.mkstemp(dir=dir_path, suffix=".tmp")
-    os.write(fd, content.encode())
-    os.close(fd)
+    try:
+        os.write(fd, content.encode())
+    finally:
+        os.close(fd)
     os.replace(tmp, target)
     git_commit(target, commit_msg)
 
@@ -226,8 +228,10 @@ def remove_jsonl(filepath: Path, item_id: str, cls: type[T], commit_msg: str) ->
         return False
     content = "".join(json.dumps(asdict(i)) + "\n" for i in filtered)  # type: ignore[call-overload]
     fd, tmp = tempfile.mkstemp(dir=filepath.parent, suffix=".tmp")
-    os.write(fd, content.encode())
-    os.close(fd)
+    try:
+        os.write(fd, content.encode())
+    finally:
+        os.close(fd)
     os.replace(tmp, filepath)
     git_commit(filepath, commit_msg)
     return True
