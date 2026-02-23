@@ -153,7 +153,7 @@ def test_report_updates_not_in_fork():
     assert "not in a forked session" in result["content"][0]["text"]
 
 
-def test_report_updates_appends_to_file():
+def test_report_updates_appends_to_file(data_dir):
     _run(pop_pending_updates())
     set_in_fork(True)
 
@@ -257,7 +257,7 @@ def test_save_context_blocked_in_bg_fork_even_with_interactive():
 # --- report_updates (interactive fork mode) ---
 
 
-def test_report_updates_in_interactive_fork():
+def test_report_updates_in_interactive_fork(data_dir):
     _run(pop_pending_updates())
     set_in_fork(False)
     set_interactive_fork(True, idle_timeout=10)
@@ -348,11 +348,12 @@ def test_embed_footer_interactive_fork(data_dir):
 
 
 def test_bg_output_flag_set_on_ping(data_dir):
-    from ollim_bot.agent_tools import bg_output_sent
+    from ollim_bot.forks import bg_output_sent, init_bg_output_flag
 
     ch = InMemoryChannel()
     set_fork_channel(ch)
     set_in_fork(True)
+    init_bg_output_flag()
 
     async def _check():
         await _ping({"message": "test"})
@@ -363,11 +364,12 @@ def test_bg_output_flag_set_on_ping(data_dir):
 
 
 def test_bg_output_flag_set_on_embed(data_dir):
-    from ollim_bot.agent_tools import bg_output_sent
+    from ollim_bot.forks import bg_output_sent, init_bg_output_flag
 
     ch = InMemoryChannel()
     set_fork_channel(ch)
     set_in_fork(True)
+    init_bg_output_flag()
 
     async def _check():
         await _embed({"title": "Test"})
@@ -378,12 +380,13 @@ def test_bg_output_flag_set_on_embed(data_dir):
 
 
 def test_bg_output_flag_cleared_on_report(data_dir):
-    from ollim_bot.agent_tools import bg_output_sent
+    from ollim_bot.forks import bg_output_sent, init_bg_output_flag
 
     ch = InMemoryChannel()
     set_fork_channel(ch)
     _run(pop_pending_updates())
     set_in_fork(True)
+    init_bg_output_flag()
 
     async def _check():
         await _ping({"message": "test"})
@@ -406,8 +409,10 @@ def test_stop_hook_allows_normal_stop():
 
 def test_stop_hook_allows_bg_stop_without_output():
     from ollim_bot.agent_tools import require_report_hook
+    from ollim_bot.forks import init_bg_output_flag
 
     set_in_fork(True)
+    init_bg_output_flag()
 
     result = _run(require_report_hook({}, None, {"signal": None}))
 
@@ -417,10 +422,12 @@ def test_stop_hook_allows_bg_stop_without_output():
 
 def test_stop_hook_blocks_bg_stop_with_unreported_output(data_dir):
     from ollim_bot.agent_tools import require_report_hook
+    from ollim_bot.forks import init_bg_output_flag
 
     ch = InMemoryChannel()
     set_fork_channel(ch)
     set_in_fork(True)
+    init_bg_output_flag()
 
     async def _check():
         await _ping({"message": "test"})

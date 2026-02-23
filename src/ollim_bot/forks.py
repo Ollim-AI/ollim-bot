@@ -49,6 +49,33 @@ def in_bg_fork() -> bool:
 
 
 # ---------------------------------------------------------------------------
+# Bg output tracking — mutable container so mutations propagate across
+# sibling tasks in the SDK's anyio task group (ContextVar with immutable
+# bool does NOT propagate between start_soon tasks).
+# ---------------------------------------------------------------------------
+
+_bg_output_flag: ContextVar[list[bool] | None] = ContextVar(
+    "_bg_output_flag", default=None
+)
+
+
+def init_bg_output_flag() -> None:
+    """Call before client connect() so all child tasks share the mutable ref."""
+    _bg_output_flag.set([False])
+
+
+def mark_bg_output(sent: bool) -> None:
+    flag = _bg_output_flag.get()
+    if flag is not None:
+        flag[0] = sent
+
+
+def bg_output_sent() -> bool:
+    flag = _bg_output_flag.get()
+    return bool(flag and flag[0])
+
+
+# ---------------------------------------------------------------------------
 # Pending updates (fork → main session bridge)
 # ---------------------------------------------------------------------------
 
@@ -80,6 +107,7 @@ async def append_update(message: str) -> None:
         finally:
             os.close(fd)
         os.replace(tmp, _UPDATES_FILE)
+        log.info("pending update appended (now %d): %.80s", len(updates), message)
 
 
 def peek_pending_updates() -> list[PendingUpdate]:
@@ -109,9 +137,11 @@ async def pop_pending_updates() -> list[PendingUpdate]:
     """
     async with _updates_lock:
         if not _UPDATES_FILE.exists():
+            log.debug("pop_pending_updates: file does not exist")
             return []
         updates = json.loads(_UPDATES_FILE.read_text())
         _UPDATES_FILE.unlink()
+        log.info("popped %d pending update(s)", len(updates))
         return [PendingUpdate(ts=u["ts"], message=u["message"]) for u in updates]
 
 
@@ -288,6 +318,7 @@ async def run_agent_background(
     # contextvar propagates through the SDK's task-group spawn chain to reach
     # the can_use_tool callback. See design doc for details.
     set_in_fork(True)
+    init_bg_output_flag()
     start_message_collector()
 
     try:
