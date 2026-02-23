@@ -178,7 +178,7 @@ def _check_bg_budget(args: dict[str, Any]) -> dict[str, Any] | None:
             },
             "critical": {
                 "type": "boolean",
-                "description": "Set true only for genuinely urgent/time-sensitive items",
+                "description": "Set true only for events starting within 30 minutes",
             },
         },
         "required": ["title"],
@@ -234,7 +234,7 @@ async def discord_embed(args: dict[str, Any]) -> dict[str, Any]:
             },
             "critical": {
                 "type": "boolean",
-                "description": "Set true only for genuinely urgent/time-sensitive items",
+                "description": "Set true only for events starting within 30 minutes",
             },
         },
         "required": ["message"],

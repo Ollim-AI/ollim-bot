@@ -200,7 +200,7 @@ def _build_bg_preamble(
         budget_section = (
             f"Ping budget: {budget_status}.\n"
             f"{remaining_line}"
-            f"Send at most 1 ping or embed per bg session. "
+            f"Send at most 1 ping or embed per bg session — multiple routines share the daily budget. "
             f"If budget is 0, do not attempt to ping.\n"
             f"{report_hint}"
             f"critical=True is only for events starting within 30 minutes.\n\n"
