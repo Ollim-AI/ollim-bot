@@ -27,6 +27,8 @@ class Reminder:
     thinking: bool = True
     isolated: bool = False
     description: str = ""
+    update_main_session: str = "on_ping"
+    allow_ping: bool = True
 
     @staticmethod
     def new(
@@ -41,6 +43,8 @@ class Reminder:
         thinking: bool = True,
         isolated: bool = False,
         description: str = "",
+        update_main_session: str = "on_ping",
+        allow_ping: bool = True,
     ) -> "Reminder":
         """Create a reminder, auto-setting chain_parent to own ID for chain roots."""
         run_at = (datetime.now(TZ) + timedelta(minutes=delay_minutes)).isoformat()
@@ -60,6 +64,8 @@ class Reminder:
             thinking=thinking,
             isolated=isolated,
             description=description,
+            update_main_session=update_main_session,
+            allow_ping=allow_ping,
         )
 
 

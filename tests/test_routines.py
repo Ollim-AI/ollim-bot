@@ -84,3 +84,50 @@ def test_routine_model_isolated_roundtrip(data_dir):
 
     assert loaded.model == "sonnet"
     assert loaded.isolated is True
+
+
+def test_routine_new_defaults_update_main_session_allow_ping():
+    routine = Routine.new(message="test", cron="0 9 * * *")
+
+    assert routine.update_main_session == "on_ping"
+    assert routine.allow_ping is True
+
+
+def test_routine_new_custom_bg_config():
+    routine = Routine.new(
+        message="silent",
+        cron="0 9 * * *",
+        background=True,
+        update_main_session="blocked",
+        allow_ping=False,
+    )
+
+    assert routine.update_main_session == "blocked"
+    assert routine.allow_ping is False
+
+
+def test_routine_bg_config_roundtrip(data_dir):
+    routine = Routine.new(
+        message="check",
+        cron="0 9 * * *",
+        background=True,
+        update_main_session="always",
+        allow_ping=False,
+    )
+    append_routine(routine)
+
+    loaded = list_routines()[0]
+
+    assert loaded.update_main_session == "always"
+    assert loaded.allow_ping is False
+
+
+def test_routine_default_bg_config_omitted_from_frontmatter(data_dir):
+    """Default values should not appear in serialized YAML."""
+    routine = Routine.new(message="defaults", cron="0 9 * * *")
+    append_routine(routine)
+
+    loaded = list_routines()[0]
+
+    assert loaded.update_main_session == "on_ping"
+    assert loaded.allow_ping is True
