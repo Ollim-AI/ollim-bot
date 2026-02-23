@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import os
 import tempfile
 import time
@@ -13,6 +14,8 @@ from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo
+
+log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     import discord
@@ -217,6 +220,23 @@ def should_auto_exit() -> bool:
 # ---------------------------------------------------------------------------
 
 
+def _extract_prompt_tag(prompt: str) -> str:
+    """Extract the job tag from a bg fork prompt (e.g. '[routine-bg:morning-checkin]')."""
+    if prompt.startswith("["):
+        return prompt.split("]", 1)[0] + "]"
+    return "bg fork"
+
+
+async def _notify_fork_failure(channel: discord.abc.Messageable, tag: str) -> None:
+    """Best-effort DM notification when a bg fork fails."""
+    try:
+        await channel.send(
+            f"Background task failed: `{tag}` -- check logs for details."
+        )
+    except Exception:
+        log.exception("Failed to send error notification for %s", tag)
+
+
 async def run_agent_background(
     owner: discord.User,
     agent: Agent,
@@ -241,8 +261,13 @@ async def run_agent_background(
         start_message_collector,
     )
 
+    tag = _extract_prompt_tag(prompt)
+
     if skip_if_busy and agent.lock().locked():
+        log.info("bg fork skipped (busy): %s", tag)
         return
+
+    log.info("bg fork started: %s", tag)
 
     dm = await owner.create_dm()
     set_fork_channel(dm)
@@ -273,6 +298,11 @@ async def run_agent_background(
             )
         finally:
             await client.disconnect()
+        log.info("bg fork completed: %s", tag)
+    except Exception:
+        log.exception("bg fork failed: %s", tag)
+        await _notify_fork_failure(dm, tag)
+        raise
     finally:
         set_in_fork(False)
         cancel_message_collector()
