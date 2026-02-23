@@ -284,3 +284,40 @@ def create_app(
     app[_KEY_PROCESS_FN] = process_fn or _default_process
     app.router.add_post("/hook/{slug}", _handle_webhook)
     return app
+
+
+# ---------------------------------------------------------------------------
+# Server lifecycle
+# ---------------------------------------------------------------------------
+
+_runner: web.AppRunner | None = None
+
+
+async def start(agent: Agent, owner: discord.User) -> None:
+    """Start webhook server if WEBHOOK_PORT and WEBHOOK_SECRET are set."""
+    global _runner  # noqa: PLW0603
+    port_str = os.environ.get("WEBHOOK_PORT")
+    secret = os.environ.get("WEBHOOK_SECRET")
+
+    if not port_str:
+        return
+    if not secret:
+        log.error("WEBHOOK_PORT set but WEBHOOK_SECRET missing -- webhook disabled")
+        return
+
+    port = int(port_str)
+    app = create_app(secret=secret, agent=agent, owner=owner)
+    _runner = web.AppRunner(app)
+    await _runner.setup()
+    site = web.TCPSite(_runner, "127.0.0.1", port)
+    await site.start()
+    log.info("Webhook server started on 127.0.0.1:%d", port)
+
+
+async def stop() -> None:
+    """Graceful shutdown of webhook server."""
+    global _runner  # noqa: PLW0603
+    if _runner:
+        await _runner.cleanup()
+        _runner = None
+        log.info("Webhook server stopped")
