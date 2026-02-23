@@ -6,16 +6,14 @@ from zoneinfo import ZoneInfo
 from ollim_bot.forks import BgForkConfig
 from ollim_bot.scheduling.reminders import Reminder
 from ollim_bot.scheduling.routines import Routine
-from ollim_bot.scheduling.scheduler import (
+from ollim_bot.scheduling.preamble import (
     ScheduleEntry,
-    _build_bg_preamble,
-    _build_reminder_prompt,
-    _build_routine_prompt,
-    _build_upcoming_schedule,
-    _convert_dow,
-    _fires_before_midnight,
-    _remaining_bg_routine_firings,
+    build_bg_preamble,
+    build_reminder_prompt,
+    build_routine_prompt,
+    build_upcoming_schedule,
 )
+from ollim_bot.scheduling.preamble import _convert_dow
 
 TZ = ZoneInfo("America/Los_Angeles")
 
@@ -23,7 +21,7 @@ TZ = ZoneInfo("America/Los_Angeles")
 def test_routine_prompt_foreground():
     routine = Routine(id="abc", message="Morning briefing", cron="0 8 * * *")
 
-    prompt = _build_routine_prompt(routine, reminders=[], routines=[])
+    prompt = build_routine_prompt(routine, reminders=[], routines=[])
 
     assert prompt == "[routine:abc] Morning briefing"
 
@@ -33,7 +31,7 @@ def test_routine_prompt_background():
         id="def", message="Silent check", cron="0 8 * * *", background=True
     )
 
-    prompt = _build_routine_prompt(routine, reminders=[], routines=[])
+    prompt = build_routine_prompt(routine, reminders=[], routines=[])
 
     assert prompt.startswith("[routine-bg:def]")
     assert "ping_user" in prompt
@@ -45,7 +43,7 @@ def test_reminder_prompt_plain():
         id="r1", message="Take a break", run_at="2026-02-16T12:00:00-08:00"
     )
 
-    prompt = _build_reminder_prompt(reminder, reminders=[], routines=[])
+    prompt = build_reminder_prompt(reminder, reminders=[], routines=[])
 
     assert "[reminder:r1]" in prompt
     assert "Take a break" in prompt
@@ -60,7 +58,7 @@ def test_reminder_prompt_background():
         background=True,
     )
 
-    prompt = _build_reminder_prompt(reminder, reminders=[], routines=[])
+    prompt = build_reminder_prompt(reminder, reminders=[], routines=[])
 
     assert "[reminder-bg:r2]" in prompt
     assert "ping_user" in prompt
@@ -75,7 +73,7 @@ def test_reminder_prompt_chain_mid():
         max_chain=3,
     )
 
-    prompt = _build_reminder_prompt(reminder, reminders=[], routines=[])
+    prompt = build_reminder_prompt(reminder, reminders=[], routines=[])
 
     assert "CHAIN CONTEXT" in prompt
     assert "check 2 of 4" in prompt
@@ -93,7 +91,7 @@ def test_reminder_prompt_chain_final():
         max_chain=2,
     )
 
-    prompt = _build_reminder_prompt(reminder, reminders=[], routines=[])
+    prompt = build_reminder_prompt(reminder, reminders=[], routines=[])
 
     assert "CHAIN CONTEXT" in prompt
     assert "FINAL check" in prompt
@@ -110,7 +108,7 @@ def test_reminder_prompt_chain_first():
         max_chain=2,
     )
 
-    prompt = _build_reminder_prompt(reminder, reminders=[], routines=[])
+    prompt = build_reminder_prompt(reminder, reminders=[], routines=[])
 
     assert "check 1 of 3" in prompt
     assert "follow_up_chain" in prompt
@@ -121,7 +119,7 @@ def test_bg_routine_prompt_includes_budget(data_dir):
         id="abc", message="Check tasks", cron="0 8 * * *", background=True
     )
 
-    prompt = _build_routine_prompt(routine, reminders=[], routines=[routine])
+    prompt = build_routine_prompt(routine, reminders=[], routines=[routine])
 
     assert "available" in prompt
     assert "Ping budget" in prompt
@@ -135,7 +133,7 @@ def test_bg_reminder_prompt_includes_budget(data_dir):
         background=True,
     )
 
-    prompt = _build_reminder_prompt(reminder, reminders=[reminder], routines=[])
+    prompt = build_reminder_prompt(reminder, reminders=[reminder], routines=[])
 
     assert "available" in prompt
     assert "Ping budget" in prompt
@@ -144,7 +142,7 @@ def test_bg_reminder_prompt_includes_budget(data_dir):
 def test_fg_routine_prompt_unchanged(data_dir):
     routine = Routine(id="abc", message="Morning briefing", cron="0 8 * * *")
 
-    prompt = _build_routine_prompt(routine, reminders=[], routines=[])
+    prompt = build_routine_prompt(routine, reminders=[], routines=[])
 
     assert prompt == "[routine:abc] Morning briefing"
     assert "budget" not in prompt.lower()
@@ -182,13 +180,13 @@ def test_convert_dow_range_with_step():
 
 
 def test_bg_preamble_normal_no_busy_line():
-    result = _build_bg_preamble([])
+    result = build_bg_preamble([])
     assert "mid-conversation" not in result
     assert "report_updates" in result
 
 
 def test_bg_preamble_busy_includes_quiet_instruction():
-    result = _build_bg_preamble([], busy=True)
+    result = build_bg_preamble([], busy=True)
     assert "mid-conversation" in result
     assert "report_updates" in result
     assert "critical" in result.lower()
@@ -199,7 +197,7 @@ def test_bg_routine_prompt_busy(data_dir):
         id="abc", message="Check tasks", cron="0 8 * * *", background=True
     )
 
-    prompt = _build_routine_prompt(routine, reminders=[], routines=[], busy=True)
+    prompt = build_routine_prompt(routine, reminders=[], routines=[], busy=True)
 
     assert "mid-conversation" in prompt
     assert "Check tasks" in prompt
@@ -213,7 +211,7 @@ def test_bg_reminder_prompt_busy(data_dir):
         background=True,
     )
 
-    prompt = _build_reminder_prompt(reminder, reminders=[], routines=[], busy=True)
+    prompt = build_reminder_prompt(reminder, reminders=[], routines=[], busy=True)
 
     assert "mid-conversation" in prompt
     assert "Check email" in prompt
@@ -225,7 +223,7 @@ def test_bg_reminder_prompt_busy(data_dir):
 def test_bg_preamble_allow_ping_false():
     config = BgForkConfig(allow_ping=False)
 
-    result = _build_bg_preamble([], bg_config=config)
+    result = build_bg_preamble([], bg_config=config)
 
     assert "disabled" in result.lower()
     assert "not available" in result.lower()
@@ -235,7 +233,7 @@ def test_bg_preamble_allow_ping_false():
 def test_bg_preamble_update_always():
     config = BgForkConfig(update_main_session="always")
 
-    result = _build_bg_preamble([], bg_config=config)
+    result = build_bg_preamble([], bg_config=config)
 
     assert "MUST" in result
     assert "report_updates" in result
@@ -244,7 +242,7 @@ def test_bg_preamble_update_always():
 def test_bg_preamble_update_freely():
     config = BgForkConfig(update_main_session="freely")
 
-    result = _build_bg_preamble([], bg_config=config)
+    result = build_bg_preamble([], bg_config=config)
 
     assert "optionally" in result.lower()
     assert "report_updates" in result
@@ -253,7 +251,7 @@ def test_bg_preamble_update_freely():
 def test_bg_preamble_update_blocked():
     config = BgForkConfig(update_main_session="blocked")
 
-    result = _build_bg_preamble([], bg_config=config)
+    result = build_bg_preamble([], bg_config=config)
 
     assert "silently" in result.lower()
     assert "report_updates" not in result.split("silently")[1]
@@ -263,7 +261,7 @@ def test_bg_preamble_default_config_unchanged():
     """Default config produces preamble with ping_user and report_updates."""
     config = BgForkConfig()
 
-    result = _build_bg_preamble([], bg_config=config)
+    result = build_bg_preamble([], bg_config=config)
 
     assert "ping_user" in result
     assert "report_updates" in result
@@ -274,7 +272,7 @@ def test_bg_preamble_default_config_unchanged():
 
 
 def test_bg_preamble_max_1_per_session():
-    result = _build_bg_preamble([])
+    result = build_bg_preamble([])
 
     assert "at most 1" in result
 
@@ -291,7 +289,7 @@ def test_bg_preamble_shows_schedule(data_dir):
         ),
     ]
 
-    result = _build_bg_preamble(entries)
+    result = build_bg_preamble(entries)
 
     assert "Upcoming bg tasks" in result
     assert "Check tasks" in result
@@ -299,60 +297,12 @@ def test_bg_preamble_shows_schedule(data_dir):
 
 
 def test_bg_preamble_no_schedule_says_no_more(data_dir):
-    result = _build_bg_preamble([])
+    result = build_bg_preamble([])
 
     assert "No more bg tasks today" in result
 
 
 # --- _fires_before_midnight ---
-
-
-def test_fires_before_midnight_future_today(monkeypatch):
-    fixed_now = datetime.now(TZ).replace(hour=10, minute=0, second=0, microsecond=0)
-    monkeypatch.setattr(
-        "ollim_bot.scheduling.scheduler.datetime",
-        type(
-            "dt",
-            (datetime,),
-            {"now": staticmethod(lambda tz=None: fixed_now)},
-        ),
-    )
-
-    assert _fires_before_midnight("0 22 * * *") is True
-
-
-def test_fires_before_midnight_already_passed(monkeypatch):
-    fixed_now = datetime.now(TZ).replace(hour=15, minute=0, second=0, microsecond=0)
-    monkeypatch.setattr(
-        "ollim_bot.scheduling.scheduler.datetime",
-        type(
-            "dt",
-            (datetime,),
-            {"now": staticmethod(lambda tz=None: fixed_now)},
-        ),
-    )
-
-    assert _fires_before_midnight("0 8 * * *") is False
-
-
-def test_fires_before_midnight_wrong_dow(monkeypatch):
-    now = datetime.now(TZ)
-    # Pick a DOW that is NOT today (shift by 1)
-    wrong_dow = str(((now.weekday() + 2) % 7))  # standard cron: 0=Sun
-    fixed_now = now.replace(hour=6, minute=0, second=0, microsecond=0)
-    monkeypatch.setattr(
-        "ollim_bot.scheduling.scheduler.datetime",
-        type(
-            "dt",
-            (datetime,),
-            {"now": staticmethod(lambda tz=None: fixed_now)},
-        ),
-    )
-
-    assert _fires_before_midnight(f"0 22 * * {wrong_dow}") is False
-
-
-# --- _remaining_bg_routine_firings ---
 
 
 # --- Tool restriction preamble ---
@@ -363,7 +313,7 @@ def test_bg_preamble_allowed_tools():
         allowed_tools=["Bash(ollim-bot gmail *)", "Bash(ollim-bot tasks *)"]
     )
 
-    result = _build_bg_preamble([], bg_config=config)
+    result = build_bg_preamble([], bg_config=config)
 
     assert "TOOL RESTRICTIONS" in result
     assert "Only these tools" in result
@@ -374,7 +324,7 @@ def test_bg_preamble_allowed_tools():
 def test_bg_preamble_disallowed_tools():
     config = BgForkConfig(disallowed_tools=["WebFetch", "WebSearch"])
 
-    result = _build_bg_preamble([], bg_config=config)
+    result = build_bg_preamble([], bg_config=config)
 
     assert "TOOL RESTRICTIONS" in result
     assert "NOT available" in result
@@ -385,7 +335,7 @@ def test_bg_preamble_disallowed_tools():
 def test_bg_preamble_no_tool_restrictions():
     config = BgForkConfig()
 
-    result = _build_bg_preamble([], bg_config=config)
+    result = build_bg_preamble([], bg_config=config)
 
     assert "TOOL RESTRICTIONS" not in result
 
@@ -400,7 +350,7 @@ def test_reminder_prompt_bg_with_allowed_tools():
     )
     config = BgForkConfig(allowed_tools=reminder.allowed_tools)
 
-    prompt = _build_reminder_prompt(
+    prompt = build_reminder_prompt(
         reminder, reminders=[], routines=[], bg_config=config
     )
 
@@ -408,16 +358,13 @@ def test_reminder_prompt_bg_with_allowed_tools():
     assert "Bash(ollim-bot gmail *)" in prompt
 
 
-# --- _fires_before_midnight ---
-
-
-# --- _build_upcoming_schedule ---
+# --- build_upcoming_schedule ---
 
 
 def _patch_now(monkeypatch, fixed_now):
-    """Monkeypatch datetime.now() in scheduler module."""
+    """Monkeypatch datetime.now() in preamble module."""
     monkeypatch.setattr(
-        "ollim_bot.scheduling.scheduler.datetime",
+        "ollim_bot.scheduling.preamble.datetime",
         type(
             "dt",
             (datetime,),
@@ -439,7 +386,7 @@ def test_schedule_includes_bg_routines(monkeypatch):
         ),
     ]
 
-    entries = _build_upcoming_schedule(routines, [], current_id="other")
+    entries = build_upcoming_schedule(routines, [], current_id="other")
 
     assert len(entries) == 1
     assert entries[0].id == "r1"
@@ -461,7 +408,7 @@ def test_schedule_includes_bg_reminders(monkeypatch):
         ),
     ]
 
-    entries = _build_upcoming_schedule([], reminders, current_id="other")
+    entries = build_upcoming_schedule([], reminders, current_id="other")
 
     assert len(entries) == 1
     assert entries[0].id == "rem1"
@@ -474,7 +421,7 @@ def test_schedule_excludes_foreground(monkeypatch):
         Routine(id="fg", message="Foreground", cron="0 12 * * *", background=False),
     ]
 
-    entries = _build_upcoming_schedule(routines, [], current_id="other")
+    entries = build_upcoming_schedule(routines, [], current_id="other")
 
     assert len(entries) == 0
 
@@ -486,7 +433,7 @@ def test_schedule_marks_current_task(monkeypatch):
         Routine(id="r1", message="Task A", cron="0 12 * * *", background=True),
     ]
 
-    entries = _build_upcoming_schedule(routines, [], current_id="r1")
+    entries = build_upcoming_schedule(routines, [], current_id="r1")
 
     assert entries[0].tag == "this task"
 
@@ -499,7 +446,7 @@ def test_schedule_marks_recently_fired(monkeypatch):
         Routine(id="r1", message="Task A", cron="0 10 * * *", background=True),
     ]
 
-    entries = _build_upcoming_schedule(routines, [], current_id="other")
+    entries = build_upcoming_schedule(routines, [], current_id="other")
 
     assert len(entries) == 1
     assert entries[0].tag == "just fired"
@@ -518,7 +465,7 @@ def test_schedule_annotates_silent(monkeypatch):
         ),
     ]
 
-    entries = _build_upcoming_schedule(routines, [], current_id="other")
+    entries = build_upcoming_schedule(routines, [], current_id="other")
 
     assert entries[0].silent is True
 
@@ -533,7 +480,7 @@ def test_schedule_dynamic_extends_to_min_3(monkeypatch):
         Routine(id="r3", message="C", cron="0 20 * * *", background=True),
     ]
 
-    entries = _build_upcoming_schedule(routines, [], current_id="other")
+    entries = build_upcoming_schedule(routines, [], current_id="other")
 
     assert len(entries) >= 3  # extends beyond 3h to show at least 3
 
@@ -551,7 +498,7 @@ def test_schedule_uses_description_over_truncated_message(monkeypatch):
         ),
     ]
 
-    entries = _build_upcoming_schedule(routines, [], current_id="other")
+    entries = build_upcoming_schedule(routines, [], current_id="other")
 
     assert entries[0].description == "Short summary"
 
@@ -564,7 +511,7 @@ def test_schedule_truncates_long_message_without_description(monkeypatch):
         Routine(id="r1", message=long_msg, cron="0 12 * * *", background=True),
     ]
 
-    entries = _build_upcoming_schedule(routines, [], current_id="other")
+    entries = build_upcoming_schedule(routines, [], current_id="other")
 
     assert len(entries[0].description) <= 63  # 60 chars + "..."
     assert entries[0].description.endswith("...")
@@ -585,36 +532,6 @@ def test_schedule_includes_chain_info(monkeypatch):
         ),
     ]
 
-    entries = _build_upcoming_schedule([], reminders, current_id="other")
+    entries = build_upcoming_schedule([], reminders, current_id="other")
 
     assert "2/4" in entries[0].label
-
-
-# --- _remaining_bg_routine_firings (legacy, to be removed) ---
-
-
-def test_remaining_bg_routine_firings_filters_correctly(monkeypatch):
-    fixed_now = datetime.now(TZ).replace(hour=10, minute=0, second=0, microsecond=0)
-    monkeypatch.setattr(
-        "ollim_bot.scheduling.scheduler.datetime",
-        type(
-            "dt",
-            (datetime,),
-            {"now": staticmethod(lambda tz=None: fixed_now)},
-        ),
-    )
-
-    routines = [
-        # fires at 22:00 today, bg, allow_ping — counted
-        Routine(id="r1", message="a", cron="0 22 * * *", background=True),
-        # fires at 8:00, already passed — not counted
-        Routine(id="r2", message="b", cron="0 8 * * *", background=True),
-        # foreground — not counted
-        Routine(id="r3", message="c", cron="0 22 * * *", background=False),
-        # allow_ping=False — not counted
-        Routine(
-            id="r4", message="d", cron="0 22 * * *", background=True, allow_ping=False
-        ),
-    ]
-
-    assert _remaining_bg_routine_firings(routines) == 1
