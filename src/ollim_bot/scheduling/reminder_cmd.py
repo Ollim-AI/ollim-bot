@@ -67,6 +67,18 @@ def run_reminder_command(argv: list[str]) -> None:
         action="store_true",
         help="Disable ping_user/discord_embed (bg only)",
     )
+    add_p.add_argument(
+        "--allowed-tools",
+        nargs="+",
+        default=None,
+        help="Allowlist of SDK tool patterns (bg only)",
+    )
+    add_p.add_argument(
+        "--blocked-tools",
+        nargs="+",
+        default=None,
+        help="Denylist of SDK tool patterns (bg only)",
+    )
 
     sub.add_parser("list", help="Show pending reminders")
 
@@ -100,6 +112,8 @@ def _handle_add(args: argparse.Namespace) -> None:
         isolated=args.isolated,
         update_main_session=args.update_main_session,
         allow_ping=not args.no_ping,
+        allowed_tools=args.allowed_tools,
+        blocked_tools=args.blocked_tools,
     )
     append_reminder(reminder)
     print(f"scheduled {reminder.id}: {_fmt_schedule(reminder)} -- {_summary(reminder)}")

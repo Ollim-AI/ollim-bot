@@ -131,3 +131,93 @@ def test_routine_default_bg_config_omitted_from_frontmatter(data_dir):
 
     assert loaded.update_main_session == "on_ping"
     assert loaded.allow_ping is True
+
+
+# --- Tool restrictions ---
+
+
+def test_routine_new_defaults_tool_restrictions():
+    routine = Routine.new(message="test", cron="0 9 * * *")
+
+    assert routine.allowed_tools is None
+    assert routine.blocked_tools is None
+
+
+def test_routine_new_with_allowed_tools():
+    routine = Routine.new(
+        message="email only",
+        cron="0 9 * * *",
+        allowed_tools=["Bash(ollim-bot gmail *)", "Bash(ollim-bot tasks *)"],
+    )
+
+    assert routine.allowed_tools == [
+        "Bash(ollim-bot gmail *)",
+        "Bash(ollim-bot tasks *)",
+    ]
+    assert routine.blocked_tools is None
+
+
+def test_routine_new_with_blocked_tools():
+    routine = Routine.new(
+        message="no web",
+        cron="0 9 * * *",
+        blocked_tools=["WebFetch", "WebSearch"],
+    )
+
+    assert routine.blocked_tools == ["WebFetch", "WebSearch"]
+    assert routine.allowed_tools is None
+
+
+def test_routine_new_both_tools_raises():
+    import pytest
+
+    with pytest.raises(ValueError, match="Cannot specify both"):
+        Routine.new(
+            message="bad",
+            cron="0 9 * * *",
+            allowed_tools=["Read(**.md)"],
+            blocked_tools=["WebFetch"],
+        )
+
+
+def test_routine_allowed_tools_roundtrip(data_dir):
+    tools = ["Bash(ollim-bot gmail *)", "mcp__discord__report_updates"]
+    routine = Routine.new(
+        message="restricted",
+        cron="0 9 * * *",
+        background=True,
+        allowed_tools=tools,
+    )
+    append_routine(routine)
+
+    loaded = list_routines()[0]
+
+    assert loaded.allowed_tools == tools
+    assert loaded.blocked_tools is None
+
+
+def test_routine_blocked_tools_roundtrip(data_dir):
+    tools = ["WebFetch", "WebSearch"]
+    routine = Routine.new(
+        message="no web",
+        cron="0 9 * * *",
+        background=True,
+        blocked_tools=tools,
+    )
+    append_routine(routine)
+
+    loaded = list_routines()[0]
+
+    assert loaded.blocked_tools == tools
+    assert loaded.allowed_tools is None
+
+
+def test_routine_no_tools_omitted_from_frontmatter(data_dir):
+    """Default None tool restrictions should not appear in serialized YAML."""
+    routine = Routine.new(message="defaults", cron="0 9 * * *")
+    append_routine(routine)
+
+    loaded = list_routines()[0]
+
+    assert loaded.allowed_tools is None
+    assert loaded.blocked_tools is None

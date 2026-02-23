@@ -510,6 +510,28 @@ def test_bg_fork_config_default_when_unset():
     assert result.allow_ping is True
 
 
+def test_bg_fork_config_with_allowed_tools():
+    config = BgForkConfig(allowed_tools=["Bash(ollim-bot gmail *)"])
+
+    assert config.allowed_tools == ["Bash(ollim-bot gmail *)"]
+    assert config.blocked_tools is None
+
+
+def test_bg_fork_config_with_blocked_tools():
+    config = BgForkConfig(blocked_tools=["WebFetch"])
+
+    assert config.blocked_tools == ["WebFetch"]
+    assert config.allowed_tools is None
+
+
+def test_bg_fork_config_both_tools_raises():
+    with pytest.raises(ValueError, match="Cannot specify both"):
+        BgForkConfig(
+            allowed_tools=["Read(**.md)"],
+            blocked_tools=["WebFetch"],
+        )
+
+
 # --- Reported flag ---
 
 

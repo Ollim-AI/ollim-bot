@@ -257,3 +257,38 @@ def test_remove_md_returns_false_if_missing(tmp_path):
     removed = remove_md(d, "nonexistent", "test")
 
     assert removed is False
+
+
+# --- List field serialization ---
+
+
+@dataclass(frozen=True, slots=True)
+class MdItemWithList:
+    id: str
+    message: str
+    tags: list[str] | None = None
+
+
+def test_write_md_list_field_roundtrip(tmp_path):
+    d = tmp_path / "items"
+    item = MdItemWithList(
+        id="abc",
+        message="test",
+        tags=["Bash(ollim-bot gmail *)", "WebFetch"],
+    )
+
+    write_md(d, item, "test")
+    result = read_md_dir(d, MdItemWithList)
+
+    assert len(result) == 1
+    assert result[0].tags == ["Bash(ollim-bot gmail *)", "WebFetch"]
+
+
+def test_write_md_list_none_omitted(tmp_path):
+    d = tmp_path / "items"
+    item = MdItemWithList(id="abc", message="test", tags=None)
+
+    write_md(d, item, "test")
+
+    content = next(d.glob("*.md")).read_text()
+    assert "tags" not in content.split("---")[1]

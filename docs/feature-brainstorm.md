@@ -30,7 +30,7 @@ isolated mode is where model overrides clearly pay off (no cache miss on forked 
 ### ~~Webhook Endpoints (External Triggers)~~ ✅ Implemented
 See `webhook.py` and `docs/plans/2026-02-22-webhook-endpoints-design.md`.
 
-### Per-Job Tool Restrictions
+### ~~Per-Job Tool Restrictions~~ ✓ Implemented
 Routines/reminders configure which MCP tools are available.
 
 - `allowed_tools` in routine/reminder YAML frontmatter
@@ -45,7 +45,7 @@ Design:
 - `blocked_tools: [x, y]` -- denylist shorthand, subtracts from allowed (or from all if allowed omitted)
 - `silent: true` -- sugar for `blocked_tools: [ping_user, discord_embed]`
 
-### Session ID History (JSONL)
+### ~~Session ID History (JSONL)~~ ✓ Implemented
 Save main session IDs to a JSONL log for claude-history lookup efficiency.
 
 - Currently session ID is a plain string file (`~/.ollim-bot/sessions.json`)
