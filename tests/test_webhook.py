@@ -1,6 +1,11 @@
 """Tests for webhook.py — spec parsing, validation, prompt construction, auth."""
 
-from ollim_bot.webhook import WebhookSpec, list_webhooks, load_webhook  # noqa: F401
+from ollim_bot.webhook import (  # noqa: F401
+    WebhookSpec,
+    list_webhooks,
+    load_webhook,
+    validate_payload,
+)
 
 
 def test_parse_webhook_spec(data_dir):
@@ -79,3 +84,105 @@ def test_webhook_defaults(data_dir):
     assert spec.allow_ping is True
     assert spec.update_main_session == "on_ping"
     assert spec.isolated is False
+
+
+def test_validate_payload_valid():
+    schema = {
+        "type": "object",
+        "required": ["repo"],
+        "properties": {
+            "repo": {"type": "string", "maxLength": 200},
+            "status": {"type": "string", "enum": ["success", "failure"]},
+        },
+        "additionalProperties": False,
+    }
+
+    errors = validate_payload(schema, {"repo": "ollim-bot", "status": "failure"})
+
+    assert errors == []
+
+
+def test_validate_payload_missing_required():
+    schema = {
+        "type": "object",
+        "required": ["repo"],
+        "properties": {"repo": {"type": "string"}},
+        "additionalProperties": False,
+    }
+
+    errors = validate_payload(schema, {})
+
+    assert len(errors) > 0
+    assert any("repo" in e for e in errors)
+
+
+def test_validate_payload_extra_field_rejected():
+    schema = {
+        "type": "object",
+        "properties": {"repo": {"type": "string"}},
+        "additionalProperties": False,
+    }
+
+    errors = validate_payload(schema, {"repo": "test", "evil": "injection"})
+
+    assert len(errors) > 0
+
+
+def test_validate_payload_wrong_type():
+    schema = {
+        "type": "object",
+        "properties": {"count": {"type": "integer"}},
+    }
+
+    errors = validate_payload(schema, {"count": "not-a-number"})
+
+    assert len(errors) > 0
+
+
+def test_validate_payload_enum_mismatch():
+    schema = {
+        "type": "object",
+        "properties": {
+            "status": {"type": "string", "enum": ["success", "failure"]},
+        },
+    }
+
+    errors = validate_payload(schema, {"status": "maybe"})
+
+    assert len(errors) > 0
+
+
+def test_validate_payload_default_max_length_injected():
+    """String fields without explicit maxLength get default 500."""
+    schema = {
+        "type": "object",
+        "properties": {"name": {"type": "string"}},
+    }
+
+    errors = validate_payload(schema, {"name": "x" * 501})
+
+    assert len(errors) > 0
+
+
+def test_validate_payload_explicit_max_length_preserved():
+    """Explicit maxLength is not overridden by default."""
+    schema = {
+        "type": "object",
+        "properties": {"name": {"type": "string", "maxLength": 1000}},
+    }
+
+    errors = validate_payload(schema, {"name": "x" * 800})
+
+    assert errors == []
+
+
+def test_validate_payload_too_many_properties():
+    schema = {
+        "type": "object",
+        "properties": {f"f{i}": {"type": "string"} for i in range(25)},
+    }
+
+    errors = validate_payload(schema, {"f0": "test"})
+
+    assert len(errors) > 0
+    assert any("properties" in e.lower() for e in errors)
