@@ -11,6 +11,7 @@ import pytest
 @pytest.fixture()
 def data_dir(tmp_path, monkeypatch):
     """Redirect all data file paths to a temp directory."""
+    import ollim_bot.forks as forks_mod
     import ollim_bot.inquiries as inquiries_mod
     import ollim_bot.ping_budget as ping_budget_mod
     import ollim_bot.scheduling.reminders as reminders_mod
@@ -30,4 +31,5 @@ def data_dir(tmp_path, monkeypatch):
     monkeypatch.setattr(
         sessions_mod, "FORK_MESSAGES_FILE", tmp_path / "fork_messages.json"
     )
+    monkeypatch.setattr(forks_mod, "_UPDATES_FILE", tmp_path / "pending_updates.json")
     return tmp_path

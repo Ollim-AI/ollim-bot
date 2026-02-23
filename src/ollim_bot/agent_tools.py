@@ -21,9 +21,11 @@ from ollim_bot.embeds import (
 from ollim_bot.forks import (
     ForkExitAction,
     append_update,
+    bg_output_sent,
     clear_pending_updates,
     in_bg_fork,
     in_interactive_fork,
+    mark_bg_output,
     request_enter_fork,
     set_exit_action,
 )
@@ -80,17 +82,6 @@ def set_chain_context(ctx: ChainContext | None) -> None:
 def set_fork_chain_context(ctx: ChainContext | None) -> None:
     """Set chain context via contextvar — used by bg reminders."""
     _chain_context_var.set(ctx)
-
-
-# ---------------------------------------------------------------------------
-# Bg output tracking — prevents bg forks from stopping without reporting
-# ---------------------------------------------------------------------------
-
-_bg_output_sent_var: ContextVar[bool] = ContextVar("_bg_output_sent", default=False)
-
-
-def bg_output_sent() -> bool:
-    return _bg_output_sent_var.get()
 
 
 def _source() -> Literal["main", "bg", "fork"]:  # duplicate-ok
@@ -196,7 +187,7 @@ async def discord_embed(args: dict[str, Any]) -> dict[str, Any]:
     msg = await channel.send(embed=embed, view=view)
     track_message(msg.id)
     if source == "bg":
-        _bg_output_sent_var.set(True)
+        mark_bg_output(True)
     return {"content": [{"type": "text", "text": "Embed sent."}]}
 
 
@@ -237,7 +228,7 @@ async def ping_user(args: dict[str, Any]) -> dict[str, Any]:
 
     msg = await channel.send(f"[bg] {args['message']}")
     track_message(msg.id)
-    _bg_output_sent_var.set(True)
+    mark_bg_output(True)
     return {"content": [{"type": "text", "text": "Message sent."}]}
 
 
@@ -357,7 +348,7 @@ async def save_context(args: dict[str, Any]) -> dict[str, Any]:
 async def report_updates(args: dict[str, Any]) -> dict[str, Any]:
     if in_bg_fork():
         await append_update(args["message"])
-        _bg_output_sent_var.set(False)
+        mark_bg_output(False)
         return {
             "content": [
                 {
@@ -449,7 +440,7 @@ async def require_report_hook(
     context: HookContext,
 ) -> SyncHookJSONOutput:
     """Stop hook: prevent bg fork from stopping with unreported output."""
-    if not in_bg_fork() or not _bg_output_sent_var.get():
+    if not in_bg_fork() or not bg_output_sent():
         return {}
     return SyncHookJSONOutput(
         systemMessage=(

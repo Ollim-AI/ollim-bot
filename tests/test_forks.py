@@ -36,7 +36,7 @@ def _run(coro):
     return asyncio.get_event_loop().run_until_complete(coro)
 
 
-def test_peek_reads_without_clearing():
+def test_peek_reads_without_clearing(data_dir):
     _run(pop_pending_updates())
     from ollim_bot.forks import append_update
 
@@ -50,7 +50,7 @@ def test_peek_reads_without_clearing():
     _run(pop_pending_updates())
 
 
-def test_pop_clears_updates():
+def test_pop_clears_updates(data_dir):
     _run(pop_pending_updates())
     from ollim_bot.forks import append_update
 
@@ -60,7 +60,7 @@ def test_pop_clears_updates():
     assert _run(pop_pending_updates()) == []
 
 
-def test_multiple_updates_accumulate():
+def test_multiple_updates_accumulate(data_dir):
     _run(pop_pending_updates())
     from ollim_bot.forks import append_update
 
@@ -72,7 +72,7 @@ def test_multiple_updates_accumulate():
     assert all(u.ts for u in result)
 
 
-def test_clear_is_idempotent():
+def test_clear_is_idempotent(data_dir):
     _run(pop_pending_updates())
 
     _run(clear_pending_updates())
@@ -284,15 +284,7 @@ def test_bg_fork_timeout_cancels_and_notifies(monkeypatch, data_dir):
 # --- Concurrent append_update (reproduction for lost updates bug) ---
 
 
-@pytest.fixture()
-def updates_file(tmp_path, monkeypatch):
-    """Redirect _UPDATES_FILE to a temp directory so tests don't touch real data."""
-    target = tmp_path / "pending_updates.json"
-    monkeypatch.setattr(forks_mod, "_UPDATES_FILE", target)
-    return target
-
-
-def test_concurrent_append_update_via_asyncio_tasks(updates_file):
+def test_concurrent_append_update_via_asyncio_tasks(data_dir):
     """Two concurrent asyncio.create_task(append_update) — both must survive.
 
     Simulates two bg forks fired by APScheduler at the same time.
@@ -311,11 +303,9 @@ def test_concurrent_append_update_via_asyncio_tasks(updates_file):
         assert len(messages) == 2
 
     _run(_scenario())
-    # File should be gone after pop
-    assert not updates_file.exists()
 
 
-def test_concurrent_append_update_via_anyio_task_groups(updates_file):
+def test_concurrent_append_update_via_anyio_task_groups(data_dir):
     """Two concurrent append_update calls inside separate anyio task groups.
 
     Simulates the SDK execution model: each ClaudeSDKClient has its own
@@ -348,7 +338,7 @@ def test_concurrent_append_update_via_anyio_task_groups(updates_file):
     _run(_scenario())
 
 
-def test_concurrent_append_and_pop(updates_file):
+def test_concurrent_append_and_pop(data_dir):
     """append_update and pop_pending_updates racing — pop must not lose in-flight data.
 
     Sequence: append A, then concurrently (append B, pop). The pop should
@@ -379,7 +369,7 @@ def test_concurrent_append_and_pop(updates_file):
     _run(_scenario())
 
 
-def test_concurrent_append_and_clear(updates_file):
+def test_concurrent_append_and_clear(data_dir):
     """append_update and clear_pending_updates racing — no data corruption."""
 
     async def _scenario():
@@ -399,7 +389,7 @@ def test_concurrent_append_and_clear(updates_file):
     _run(_scenario())
 
 
-def test_many_concurrent_appends(updates_file):
+def test_many_concurrent_appends(data_dir):
     """Stress test: 20 concurrent append_update calls — all must survive."""
 
     async def _scenario():

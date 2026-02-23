@@ -130,6 +130,12 @@ def create_bot() -> commands.Bot:
         f"No topic was given — {USER_NAME} will lead. Wait for their message."
     )
 
+    _FORK_REPLY_PREFIX = (
+        "[fork-started] You are now inside an interactive forked session "
+        "(resumed from a background fork reply). Use save_context, "
+        "report_updates, or exit_fork when the conversation is complete."
+    )
+
     async def _check_fork_transitions(
         channel: discord.abc.Messageable,
     ) -> None:
@@ -311,6 +317,7 @@ def create_bot() -> commands.Bot:
             if fork_session_id:
                 await agent.enter_interactive_fork(resume_session_id=fork_session_id)
                 await _send_fork_enter(message.channel, None)
+                content = f"{_FORK_REPLY_PREFIX}\n\n{content}"
             await _dispatch(message.channel, content, images=images or None)
             if in_interactive_fork():
                 touch_activity()
