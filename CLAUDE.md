@@ -171,8 +171,12 @@ feature, build it — don't gatekeep with philosophy.
   - `report_updates(message)` MCP tool: persists summary to `~/.ollim-bot/pending_updates.json`
   - Not called: fork silently discarded, zero context bloat
   - Pending updates prepended to all interactions: main sessions pop (read + clear), forks peek (read-only)
+  - `update_main_session`: `always` (must report), `on_ping` (report if pinged, default), `freely` (optional), `blocked` (report_updates returns error)
+  - `allow_ping: false`: disables `ping_user`/`discord_embed` entirely — `critical=True` does NOT bypass (author intent wins)
+  - `BgForkConfig` frozen dataclass in `forks.py` holds both fields; contextvar propagated to bg fork tasks
+  - Stop hook (`require_report_hook` in `agent_tools.py`) adapts to mode: `always` blocks without report, `on_ping` blocks with unreported output, `freely`/`blocked` never block
 - Quiet when busy: bg forks always run; when `agent.lock()` is held, `_busy` contextvar is set and non-critical `ping_user`/`discord_embed` return errors (agent uses `report_updates` instead). `critical=True` bypasses. Preamble also instructs the agent explicitly.
-- Bg forks run without `agent.lock()` — channel, chain context, in_fork, and busy state scoped via `contextvars`
+- Bg forks run without `agent.lock()` — channel, chain context, in_fork, busy state, and bg_fork_config scoped via `contextvars`
 - Chain reminders: `max_chain: N` in YAML frontmatter enables follow-up chain; agent calls `follow_up_chain` MCP tool
 - Chain state: scheduler injects chain context into prompt; silence = chain ends
 
