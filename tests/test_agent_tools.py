@@ -445,20 +445,28 @@ def test_stop_hook_blocks_bg_stop_with_unreported_output(data_dir):
 # --- ping budget enforcement ---
 
 
-def test_ping_user_blocked_when_budget_exhausted(data_dir):
-    from datetime import date
+def _exhausted_budget() -> ping_budget.BudgetState:
+    from datetime import date, datetime
 
+    from ollim_bot.storage import TZ
+
+    return ping_budget.BudgetState(
+        capacity=5,
+        available=0.0,
+        refill_rate_minutes=90,
+        last_refill=datetime.now(TZ).isoformat(),
+        critical_used=0,
+        critical_reset_date=date.today().isoformat(),
+        daily_used=5,
+        daily_used_reset=date.today().isoformat(),
+    )
+
+
+def test_ping_user_blocked_when_budget_exhausted(data_dir):
     ch = InMemoryChannel()
     set_fork_channel(ch)
     set_in_fork(True)
-    ping_budget.save(
-        ping_budget.BudgetState(
-            daily_limit=2,
-            used=2,
-            critical_used=0,
-            last_reset=date.today().isoformat(),
-        )
-    )
+    ping_budget.save(_exhausted_budget())
 
     result = _run(_ping({"message": "hello"}))
 
@@ -468,19 +476,10 @@ def test_ping_user_blocked_when_budget_exhausted(data_dir):
 
 
 def test_ping_user_critical_bypasses_budget(data_dir):
-    from datetime import date
-
     ch = InMemoryChannel()
     set_fork_channel(ch)
     set_in_fork(True)
-    ping_budget.save(
-        ping_budget.BudgetState(
-            daily_limit=2,
-            used=2,
-            critical_used=0,
-            last_reset=date.today().isoformat(),
-        )
-    )
+    ping_budget.save(_exhausted_budget())
 
     result = _run(_ping({"message": "urgent!", "critical": True}))
 
@@ -490,19 +489,10 @@ def test_ping_user_critical_bypasses_budget(data_dir):
 
 
 def test_embed_blocked_when_budget_exhausted_in_bg(data_dir):
-    from datetime import date
-
     ch = InMemoryChannel()
     set_fork_channel(ch)
     set_in_fork(True)
-    ping_budget.save(
-        ping_budget.BudgetState(
-            daily_limit=1,
-            used=1,
-            critical_used=0,
-            last_reset=date.today().isoformat(),
-        )
-    )
+    ping_budget.save(_exhausted_budget())
 
     result = _run(_embed({"title": "Tasks"}))
 
@@ -512,21 +502,12 @@ def test_embed_blocked_when_budget_exhausted_in_bg(data_dir):
 
 
 def test_embed_not_blocked_on_main_session(data_dir):
-    from datetime import date
-
     ch = InMemoryChannel()
     set_fork_channel(None)
     set_channel(ch)
     set_in_fork(False)
     set_interactive_fork(False)
-    ping_budget.save(
-        ping_budget.BudgetState(
-            daily_limit=1,
-            used=1,
-            critical_used=0,
-            last_reset=date.today().isoformat(),
-        )
-    )
+    ping_budget.save(_exhausted_budget())
 
     result = _run(_embed({"title": "Tasks"}))
 
@@ -536,19 +517,10 @@ def test_embed_not_blocked_on_main_session(data_dir):
 
 
 def test_embed_critical_bypasses_budget_in_bg(data_dir):
-    from datetime import date
-
     ch = InMemoryChannel()
     set_fork_channel(ch)
     set_in_fork(True)
-    ping_budget.save(
-        ping_budget.BudgetState(
-            daily_limit=1,
-            used=1,
-            critical_used=0,
-            last_reset=date.today().isoformat(),
-        )
-    )
+    ping_budget.save(_exhausted_budget())
 
     result = _run(_embed({"title": "Urgent", "critical": True}))
 
@@ -559,23 +531,14 @@ def test_embed_critical_bypasses_budget_in_bg(data_dir):
 
 
 def test_ping_user_decrements_budget(data_dir):
-    from datetime import date
-
     ch = InMemoryChannel()
     set_fork_channel(ch)
     set_in_fork(True)
-    ping_budget.save(
-        ping_budget.BudgetState(
-            daily_limit=5,
-            used=0,
-            critical_used=0,
-            last_reset=date.today().isoformat(),
-        )
-    )
+    ping_budget.load()  # ensure defaults (5 available)
 
     _run(_ping({"message": "test"}))
 
-    assert ping_budget.load().used == 1
+    assert ping_budget.load().daily_used == 1
     set_in_fork(False)
 
 
