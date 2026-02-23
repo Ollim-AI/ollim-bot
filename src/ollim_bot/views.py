@@ -199,7 +199,7 @@ async def _handle_fork_report(interaction: discord.Interaction, _data: str) -> N
         updates_after = peek_pending_updates()
         new_updates = updates_after[updates_before:]
         await _agent.exit_interactive_fork(ForkExitAction.REPORT)
-    summary = new_updates[-1] if new_updates else "no summary reported"
+    summary = new_updates[-1].message if new_updates else "no summary reported"
     await interaction.followup.send(
         embed=fork_exit_embed(ForkExitAction.REPORT, summary)
     )

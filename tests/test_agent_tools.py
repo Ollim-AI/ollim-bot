@@ -160,7 +160,7 @@ def test_report_updates_appends_to_file():
     _run(_report({"message": "Found 2 actionable emails"}))
 
     updates = _run(pop_pending_updates())
-    assert updates == ["Found 2 actionable emails"]
+    assert [u.message for u in updates] == ["Found 2 actionable emails"]
     set_in_fork(False)
 
 
@@ -265,7 +265,7 @@ def test_report_updates_in_interactive_fork():
     _run(_report({"message": "found 3 papers"}))
 
     assert pop_exit_action() is ForkExitAction.REPORT
-    assert _run(pop_pending_updates()) == ["found 3 papers"]
+    assert [u.message for u in _run(pop_pending_updates())] == ["found 3 papers"]
     set_interactive_fork(False)
 
 

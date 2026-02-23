@@ -13,7 +13,7 @@ from contextvars import ContextVar
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 from zoneinfo import ZoneInfo
 
 log = logging.getLogger(__name__)
@@ -57,6 +57,11 @@ _TZ = ZoneInfo("America/Los_Angeles")
 _updates_lock = asyncio.Lock()
 
 
+class PendingUpdate(NamedTuple):
+    ts: str
+    message: str
+
+
 async def append_update(message: str) -> None:
     """Append a timestamped update to the pending updates file.
 
@@ -77,12 +82,12 @@ async def append_update(message: str) -> None:
         os.replace(tmp, _UPDATES_FILE)
 
 
-def peek_pending_updates() -> list[str]:
+def peek_pending_updates() -> list[PendingUpdate]:
     """Read pending updates without clearing."""
     if not _UPDATES_FILE.exists():
         return []
     updates = json.loads(_UPDATES_FILE.read_text())
-    return [u["message"] for u in updates]
+    return [PendingUpdate(ts=u["ts"], message=u["message"]) for u in updates]
 
 
 async def clear_pending_updates() -> None:
@@ -96,7 +101,7 @@ async def clear_pending_updates() -> None:
             _UPDATES_FILE.unlink()
 
 
-async def pop_pending_updates() -> list[str]:
+async def pop_pending_updates() -> list[PendingUpdate]:
     """Read and clear all pending updates.
 
     Lock ensures atomicity with concurrent append_update calls —
@@ -107,7 +112,7 @@ async def pop_pending_updates() -> list[str]:
             return []
         updates = json.loads(_UPDATES_FILE.read_text())
         _UPDATES_FILE.unlink()
-        return [u["message"] for u in updates]
+        return [PendingUpdate(ts=u["ts"], message=u["message"]) for u in updates]
 
 
 # ---------------------------------------------------------------------------

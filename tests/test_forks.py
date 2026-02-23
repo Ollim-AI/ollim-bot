@@ -42,8 +42,8 @@ def test_peek_reads_without_clearing():
     first = peek_pending_updates()
     second = peek_pending_updates()
 
-    assert first == ["peeked"]
-    assert second == ["peeked"]
+    assert [u.message for u in first] == ["peeked"]
+    assert [u.message for u in second] == ["peeked"]
     _run(pop_pending_updates())
 
 
@@ -64,7 +64,9 @@ def test_multiple_updates_accumulate():
     _run(append_update("first"))
     _run(append_update("second"))
 
-    assert _run(pop_pending_updates()) == ["first", "second"]
+    result = _run(pop_pending_updates())
+    assert [u.message for u in result] == ["first", "second"]
+    assert all(u.ts for u in result)
 
 
 def test_clear_is_idempotent():
