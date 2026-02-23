@@ -110,10 +110,22 @@ def test_get_status_after_use(data_dir):
     assert "1 critical" in status
 
 
-def test_remaining_today_counts_bg_only(data_dir):
-    now = datetime.now(TZ)
-    later = now + timedelta(hours=2)
-    tomorrow = now + timedelta(days=1)
+def test_remaining_today_counts_bg_only(data_dir, monkeypatch):
+    fixed_now = datetime.now(TZ).replace(hour=12, minute=0, second=0, microsecond=0)
+    monkeypatch.setattr(
+        ping_budget,
+        "datetime",
+        type(
+            "dt",
+            (),
+            {
+                "now": staticmethod(lambda tz=None: fixed_now),
+                "fromisoformat": staticmethod(datetime.fromisoformat),
+            },
+        ),
+    )
+    later = fixed_now + timedelta(hours=2)
+    tomorrow = fixed_now + timedelta(days=1)
 
     reminders = [
         Reminder(
