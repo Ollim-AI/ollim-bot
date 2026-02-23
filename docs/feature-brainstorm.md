@@ -93,13 +93,10 @@ Add confirmation step before destructive actions.
 - Agent can also call `ollim-bot tasks delete` and `ollim-bot cal delete` directly
 - Options: Discord confirmation modal, two-step button flow, agent-level instruction to always confirm
 
-### Background Fork Timeouts
-Add execution timeouts to `run_agent_background()` and related calls.
-
-- Currently awaits SDK call indefinitely if it hangs
-- Google API calls in button handlers and CLI have no timeout
-- `subprocess.run` in `storage.py` has no timeout
-- A hung bg fork holds resources forever with no cancellation
+### ~~Background Fork Timeouts~~ ✓ Implemented
+`BG_FORK_TIMEOUT = 1800` (30 min) wraps `run_agent_background()`. On timeout:
+client disconnected, user notified via DM. Google API / subprocess timeouts
+remain as separate backlog items.
 
 ### Silent Button Handler Failures
 Surface errors when Google API calls fail in button handlers.
