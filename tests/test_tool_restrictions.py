@@ -40,7 +40,7 @@ def test_allowed_tools_preserves_help_if_present():
     assert "Bash(ollim-bot tasks *)" in result.allowed_tools
 
 
-def test_blocked_tools_sets_disallowed():
+def test_disallowed_tools_sets_disallowed():
     opts = _opts()
 
     result = _apply_tool_restrictions(

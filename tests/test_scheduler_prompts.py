@@ -387,8 +387,8 @@ def test_bg_preamble_allowed_tools():
     assert "Bash(ollim-bot tasks *)" in result
 
 
-def test_bg_preamble_blocked_tools():
-    config = BgForkConfig(blocked_tools=["WebFetch", "WebSearch"])
+def test_bg_preamble_disallowed_tools():
+    config = BgForkConfig(disallowed_tools=["WebFetch", "WebSearch"])
 
     result = _build_bg_preamble(0, 0, bg_config=config)
 

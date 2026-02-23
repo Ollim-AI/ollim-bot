@@ -140,7 +140,7 @@ def test_routine_new_defaults_tool_restrictions():
     routine = Routine.new(message="test", cron="0 9 * * *")
 
     assert routine.allowed_tools is None
-    assert routine.blocked_tools is None
+    assert routine.disallowed_tools is None
 
 
 def test_routine_new_with_allowed_tools():
@@ -154,17 +154,17 @@ def test_routine_new_with_allowed_tools():
         "Bash(ollim-bot gmail *)",
         "Bash(ollim-bot tasks *)",
     ]
-    assert routine.blocked_tools is None
+    assert routine.disallowed_tools is None
 
 
-def test_routine_new_with_blocked_tools():
+def test_routine_new_with_disallowed_tools():
     routine = Routine.new(
         message="no web",
         cron="0 9 * * *",
-        blocked_tools=["WebFetch", "WebSearch"],
+        disallowed_tools=["WebFetch", "WebSearch"],
     )
 
-    assert routine.blocked_tools == ["WebFetch", "WebSearch"]
+    assert routine.disallowed_tools == ["WebFetch", "WebSearch"]
     assert routine.allowed_tools is None
 
 
@@ -176,7 +176,7 @@ def test_routine_new_both_tools_raises():
             message="bad",
             cron="0 9 * * *",
             allowed_tools=["Read(**.md)"],
-            blocked_tools=["WebFetch"],
+            disallowed_tools=["WebFetch"],
         )
 
 
@@ -193,22 +193,22 @@ def test_routine_allowed_tools_roundtrip(data_dir):
     loaded = list_routines()[0]
 
     assert loaded.allowed_tools == tools
-    assert loaded.blocked_tools is None
+    assert loaded.disallowed_tools is None
 
 
-def test_routine_blocked_tools_roundtrip(data_dir):
+def test_routine_disallowed_tools_roundtrip(data_dir):
     tools = ["WebFetch", "WebSearch"]
     routine = Routine.new(
         message="no web",
         cron="0 9 * * *",
         background=True,
-        blocked_tools=tools,
+        disallowed_tools=tools,
     )
     append_routine(routine)
 
     loaded = list_routines()[0]
 
-    assert loaded.blocked_tools == tools
+    assert loaded.disallowed_tools == tools
     assert loaded.allowed_tools is None
 
 
@@ -220,4 +220,4 @@ def test_routine_no_tools_omitted_from_frontmatter(data_dir):
     loaded = list_routines()[0]
 
     assert loaded.allowed_tools is None
-    assert loaded.blocked_tools is None
+    assert loaded.disallowed_tools is None

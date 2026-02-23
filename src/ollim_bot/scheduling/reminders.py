@@ -30,11 +30,11 @@ class Reminder:
     update_main_session: str = "on_ping"
     allow_ping: bool = True
     allowed_tools: list[str] | None = None
-    blocked_tools: list[str] | None = None
+    disallowed_tools: list[str] | None = None
 
     def __post_init__(self) -> None:
-        if self.allowed_tools is not None and self.blocked_tools is not None:
-            raise ValueError("Cannot specify both allowed_tools and blocked_tools")
+        if self.allowed_tools is not None and self.disallowed_tools is not None:
+            raise ValueError("Cannot specify both allowed_tools and disallowed_tools")
 
     @staticmethod
     def new(
@@ -52,7 +52,7 @@ class Reminder:
         update_main_session: str = "on_ping",
         allow_ping: bool = True,
         allowed_tools: list[str] | None = None,
-        blocked_tools: list[str] | None = None,
+        disallowed_tools: list[str] | None = None,
     ) -> "Reminder":
         """Create a reminder, auto-setting chain_parent to own ID for chain roots."""
         run_at = (datetime.now(TZ) + timedelta(minutes=delay_minutes)).isoformat()
@@ -75,7 +75,7 @@ class Reminder:
             update_main_session=update_main_session,
             allow_ping=allow_ping,
             allowed_tools=allowed_tools,
-            blocked_tools=blocked_tools,
+            disallowed_tools=disallowed_tools,
         )
 
 

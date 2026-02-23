@@ -187,9 +187,9 @@ feature, build it — don't gatekeep with philosophy.
   - `update_main_session`: `always` (must report), `on_ping` (report if pinged, default), `freely` (optional), `blocked` (report_updates returns error)
   - `allow_ping: false`: disables `ping_user`/`discord_embed` entirely — `critical=True` does NOT bypass (author intent wins)
   - `BgForkConfig` frozen dataclass in `forks.py` holds config fields; contextvar propagated to bg fork tasks
-  - Tool restrictions: `allowed_tools` / `blocked_tools` in YAML — uses SDK tool format (`Bash(ollim-bot gmail *)`, `mcp__discord__*`, etc.)
+  - Tool restrictions: `allowed_tools` / `disallowed_tools` in YAML — uses SDK tool format (`Bash(ollim-bot gmail *)`, `mcp__discord__*`, etc.)
   - `allowed_tools`: overrides SDK `allowed_tools` (only listed tools available); `Bash(ollim-bot help)` auto-included
-  - `blocked_tools`: maps to SDK `disallowed_tools` (subtracts from default set); mutually exclusive with `allowed_tools`
+  - `disallowed_tools`: maps to SDK `disallowed_tools` (subtracts from default set); mutually exclusive with `allowed_tools`
   - Orthogonal to `allow_ping` — ping/embed have their own rich behavior (critical bypass, budget, busy state)
   - SDK enforcement via `_apply_tool_restrictions()` in `agent.py`: agent doesn't see restricted tools at all
   - Preamble includes TOOL RESTRICTIONS section when active; chain reminders inherit restrictions via `ChainContext`

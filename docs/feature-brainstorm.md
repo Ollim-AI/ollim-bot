@@ -42,8 +42,8 @@ Routines/reminders configure which MCP tools are available.
 
 Design:
 - `allowed_tools: [a, b]` -- allowlist is source of truth (explicit, safe)
-- `blocked_tools: [x, y]` -- denylist shorthand, subtracts from allowed (or from all if allowed omitted)
-- `silent: true` -- sugar for `blocked_tools: [ping_user, discord_embed]`
+- `disallowed_tools: [x, y]` -- denylist shorthand, subtracts from allowed (or from all if allowed omitted)
+- `silent: true` -- sugar for `disallowed_tools: [ping_user, discord_embed]`
 
 ### ~~Session ID History (JSONL)~~ ✓ Implemented
 Save main session IDs to a JSONL log for claude-history lookup efficiency.

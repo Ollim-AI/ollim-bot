@@ -9,7 +9,7 @@ calendar, web search, file editing, etc.
 
 ## Solution
 
-Add `allowed_tools` / `blocked_tools` to routine/reminder YAML frontmatter.
+Add `allowed_tools` / `disallowed_tools` to routine/reminder YAML frontmatter.
 Uses SDK tool format directly — no abstraction layer, no group mapping.
 
 ## YAML examples
@@ -26,7 +26,7 @@ allowed_tools:
 
 ```yaml
 # Denylist: everything except these
-blocked_tools:
+disallowed_tools:
   - Bash(ollim-bot cal *)
   - WebFetch
   - WebSearch
@@ -36,7 +36,7 @@ blocked_tools:
 
 - **SDK format, no groups** — tool names match `ClaudeAgentOptions.allowed_tools`
   patterns exactly. Transparent, no mapping layer.
-- **SDK enforcement** — `allowed_tools` maps to SDK `allowed_tools`, `blocked_tools`
+- **SDK enforcement** — `allowed_tools` maps to SDK `allowed_tools`, `disallowed_tools`
   maps to SDK `disallowed_tools`. Agent doesn't see restricted tools at all.
 - **`allow_ping` stays separate** — it has rich behavior (critical bypass, budget,
   busy state) that the generic system can't replicate.
@@ -50,10 +50,10 @@ blocked_tools:
 
 ```
 Routine/Reminder YAML
-  → _parse_md() → dataclass (allowed_tools, blocked_tools)
-  → scheduler._fire() → BgForkConfig(allowed_tools=..., blocked_tools=...)
+  → _parse_md() → dataclass (allowed_tools, disallowed_tools)
+  → scheduler._fire() → BgForkConfig(allowed_tools=..., disallowed_tools=...)
   → run_agent_background(bg_config=...)
-  → create_isolated_client(allowed_tools=..., blocked_tools=...)
+  → create_isolated_client(allowed_tools=..., disallowed_tools=...)
   → _apply_tool_restrictions(opts, allowed, blocked)
   → replace(opts, allowed_tools=...) or replace(opts, disallowed_tools=...)
   → ClaudeSDKClient(modified_opts) → SDK enforces restrictions

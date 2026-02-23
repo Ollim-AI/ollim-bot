@@ -74,7 +74,7 @@ def run_reminder_command(argv: list[str]) -> None:
         help="Allowlist of SDK tool patterns (bg only)",
     )
     add_p.add_argument(
-        "--blocked-tools",
+        "--disallowed-tools",
         nargs="+",
         default=None,
         help="Denylist of SDK tool patterns (bg only)",
@@ -113,7 +113,7 @@ def _handle_add(args: argparse.Namespace) -> None:
         update_main_session=args.update_main_session,
         allow_ping=not args.no_ping,
         allowed_tools=args.allowed_tools,
-        blocked_tools=args.blocked_tools,
+        disallowed_tools=args.disallowed_tools,
     )
     append_reminder(reminder)
     print(f"scheduled {reminder.id}: {_fmt_schedule(reminder)} -- {_summary(reminder)}")
