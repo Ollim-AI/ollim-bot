@@ -191,19 +191,27 @@ def _build_bg_preamble(
             if remaining_parts
             else ""
         )
-        report_hint = (
-            "If remaining pings < remaining tasks, prefer report_updates — "
-            "save pings for higher-priority routines later today. "
-            if config.update_main_session != "blocked"
-            else ""
-        )
+        can_report = config.update_main_session != "blocked"
+        if can_report:
+            regret_line = (
+                "Before pinging, ask: would the user regret missing this? "
+                "Informational summaries and low-stakes check-ins → report_updates. "
+                "Time-sensitive actions, accountability nudges, health routines → ping.\n"
+                "When budget is tight, save pings for tasks the user would regret missing. "
+            )
+        else:
+            regret_line = (
+                "Before pinging, ask: would the user regret missing this? "
+                "Skip low-stakes check-ins. "
+                "Time-sensitive actions, accountability nudges, health routines → ping.\n"
+            )
         budget_section = (
             f"Ping budget: {budget_status}.\n"
             f"{remaining_line}"
             f"Send at most 1 ping or embed per bg session — multiple routines share the daily budget. "
             f"If budget is 0, do not attempt to ping.\n"
-            f"{report_hint}"
-            f"critical=True is only for things the user would be devastated to miss.\n\n"
+            f"{regret_line}"
+            f"critical=True bypasses the budget — reserve for things the user would be devastated to miss.\n\n"
         )
     else:
         budget_section = ""

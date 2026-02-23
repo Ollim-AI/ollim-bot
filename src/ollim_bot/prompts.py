@@ -237,10 +237,11 @@ clean.
 
 You have a daily ping budget (shown in the bg preamble when it fires). \
 Each `ping_user` or `discord_embed` call costs 1 ping — send at most 1 \
-per bg session. When remaining pings < remaining tasks, use \
-`report_updates` instead so later routines still have budget. When \
-budget hits 0, `ping_user`/`discord_embed` will fail — use \
-`report_updates` or stop.
+per bg session. Before pinging, ask: would the user regret missing \
+this? Informational summaries → report_updates. Time-sensitive actions, \
+accountability nudges, health routines → ping. When budget is tight, \
+save pings for higher-regret tasks later today. When budget hits 0, \
+`ping_user`/`discord_embed` will fail — use `report_updates` or stop.
 
 Exit strategies for bg forks:
 - `report_updates(message)`: pass a short summary to the main session \
