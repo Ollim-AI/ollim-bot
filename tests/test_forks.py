@@ -4,10 +4,13 @@ import asyncio
 import time
 from unittest.mock import AsyncMock
 
+import pytest
+
 import ollim_bot.forks as forks_mod
 from ollim_bot.forks import (
     BG_FORK_TIMEOUT,
     ForkExitAction,
+    append_update,
     clear_pending_updates,
     idle_timeout,
     in_interactive_fork,
@@ -276,3 +279,136 @@ def test_bg_fork_timeout_cancels_and_notifies(monkeypatch, data_dir):
     # User should have received a timeout notification
     assert len(sent_messages) == 1
     assert "timed out" in sent_messages[0].lower()
+
+
+# --- Concurrent append_update (reproduction for lost updates bug) ---
+
+
+@pytest.fixture()
+def updates_file(tmp_path, monkeypatch):
+    """Redirect _UPDATES_FILE to a temp directory so tests don't touch real data."""
+    target = tmp_path / "pending_updates.json"
+    monkeypatch.setattr(forks_mod, "_UPDATES_FILE", target)
+    return target
+
+
+def test_concurrent_append_update_via_asyncio_tasks(updates_file):
+    """Two concurrent asyncio.create_task(append_update) — both must survive.
+
+    Simulates two bg forks fired by APScheduler at the same time.
+    APScheduler's AsyncIOExecutor uses loop.create_task() for coroutine jobs.
+    """
+
+    async def _scenario():
+        t1 = asyncio.create_task(append_update("fork-A update"))
+        t2 = asyncio.create_task(append_update("fork-B update"))
+        await asyncio.gather(t1, t2)
+
+        result = await pop_pending_updates()
+        messages = [u.message for u in result]
+        assert "fork-A update" in messages
+        assert "fork-B update" in messages
+        assert len(messages) == 2
+
+    _run(_scenario())
+    # File should be gone after pop
+    assert not updates_file.exists()
+
+
+def test_concurrent_append_update_via_anyio_task_groups(updates_file):
+    """Two concurrent append_update calls inside separate anyio task groups.
+
+    Simulates the SDK execution model: each ClaudeSDKClient has its own
+    anyio task group, and MCP tool calls are dispatched via start_soon().
+    The module-level asyncio.Lock must provide mutual exclusion across
+    tasks from different task groups on the same event loop.
+    """
+    import anyio
+
+    async def _scenario():
+        async def fork_a():
+            async with anyio.create_task_group() as tg:
+                tg.start_soon(append_update, "tg-A update")
+
+        async def fork_b():
+            async with anyio.create_task_group() as tg:
+                tg.start_soon(append_update, "tg-B update")
+
+        # Run both task groups concurrently (simulating two bg forks)
+        async with anyio.create_task_group() as parent:
+            parent.start_soon(fork_a)
+            parent.start_soon(fork_b)
+
+        result = await pop_pending_updates()
+        messages = [u.message for u in result]
+        assert "tg-A update" in messages
+        assert "tg-B update" in messages
+        assert len(messages) == 2
+
+    _run(_scenario())
+
+
+def test_concurrent_append_and_pop(updates_file):
+    """append_update and pop_pending_updates racing — pop must not lose in-flight data.
+
+    Sequence: append A, then concurrently (append B, pop). The pop should
+    return at least A. If the lock works, B either lands before or after pop.
+    """
+
+    async def _scenario():
+        await append_update("before-race")
+
+        popped = []
+
+        async def do_pop():
+            popped.extend(await pop_pending_updates())
+
+        t1 = asyncio.create_task(append_update("during-race"))
+        t2 = asyncio.create_task(do_pop())
+        await asyncio.gather(t1, t2)
+
+        popped_msgs = [u.message for u in popped]
+        # "before-race" MUST appear in either popped or the file
+        leftover = await pop_pending_updates()
+        leftover_msgs = [u.message for u in leftover]
+
+        all_msgs = popped_msgs + leftover_msgs
+        assert "before-race" in all_msgs
+        assert "during-race" in all_msgs
+
+    _run(_scenario())
+
+
+def test_concurrent_append_and_clear(updates_file):
+    """append_update and clear_pending_updates racing — no data corruption."""
+
+    async def _scenario():
+        await append_update("will-be-cleared")
+
+        t1 = asyncio.create_task(append_update("after-clear"))
+        t2 = asyncio.create_task(clear_pending_updates())
+        await asyncio.gather(t1, t2)
+
+        # After both complete, either the file has "after-clear" or is empty
+        # depending on ordering — but there must be no corruption
+        result = await pop_pending_updates()
+        messages = [u.message for u in result]
+        # Only valid outcomes: empty (clear ran last) or ["after-clear"] (append ran last)
+        assert messages == [] or messages == ["after-clear"]
+
+    _run(_scenario())
+
+
+def test_many_concurrent_appends(updates_file):
+    """Stress test: 20 concurrent append_update calls — all must survive."""
+
+    async def _scenario():
+        tasks = [asyncio.create_task(append_update(f"update-{i}")) for i in range(20)]
+        await asyncio.gather(*tasks)
+
+        result = await pop_pending_updates()
+        messages = sorted([u.message for u in result])
+        expected = sorted([f"update-{i}" for i in range(20)])
+        assert messages == expected
+
+    _run(_scenario())
