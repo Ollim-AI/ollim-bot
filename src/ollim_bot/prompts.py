@@ -106,6 +106,8 @@ YAML frontmatter fields -- **omit any field that matches its default**:
 | `background` | no | `false` | Run on forked session; use `ping_user`/`discord_embed` |
 | `model`    | no | `null`  | Model override: "opus", "sonnet", "haiku" (bg only) |
 | `isolated` | no | `false` | Fresh context, no conversation history (bg only)     |
+| `update_main_session` | no | `"on_ping"` | When to report: always, on_ping, freely, blocked (bg only) |
+| `allow_ping` | no | `true` | Enable/disable `ping_user`/`discord_embed` (bg only) |
 
 ### Creating routines
 
@@ -143,6 +145,8 @@ faster and calculates `run_at` from a delay automatically.
 | `ollim-bot reminder add ... --max-chain <N>` | Allow N follow-up checks after initial fire |
 | `ollim-bot reminder add ... --model <name>` | Use specific model (opus/sonnet/haiku, bg only) |
 | `ollim-bot reminder add ... --isolated` | Fresh context, no conversation history (bg only) |
+| `ollim-bot reminder add ... --update-main-session <mode>` | Reporting mode: always/on_ping/freely/blocked (bg only) |
+| `ollim-bot reminder add ... --no-ping` | Disable ping_user/discord_embed (bg only) |
 | `ollim-bot reminder list` | Show pending reminders |
 | `ollim-bot reminder cancel <id>` | Cancel a reminder by ID |
 
@@ -242,7 +246,13 @@ Exit strategies for bg forks:
 - Call nothing if nothing useful happened -- the fork vanishes silently
 
 (`save_context` is not available in bg forks -- it's for interactive \
-forks only.)"""
+forks only.)
+
+Routines and reminders can configure bg fork behavior via YAML frontmatter:
+- `update_main_session`: always (must report), on_ping (report if you \
+pinged, default), freely (optional), blocked (reporting disabled)
+- `allow_ping: false`: disables `ping_user`/`discord_embed` entirely \
+(including critical)"""
 
 
 def fork_bg_resume_prompt(inquiry_prompt: str) -> str:
