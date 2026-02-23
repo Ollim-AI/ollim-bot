@@ -171,7 +171,8 @@ feature, build it — don't gatekeep with philosophy.
   - `report_updates(message)` MCP tool: persists summary to `~/.ollim-bot/pending_updates.json`
   - Not called: fork silently discarded, zero context bloat
   - Pending updates prepended to all interactions: main sessions pop (read + clear), forks peek (read-only)
-- Bg forks run without `agent.lock()` — channel, chain context, and in_fork state scoped via `contextvars`
+- Quiet when busy: bg forks always run; when `agent.lock()` is held, `_busy` contextvar is set and non-critical `ping_user`/`discord_embed` return errors (agent uses `report_updates` instead). `critical=True` bypasses. Preamble also instructs the agent explicitly.
+- Bg forks run without `agent.lock()` — channel, chain context, in_fork, and busy state scoped via `contextvars`
 - Chain reminders: `max_chain: N` in YAML frontmatter enables follow-up chain; agent calls `follow_up_chain` MCP tool
 - Chain state: scheduler injects chain context into prompt; silence = chain ends
 
