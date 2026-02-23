@@ -326,7 +326,7 @@ async def save_context(args: dict[str, Any]) -> dict[str, Any]:
             "content": [{"type": "text", "text": "Error: not in an interactive fork"}]
         }
     set_exit_action(ForkExitAction.SAVE)
-    clear_pending_updates()
+    await clear_pending_updates()
     return {
         "content": [
             {

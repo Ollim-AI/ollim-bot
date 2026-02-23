@@ -86,8 +86,10 @@ def save_session_id(session_id: str) -> None:
 
     SESSIONS_FILE.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=SESSIONS_FILE.parent, suffix=".tmp")
-    os.write(fd, session_id.encode())
-    os.close(fd)
+    try:
+        os.write(fd, session_id.encode())
+    finally:
+        os.close(fd)
     os.replace(tmp, SESSIONS_FILE)
 
 
@@ -172,6 +174,8 @@ def _read_fork_messages() -> list[_ForkMessageRecord]:
 def _write_fork_messages(records: list[_ForkMessageRecord]) -> None:
     FORK_MESSAGES_FILE.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=FORK_MESSAGES_FILE.parent, suffix=".tmp")
-    os.write(fd, json.dumps(records).encode())
-    os.close(fd)
+    try:
+        os.write(fd, json.dumps(records).encode())
+    finally:
+        os.close(fd)
     os.replace(tmp, FORK_MESSAGES_FILE)

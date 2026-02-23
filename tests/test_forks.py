@@ -66,8 +66,8 @@ def test_multiple_updates_accumulate():
 def test_clear_is_idempotent():
     _run(pop_pending_updates())
 
-    clear_pending_updates()
-    clear_pending_updates()
+    _run(clear_pending_updates())
+    _run(clear_pending_updates())
 
     assert peek_pending_updates() == []
 
