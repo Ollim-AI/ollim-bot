@@ -49,7 +49,7 @@ This is the foundational rule. It explains why `try_use()` in `ping_budget.py` n
 The corollary: when you DO add an `await` inside a previously-synchronous critical section (e.g., switching from `Path.read_text()` to `aiofiles`), you've introduced a real race and need real synchronization.
 
 **A lock that documents an invariant is not wasted.** *(judgment call)*
-`_updates_lock` in `forks.py` wraps a synchronous read-modify-write. By the no-await rule, the lock is technically redundant today. But it documents "this read-modify-write must be atomic" — if someone later adds an `await` inside, the lock is already there.
+`_updates_lock` in `forks.py` wraps a synchronous read-modify-write. By the no-await rule, the lock is technically redundant today. But it documents "this read-modify-write must be atomic" — if someone later adds an `await` inside, the lock is already there. This is the exception to "no await, no race" — the lock is not needed for correctness today, but earns its keep as documentation.
 Keep defensive locks when they protect a genuine invariant. But add a comment explaining what they guard, so a reader doesn't remove them thinking they're unnecessary, and doesn't copy the pattern to places where no invariant exists.
 
 ## Managing Shared State
@@ -64,12 +64,15 @@ Teardowns follow a specific protocol that makes them safe without the lock:
 
 Any in-flight stream sees `client is not self._client` at its next `await` and stops saving state. This avoids deadlock: if `/clear` held the lock, the user couldn't clear a stuck stream.
 
-New operations must choose a tier. The test: does this operation send a message to the client and await a response? If yes, it needs the lock. Does it tear down or reconfigure? Follow the null-first protocol, no lock. Does it only read module-level state without touching the client (e.g., checking fork status, reading budget)? No lock needed — synchronous reads are atomic by the no-await rule.
+New operations must choose a tier. The test: does this operation send a *conversation turn* through the client and stream the response (`stream_chat`, `slash`, `query` + `receive_response`)? If yes, it needs the lock. Does it tear down, reconfigure, or send a control command (model switch, permission change)? No lock — teardowns use the null-first protocol, and control commands are fire-and-forget settings the SDK handles safely mid-stream. Does it only read module-level state without touching the client (e.g., checking fork status, reading budget)? No lock needed — synchronous reads are atomic by the no-await rule.
+
+**Every interaction path sets channel in both modules.** *(hard rule)*
+Every path into `stream_chat` must call both `agent_tools.set_channel` and `permissions.set_channel` before streaming. Missing either sends output or approval prompts to a stale channel — a silent runtime bug. This is documented as a hard invariant in CLAUDE.md; check it when adding any new entry point.
 
 **ContextVar before fork, global under lock.** *(hard rule)*
 Background forks use `ContextVar` for per-task isolation (channel, chain context, output tracking, message collection, in-fork flag). The main session uses module globals protected by `agent.lock()`. Where both regimes need access to the same logical state, the dual pattern applies: a module global for the main session and a ContextVar for bg forks, with the reader checking contextvar first: `_channel_var.get() or _channel`.
 
-Set every contextvar *before* creating the forked client. The SDK spawns internal tasks that inherit the caller's context. If you set the contextvar after `connect()`, callbacks like `canUseTool` won't see the fork's state. `forks.py:246` has a `CRITICAL` comment explaining this ordering — it is not optional.
+Set every contextvar *before* creating the forked client. The SDK spawns internal tasks that inherit the caller's context. If you set the contextvar after `connect()`, callbacks like `canUseTool` won't see the fork's state. `run_agent_background()` in `forks.py` has a `CRITICAL` comment explaining this ordering — it is not optional.
 
 Clean up in `finally`: contextvars must be reset even if the stream errors. Leaked state corrupts the next task reusing that event loop slot. Use nested try/finally when cleanup has two phases (outer: reset contextvars/flags, inner: disconnect client) — this ensures state is clean even if resource cleanup itself fails.
 
