@@ -371,6 +371,62 @@ def test_fires_before_midnight_wrong_dow(monkeypatch):
 # --- _remaining_bg_routine_firings ---
 
 
+# --- Tool restriction preamble ---
+
+
+def test_bg_preamble_allowed_tools():
+    config = BgForkConfig(
+        allowed_tools=["Bash(ollim-bot gmail *)", "Bash(ollim-bot tasks *)"]
+    )
+
+    result = _build_bg_preamble(0, 0, bg_config=config)
+
+    assert "TOOL RESTRICTIONS" in result
+    assert "Only these tools" in result
+    assert "Bash(ollim-bot gmail *)" in result
+    assert "Bash(ollim-bot tasks *)" in result
+
+
+def test_bg_preamble_blocked_tools():
+    config = BgForkConfig(blocked_tools=["WebFetch", "WebSearch"])
+
+    result = _build_bg_preamble(0, 0, bg_config=config)
+
+    assert "TOOL RESTRICTIONS" in result
+    assert "NOT available" in result
+    assert "WebFetch" in result
+    assert "WebSearch" in result
+
+
+def test_bg_preamble_no_tool_restrictions():
+    config = BgForkConfig()
+
+    result = _build_bg_preamble(0, 0, bg_config=config)
+
+    assert "TOOL RESTRICTIONS" not in result
+
+
+def test_reminder_prompt_bg_with_allowed_tools():
+    reminder = Reminder(
+        id="r1",
+        message="Check email",
+        run_at="2026-02-16T12:00:00-08:00",
+        background=True,
+        allowed_tools=["Bash(ollim-bot gmail *)"],
+    )
+    config = BgForkConfig(allowed_tools=reminder.allowed_tools)
+
+    prompt = _build_reminder_prompt(
+        reminder, reminders=[], routines=[], bg_config=config
+    )
+
+    assert "TOOL RESTRICTIONS" in prompt
+    assert "Bash(ollim-bot gmail *)" in prompt
+
+
+# --- _fires_before_midnight ---
+
+
 def test_remaining_bg_routine_firings_filters_correctly(monkeypatch):
     fixed_now = datetime.now(TZ).replace(hour=10, minute=0, second=0, microsecond=0)
     monkeypatch.setattr(

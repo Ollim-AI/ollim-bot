@@ -104,6 +104,12 @@ def _serialize_md(item: T) -> str:
             lines.append(f'{key}: "{value}"')
         elif isinstance(value, bool):
             lines.append(f"{key}: {str(value).lower()}")
+        elif isinstance(value, list):
+            lines.append(f"{key}:")
+            for item in value:
+                lines.append(
+                    f'  - "{item}"' if isinstance(item, str) else f"  - {item}"
+                )
         else:
             lines.append(f"{key}: {value}")
     lines.append("---")

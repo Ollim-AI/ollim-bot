@@ -90,6 +90,23 @@ async def _prepend_context(message: str, *, clear: bool = True) -> str:
     return f"{ts} {message}" if message else ts
 
 
+_HELP_TOOL = "Bash(ollim-bot help)"
+
+
+def _apply_tool_restrictions(
+    opts: ClaudeAgentOptions,
+    allowed: list[str] | None,
+    blocked: list[str] | None,
+) -> ClaudeAgentOptions:
+    """Apply per-job tool restrictions to agent options."""
+    if allowed is not None:
+        tools = allowed if _HELP_TOOL in allowed else [_HELP_TOOL, *allowed]
+        return replace(opts, allowed_tools=tools)
+    if blocked is not None:
+        return replace(opts, disallowed_tools=blocked)
+    return opts
+
+
 class Agent:
     def __init__(self) -> None:
         self.options = ClaudeAgentOptions(
@@ -290,7 +307,12 @@ class Agent:
         return action, summary
 
     async def create_forked_client(
-        self, session_id: str | None = None, *, fork: bool = True
+        self,
+        session_id: str | None = None,
+        *,
+        fork: bool = True,
+        allowed_tools: list[str] | None = None,
+        blocked_tools: list[str] | None = None,
     ) -> ClaudeSDKClient:
         """Create a disposable client that forks from a given or current session.
 
@@ -302,12 +324,18 @@ class Agent:
             opts = replace(self.options, resume=sid, fork_session=fork)
         else:
             opts = self.options
+        opts = _apply_tool_restrictions(opts, allowed_tools, blocked_tools)
         client = ClaudeSDKClient(opts)
         await client.connect()
         return client
 
     async def create_isolated_client(
-        self, *, model: str | None = None, thinking: bool = True
+        self,
+        *,
+        model: str | None = None,
+        thinking: bool = True,
+        allowed_tools: list[str] | None = None,
+        blocked_tools: list[str] | None = None,
     ) -> ClaudeSDKClient:
         """Create a standalone client with no conversation history."""
         opts = self.options
@@ -315,6 +343,7 @@ class Agent:
             opts = replace(opts, model=model)
         thinking_tokens = 10000 if thinking else None
         opts = replace(opts, max_thinking_tokens=thinking_tokens)
+        opts = _apply_tool_restrictions(opts, allowed_tools, blocked_tools)
         client = ClaudeSDKClient(opts)
         await client.connect()
         return client

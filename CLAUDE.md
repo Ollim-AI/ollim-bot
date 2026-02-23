@@ -186,7 +186,13 @@ feature, build it — don't gatekeep with philosophy.
   - Pending updates prepended to all interactions: main sessions pop (read + clear), forks peek (read-only)
   - `update_main_session`: `always` (must report), `on_ping` (report if pinged, default), `freely` (optional), `blocked` (report_updates returns error)
   - `allow_ping: false`: disables `ping_user`/`discord_embed` entirely — `critical=True` does NOT bypass (author intent wins)
-  - `BgForkConfig` frozen dataclass in `forks.py` holds both fields; contextvar propagated to bg fork tasks
+  - `BgForkConfig` frozen dataclass in `forks.py` holds config fields; contextvar propagated to bg fork tasks
+  - Tool restrictions: `allowed_tools` / `blocked_tools` in YAML — uses SDK tool format (`Bash(ollim-bot gmail *)`, `mcp__discord__*`, etc.)
+  - `allowed_tools`: overrides SDK `allowed_tools` (only listed tools available); `Bash(ollim-bot help)` auto-included
+  - `blocked_tools`: maps to SDK `disallowed_tools` (subtracts from default set); mutually exclusive with `allowed_tools`
+  - Orthogonal to `allow_ping` — ping/embed have their own rich behavior (critical bypass, budget, busy state)
+  - SDK enforcement via `_apply_tool_restrictions()` in `agent.py`: agent doesn't see restricted tools at all
+  - Preamble includes TOOL RESTRICTIONS section when active; chain reminders inherit restrictions via `ChainContext`
   - Stop hook (`require_report_hook` in `agent_tools.py`) adapts to mode: `always` blocks without report, `on_ping` blocks with unreported output, `freely`/`blocked` never block
 - Quiet when busy: bg forks always run; when `agent.lock()` is held, `_busy` contextvar is set and non-critical `ping_user`/`discord_embed` return errors (agent uses `report_updates` instead). `critical=True` bypasses. Preamble also instructs the agent explicitly.
 - Bg forks run without `agent.lock()` — channel, chain context, in_fork, busy state, and bg_fork_config scoped via `contextvars`

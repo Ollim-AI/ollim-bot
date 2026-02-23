@@ -193,3 +193,65 @@ def test_reminder_bg_config_roundtrip(data_dir):
 
     assert loaded.update_main_session == "blocked"
     assert loaded.allow_ping is False
+
+
+# --- Tool restrictions ---
+
+
+def test_reminder_new_defaults_tool_restrictions():
+    reminder = Reminder.new(message="test", delay_minutes=30)
+
+    assert reminder.allowed_tools is None
+    assert reminder.blocked_tools is None
+
+
+def test_reminder_new_with_allowed_tools():
+    reminder = Reminder.new(
+        message="email only",
+        delay_minutes=30,
+        allowed_tools=["Bash(ollim-bot gmail *)"],
+    )
+
+    assert reminder.allowed_tools == ["Bash(ollim-bot gmail *)"]
+
+
+def test_reminder_new_both_tools_raises():
+    with pytest.raises(ValueError, match="Cannot specify both"):
+        Reminder.new(
+            message="bad",
+            delay_minutes=10,
+            allowed_tools=["Read(**.md)"],
+            blocked_tools=["WebFetch"],
+        )
+
+
+def test_reminder_allowed_tools_roundtrip(data_dir):
+    tools = ["Bash(ollim-bot gmail *)", "mcp__discord__report_updates"]
+    reminder = Reminder.new(
+        message="restricted",
+        delay_minutes=30,
+        background=True,
+        allowed_tools=tools,
+    )
+    append_reminder(reminder)
+
+    loaded = list_reminders()[0]
+
+    assert loaded.allowed_tools == tools
+    assert loaded.blocked_tools is None
+
+
+def test_reminder_blocked_tools_roundtrip(data_dir):
+    tools = ["WebFetch", "WebSearch"]
+    reminder = Reminder.new(
+        message="no web",
+        delay_minutes=30,
+        background=True,
+        blocked_tools=tools,
+    )
+    append_reminder(reminder)
+
+    loaded = list_reminders()[0]
+
+    assert loaded.blocked_tools == tools
+    assert loaded.allowed_tools is None

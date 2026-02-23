@@ -94,6 +94,12 @@ def bg_output_sent() -> bool:
 class BgForkConfig:
     update_main_session: str = "on_ping"  # always | on_ping | freely | blocked
     allow_ping: bool = True
+    allowed_tools: list[str] | None = None
+    blocked_tools: list[str] | None = None
+
+    def __post_init__(self) -> None:
+        if self.allowed_tools is not None and self.blocked_tools is not None:
+            raise ValueError("Cannot specify both allowed_tools and blocked_tools")
 
 
 _bg_fork_config_var: ContextVar[BgForkConfig] = ContextVar(
@@ -386,12 +392,20 @@ async def run_agent_background(
 
     try:
         async with asyncio.timeout(BG_FORK_TIMEOUT):
+            allowed = bg_config.allowed_tools if bg_config else None
+            blocked = bg_config.blocked_tools if bg_config else None
             if isolated:
                 client = await agent.create_isolated_client(
-                    model=model, thinking=thinking
+                    model=model,
+                    thinking=thinking,
+                    allowed_tools=allowed,
+                    blocked_tools=blocked,
                 )
             else:
-                client = await agent.create_forked_client()
+                client = await agent.create_forked_client(
+                    allowed_tools=allowed,
+                    blocked_tools=blocked,
+                )
             try:
                 fork_session_id = await agent.run_on_client(
                     client, prompt, prepend_updates=not isolated
