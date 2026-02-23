@@ -43,7 +43,7 @@ Every principle here exists to do one or more of these:
 ## Responsiveness
 
 **Acknowledge instantly, elaborate later.** *(hard rule)*
-The user should never wonder "did it hear me?" Eyes reaction (👀) on message receipt, typing indicator during tool execution, 200ms buffer before the first response chunk (so it opens with a sentence, not a word). Instant acknowledgment is a separate concern from response quality — both matter, neither substitutes for the other.
+The user should never wonder "did it hear me?" Instant acknowledgment is a separate concern from response quality — both matter, neither substitutes for the other. Currently: 👀 reaction on message receipt, typing indicator during tool execution, 200ms buffer before the first response chunk (so it opens with a sentence, not a word).
 
 When adding a new interaction path, check: what does the user see in the first 500ms? If the answer is "nothing," add an acknowledgment signal.
 
@@ -55,11 +55,11 @@ This extends to any blocking interaction: if the user takes an action while the 
 ## Communication
 
 **Every word earns its place.** *(hard rule)*
-System responses are lowercase, one-line, unpunctuated beyond a period. `"switched to opus."` not `"I've switched the model to Opus for you!"` Empty responses get `"hmm, I didn't have a response for that."` not an apology or explanation. Embed titles are stripped of emoji (LLMs love to add them; users don't need them).
+Bot framework messages — slash command feedback, error cases, status updates — are lowercase, one-line, unpunctuated beyond a period. `"switched to opus."` not `"I've switched the model to Opus for you!"` Empty responses get `"hmm, I didn't have a response for that."` not an apology or explanation. Embed titles are stripped of emoji (LLMs love to add them; users don't need them).
 
-The bot's personality is defined by three constraints: concise and direct, warm but not overbearing, ADHD-aware. That's it. More personality spec creates inconsistency, not character.
+This applies to the bot's own UI text, not the agent's conversational responses. The agent follows its personality rules in `prompts.py` (concise and direct, warm but not overbearing, ADHD-aware) — those allow multi-line explanation when context demands it.
 
-When writing new system messages or response templates, read them aloud. If they sound like a customer support chatbot, rewrite.
+When writing new framework messages or response templates, read them aloud. If they sound like a customer support chatbot, rewrite.
 
 **One action, not a menu.** *(strong default)*
 Present ONE focus item, not a wall of options. The bot picks the best action and presents it. When the agent needs to offer choices, use embed buttons (2-3 max) rather than numbered lists in text.
@@ -79,7 +79,7 @@ Proactive outreach is the product's core value, but uncontrolled notifications b
 When adding a new proactive feature, it MUST go through the ping budget. No exceptions, no "just this one notification." The budget is the user's trust boundary.
 
 **Tag the source, hide the machinery.** *(strong default)*
-The user needs to know WHERE a message came from: `[bg]` prefix on background text, footer on background embeds, purple embed on fork entry, color-coded embed on fork exit. Provenance prevents confusion about context ("why is the bot talking to me right now?").
+The user needs to know WHERE a message came from — provenance prevents confusion about context ("why is the bot talking to me right now?"). Currently: `[bg]` prefix on background text, footer on background embeds, purple embed on fork entry, color-coded embed on fork exit.
 
 But the user does NOT need to know HOW it happened: rate limit handling, budget enforcement, serialization fixes, tool denials, and internal retries are invisible. If the machinery is working correctly, the user shouldn't know it exists. If it's broken, show the outcome ("couldn't reach Google Calendar"), not the cause ("OAuth token refresh failed with 401").
 
@@ -98,9 +98,9 @@ The principle: the result IS the confirmation. A deleted task is confirmed by it
 Exception: destructive or irreversible actions (none exist today, but if added) should confirm before executing.
 
 **Context survives boundaries.** *(strong default)*
-Reply-to-fork-message resumes that fork's session. Reconnect acknowledges prior conversation. Button actions inject pending updates so the main session learns about direct state changes. Chain reminders carry position context. Expired buttons degrade gracefully ("this button has expired").
+Context loss makes the bot feel amnesiac — it erodes the single most important product quality, the feeling that the bot *knows you*. Reply-to-fork-message resumes that fork's session. Reconnect acknowledges prior conversation. Button actions inject pending updates so the main session learns about direct state changes. Chain reminders carry position context. Expired buttons degrade gracefully ("this button has expired").
 
-When adding a new interaction that crosses a context boundary (fork → main, bg → main, restart → resume), check: does the receiving context know what happened? If not, bridge it — pending updates, session tracking, or quoted content.
+When adding a new interaction that crosses a context boundary (fork → main, bg → main, restart → resume), check: does the receiving context know what happened? If not, bridge it — pending updates, session tracking, or quoted content. But don't add a bridge when the context loss is harmless — unnecessary bridges add complexity for continuity the user won't notice.
 
 **Escalate in stages, not all at once.** *(strong default)*
 Idle timeout prompts before forcing exit (10min soft → 10min hard). Approval times out with strikethrough, not an error. Expired buttons say "expired," not "ERROR." Fork buttons during an active fork say "already in a fork," not a stack trace.
@@ -119,6 +119,7 @@ This is a judgment call because the right default depends on the user's trust le
 - The user-visible copy could be interpreted multiple ways ("should this say 'done' or 'completed task: X'?")
 - A feature adds a new interaction pattern that doesn't match existing conventions
 - The error case could either be silent or show a message, and both are defensible
+- A requested feature would violate a hard-rule principle — flag the tension and explain it, then build what the user asked for (user's explicit request takes priority per CLAUDE.md)
 
 **Don't ask when:**
 - The interaction pattern matches an existing one (follow the convention)
