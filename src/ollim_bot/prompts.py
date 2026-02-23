@@ -67,7 +67,6 @@ Manage calendar via `ollim-bot cal`.
 
 - Check `today` at conversation start for context
 - Times are in America/Los_Angeles (PT)
-- For focus blocks, create calendar events
 
 ## Routines
 
