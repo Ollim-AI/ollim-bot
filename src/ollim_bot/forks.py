@@ -38,6 +38,7 @@ class ForkExitAction(Enum):
 # ---------------------------------------------------------------------------
 
 _in_fork_var: ContextVar[bool] = ContextVar("_in_fork", default=False)
+_busy_var: ContextVar[bool] = ContextVar("_busy", default=False)
 
 
 def set_in_fork(active: bool) -> None:
@@ -46,6 +47,14 @@ def set_in_fork(active: bool) -> None:
 
 def in_bg_fork() -> bool:
     return _in_fork_var.get()
+
+
+def set_busy(busy: bool) -> None:
+    _busy_var.set(busy)
+
+
+def is_busy() -> bool:
+    return _busy_var.get()
 
 
 # ---------------------------------------------------------------------------
@@ -303,16 +312,20 @@ async def run_agent_background(
     )
 
     tag = _extract_prompt_tag(prompt)
+    busy = agent.lock().locked()
+    if busy:
+        log.info("bg fork running in quiet mode (user busy): %s", tag)
 
     log.info("bg fork started: %s", tag)
 
     dm = await owner.create_dm()
     set_fork_channel(dm)
     main_session_id = load_session_id()
-    # CRITICAL: set_in_fork(True) must precede create_forked_client() so the
-    # contextvar propagates through the SDK's task-group spawn chain to reach
-    # the can_use_tool callback. See design doc for details.
+    # CRITICAL: set_in_fork(True) and set_busy() must precede
+    # create_forked_client() so the contextvars propagate through the SDK's
+    # task-group spawn chain to reach the can_use_tool callback.
     set_in_fork(True)
+    set_busy(busy)
     init_bg_output_flag()
     start_message_collector()
 
@@ -349,6 +362,7 @@ async def run_agent_background(
         raise
     finally:
         set_in_fork(False)
+        set_busy(False)
         cancel_message_collector()
 
 

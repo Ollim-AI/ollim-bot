@@ -98,7 +98,12 @@ def _convert_dow(dow: str) -> str:
     return ",".join(converted)
 
 
-def _build_bg_preamble(reminders: list[Reminder], routines: list[Routine]) -> str:
+def _build_bg_preamble(
+    reminders: list[Reminder],
+    routines: list[Routine],
+    *,
+    busy: bool = False,
+) -> str:
     """Build BG_PREAMBLE with budget status and remaining task count."""
     bg_reminders, bg_routines = ping_budget.remaining_today(reminders, routines)
     budget_status = ping_budget.get_status()
@@ -118,8 +123,17 @@ def _build_bg_preamble(reminders: list[Reminder], routines: list[Routine]) -> st
         else ""
     )
 
+    busy_line = (
+        "User is mid-conversation. Do NOT use `ping_user` or `discord_embed` "
+        "unless `critical=True`. Use `report_updates` for all findings -- "
+        "they'll appear in the main session when the conversation ends.\n\n"
+        if busy
+        else ""
+    )
+
     return (
         f"{_BG_PREAMBLE}"
+        f"{busy_line}"
         f"Ping budget: {budget_status}.\n"
         f"{remaining_line}"
         "Plan pings carefully -- you may not need to ping for every task. "
@@ -133,9 +147,10 @@ def _build_routine_prompt(
     *,
     reminders: list[Reminder],
     routines: list[Routine],
+    busy: bool = False,
 ) -> str:
     if routine.background:
-        preamble = _build_bg_preamble(reminders, routines)
+        preamble = _build_bg_preamble(reminders, routines, busy=busy)
         return f"[routine-bg:{routine.id}] {preamble}{routine.message}"
     return f"[routine:{routine.id}] {routine.message}"
 
@@ -145,6 +160,7 @@ def _build_reminder_prompt(
     *,
     reminders: list[Reminder],
     routines: list[Routine],
+    busy: bool = False,
 ) -> str:
     tag = (
         f"reminder-bg:{reminder.id}"
@@ -154,7 +170,7 @@ def _build_reminder_prompt(
     parts = [f"[{tag}]"]
 
     if reminder.background:
-        parts.append(_build_bg_preamble(reminders, routines).rstrip())
+        parts.append(_build_bg_preamble(reminders, routines, busy=busy).rstrip())
 
     if reminder.max_chain > 0:
         check_num = reminder.chain_depth + 1
@@ -190,10 +206,12 @@ def _register_routine(
     _registered_routines.add(routine.id)
 
     async def _fire() -> None:
+        busy = agent.lock().locked()
         prompt = _build_routine_prompt(
             routine,
             reminders=list_reminders(),
             routines=list_routines(),
+            busy=busy,
         )
         try:
             if routine.background:
@@ -241,10 +259,12 @@ def _register_reminder(
     _registered_reminders.add(reminder.id)
 
     async def fire_oneshot() -> None:
+        busy = agent.lock().locked()
         prompt = _build_reminder_prompt(
             reminder,
             reminders=list_reminders(),
             routines=list_routines(),
+            busy=busy,
         )
         # follow_up_chain MCP tool reads this to schedule the next link
         chain_ctx = None
