@@ -2,9 +2,12 @@
 
 from ollim_bot.webhook import (  # noqa: F401
     WebhookSpec,
+    build_screening_prompt,
     build_webhook_prompt,
+    extract_string_fields,
     list_webhooks,
     load_webhook,
+    parse_screening_response,
     validate_payload,
     verify_auth,
 )
@@ -282,3 +285,69 @@ def test_verify_auth_missing_header():
 
 def test_verify_auth_no_bearer_prefix():
     assert verify_auth("my-secret", "my-secret") is False
+
+
+def test_extract_string_fields():
+    spec = WebhookSpec(
+        id="test",
+        message=".",
+        fields={
+            "type": "object",
+            "properties": {
+                "repo": {"type": "string"},
+                "count": {"type": "integer"},
+                "status": {"type": "string", "enum": ["ok", "fail"]},
+                "url": {"type": "string"},
+            },
+        },
+    )
+    data = {"repo": "myrepo", "count": 42, "status": "ok", "url": "https://x.com"}
+
+    result = extract_string_fields(spec, data)
+
+    # enum fields are constrained, no need to screen them
+    assert result == {"repo": "myrepo", "url": "https://x.com"}
+
+
+def test_extract_string_fields_empty():
+    spec = WebhookSpec(
+        id="test",
+        message=".",
+        fields={
+            "type": "object",
+            "properties": {"count": {"type": "integer"}},
+        },
+    )
+
+    result = extract_string_fields(spec, {"count": 5})
+
+    assert result == {}
+
+
+def test_build_screening_prompt_contains_fields():
+    prompt = build_screening_prompt({"repo": "ollim-bot", "branch": "main"})
+
+    assert "repo" in prompt
+    assert "ollim-bot" in prompt
+    assert "branch" in prompt
+    assert "main" in prompt
+    assert "injection" in prompt.lower()
+
+
+def test_parse_screening_response_safe():
+    flagged = parse_screening_response('{"safe": true, "flagged": []}')
+
+    assert flagged == []
+
+
+def test_parse_screening_response_unsafe():
+    flagged = parse_screening_response('{"safe": false, "flagged": ["branch", "url"]}')
+
+    assert flagged == ["branch", "url"]
+
+
+def test_parse_screening_response_malformed():
+    """Malformed response is treated as safe (fail open for availability)."""
+    flagged = parse_screening_response("I cannot determine this")
+
+    assert flagged == []
