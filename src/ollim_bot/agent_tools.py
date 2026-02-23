@@ -69,6 +69,8 @@ class ChainContext:
     model: str | None = None
     thinking: bool = True
     isolated: bool = False
+    update_main_session: str = "on_ping"
+    allow_ping: bool = True
 
 
 _chain_context: ChainContext | None = None
@@ -318,6 +320,10 @@ async def follow_up_chain(args: dict[str, Any]) -> dict[str, Any]:
         cmd.append("--no-thinking")
     if ctx.isolated:
         cmd.append("--isolated")
+    if ctx.update_main_session != "on_ping":
+        cmd.extend(["--update-main-session", ctx.update_main_session])
+    if not ctx.allow_ping:
+        cmd.append("--no-ping")
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
         return {
