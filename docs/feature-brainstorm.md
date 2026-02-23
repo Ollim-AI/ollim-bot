@@ -27,16 +27,8 @@ client with no conversation history. Combined with per-job model overrides.
 `model: "haiku"` in routine/reminder YAML frontmatter. Background jobs only —
 isolated mode is where model overrides clearly pay off (no cache miss on forked context).
 
-### Webhook Endpoints (External Triggers)
-HTTP endpoints that trigger agent turns from external services.
-
-- Small HTTP server (FastAPI/aiohttp) alongside Discord bot
-- `POST /hook/wake` -- inject message into main session
-- `POST /hook/agent` -- isolated agent turn with optional Discord delivery
-- Enables: GitHub notifications, CI/CD results, home automation, IFTTT/Zapier
-- Currently only cron and Discord messages can wake the agent
-- Key use case: phone notification relay -- forward phone notifications to ollim,
-  agent decides to dismiss or act (update tasks/calendar)
+### ~~Webhook Endpoints (External Triggers)~~ ✅ Implemented
+See `webhook.py` and `docs/plans/2026-02-22-webhook-endpoints-design.md`.
 
 ### Per-Job Tool Restrictions
 Routines/reminders configure which MCP tools are available.
