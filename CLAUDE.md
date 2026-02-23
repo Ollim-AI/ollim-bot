@@ -55,7 +55,7 @@ feature, build it — don't gatekeep with philosophy.
 - `config.py` -- Env vars: `OLLIM_USER_NAME`, `OLLIM_BOT_NAME` (loaded from `.env` via dotenv)
 - `embeds.py` -- Embed/button types, builders, maps, and `build_embed`/`build_view` (shared by agent_tools and views)
 - `inquiries.py` -- Persists button inquiry prompts to `~/.ollim-bot/inquiries.json` (7-day TTL)
-- `ping_budget.py` -- Daily ping budget for bg fork notifications (state, enforcement, status formatting)
+- `ping_budget.py` -- Refill-on-read ping budget for bg fork notifications (state, enforcement, status formatting)
 - `google/` -- Google API integration sub-package
   - `auth.py` -- Shared Google OAuth2 (Tasks + Calendar + Gmail)
   - `tasks.py` -- Google Tasks CLI + API helpers (`complete_task`, `delete_task`)
@@ -64,6 +64,7 @@ feature, build it — don't gatekeep with philosophy.
 - `scheduling/` -- Routines, reminders, and APScheduler sub-package
   - `routines.py` -- Routine dataclass and markdown I/O (recurring crons, `routines/*.md`)
   - `reminders.py` -- Reminder dataclass and markdown I/O (one-shot + chainable, `reminders/*.md`)
+  - `preamble.py` -- Bg preamble and forward schedule builder for bg fork prompts
   - `scheduler.py` -- Proactive scheduling via APScheduler (syncs routines + reminders every 10s)
   - `routine_cmd.py` -- Routines CLI (`ollim-bot routine`)
   - `reminder_cmd.py` -- Reminders CLI (`ollim-bot reminder`)
@@ -92,7 +93,7 @@ feature, build it — don't gatekeep with philosophy.
 - `/fork [topic]` -- start interactive forked conversation
 - `/interrupt` -- stop current response (fire-and-forget, no lock, silent)
 - `/permissions <dontAsk|default|acceptEdits|bypassPermissions>` -- switch permission mode (fork-scoped); `dontAsk` is the default
-- `/ping-budget [limit]` -- view or set daily ping budget (bg fork pings only)
+- `/ping-budget [capacity] [refill_rate]` -- view or configure ping budget (bg fork pings only)
 - `Agent.slash()` -- generic method routing SDK slash commands, captures SystemMessage + AssistantMessage + ResultMessage
 - `Agent.set_model()` -- uses `dataclasses.replace()` on shared options + updates live client
 - `Agent.set_thinking()` -- updates `max_thinking_tokens` on shared options + drops client (no live setter)
@@ -110,14 +111,18 @@ feature, build it — don't gatekeep with philosophy.
 - Inquiry prompts persisted to `~/.ollim-bot/inquiries.json` (survive restarts, 7-day TTL)
 
 ## Ping budget
-- `~/.ollim-bot/ping_budget.json` — ephemeral state (no git commit): `daily_limit`, `used`, `critical_used`, `last_reset`
-- Default 10/day, resets at midnight; configurable via `/ping-budget [limit]`
+- `~/.ollim-bot/ping_budget.json` — ephemeral state (no git commit)
+- Refill-on-read bucket: capacity (default 5), refills 1 per 90 min, capped at capacity
+- Lazy refill: `load()` computes accumulated pings from elapsed time since `last_refill`
+- Daily counters (`daily_used`, `critical_used`) reset at midnight
 - Scope: bg forks only — main session and interactive fork embeds are user-requested, never counted
 - Enforcement: `agent_tools.py` checks budget before `ping_user`/`discord_embed` in bg forks
 - Critical bypass: `critical=True` parameter on both tools; tracked but not capped
-- Over budget: silent drop — tool returns error to agent, user not notified
-- Agent awareness: budget status + remaining bg tasks injected into BG_PREAMBLE at job-fire time
-- `remaining_today(reminders, routines)` counts bg reminders before midnight + bg routine count
+- Over budget: tool returns error to agent, user not notified
+- Forward schedule: bg preamble shows upcoming bg tasks with times, descriptions, and file paths
+- Schedule window: `[now-15min, now+3h]` or next 3 forward tasks, whichever covers more
+- Agent awareness: budget status + schedule + refill timing injected into BG_PREAMBLE at job-fire time
+- `/ping-budget [capacity] [refill_rate]` — view or configure
 
 ## Webhooks
 - `webhook.py` -- HTTP server for external triggers (aiohttp, embedded in Discord.py event loop)

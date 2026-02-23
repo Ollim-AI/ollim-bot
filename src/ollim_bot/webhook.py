@@ -87,19 +87,19 @@ def build_webhook_prompt(
     from ollim_bot.forks import BgForkConfig
     from ollim_bot.scheduling.reminders import list_reminders
     from ollim_bot.scheduling.routines import list_routines
-    from ollim_bot.scheduling.scheduler import (
-        _build_bg_preamble,
-        _build_upcoming_schedule,
+    from ollim_bot.scheduling.preamble import (
+        build_bg_preamble,
+        build_upcoming_schedule,
     )
 
     bg_config = BgForkConfig(
         update_main_session=spec.update_main_session,
         allow_ping=spec.allow_ping,
     )
-    schedule = _build_upcoming_schedule(
+    schedule = build_upcoming_schedule(
         list_routines(), list_reminders(), current_id=spec.id
     )
-    preamble = _build_bg_preamble(schedule, busy=busy, bg_config=bg_config)
+    preamble = build_bg_preamble(schedule, busy=busy, bg_config=bg_config)
 
     data_lines = [f"- {key}: {value}" for key, value in data.items()]
     data_section = "\n".join(data_lines) if data_lines else "(no data)"
