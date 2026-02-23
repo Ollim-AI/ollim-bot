@@ -173,8 +173,11 @@ class Agent:
         self.options = replace(self.options, max_thinking_tokens=tokens)
         await self._drop_client()
         if self._fork_client:
+            cancel_pending()
             fork = self._fork_client
             self._fork_client = None
+            self._fork_session_id = None
+            set_interactive_fork(False)
             with contextlib.suppress(CLIConnectionError):
                 await fork.interrupt()
             with contextlib.suppress(RuntimeError):

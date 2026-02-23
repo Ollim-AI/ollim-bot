@@ -48,6 +48,8 @@ def _read() -> dict[str, _InquiryEntry]:
 def _write(data: dict[str, _InquiryEntry]) -> None:
     INQUIRIES_FILE.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=INQUIRIES_FILE.parent, suffix=".tmp")
-    os.write(fd, json.dumps(data).encode())
-    os.close(fd)
+    try:
+        os.write(fd, json.dumps(data).encode())
+    finally:
+        os.close(fd)
     os.replace(tmp, INQUIRIES_FILE)
