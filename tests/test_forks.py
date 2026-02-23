@@ -9,13 +9,18 @@ import pytest
 import ollim_bot.forks as forks_mod
 from ollim_bot.forks import (
     BG_FORK_TIMEOUT,
+    BgForkConfig,
     ForkExitAction,
     append_update,
+    bg_reported,
     clear_pending_updates,
+    get_bg_fork_config,
     idle_timeout,
     in_interactive_fork,
+    init_bg_reported_flag,
     is_busy,
     is_idle,
+    mark_bg_reported,
     peek_pending_updates,
     pop_enter_fork,
     pop_exit_action,
@@ -23,6 +28,7 @@ from ollim_bot.forks import (
     prompted_at,
     request_enter_fork,
     run_agent_background,
+    set_bg_fork_config,
     set_busy,
     set_exit_action,
     set_interactive_fork,
@@ -465,3 +471,56 @@ def test_bg_fork_not_busy_when_lock_free(monkeypatch, data_dir):
     _run(run_agent_background(owner, agent, "[routine-bg:test] do stuff"))
 
     assert observed_busy == [False]
+
+
+# --- BgForkConfig ---
+
+
+def test_bg_fork_config_defaults():
+    config = BgForkConfig()
+
+    assert config.update_main_session == "on_ping"
+    assert config.allow_ping is True
+
+
+def test_bg_fork_config_custom():
+    config = BgForkConfig(update_main_session="always", allow_ping=False)
+
+    assert config.update_main_session == "always"
+    assert config.allow_ping is False
+
+
+def test_set_and_get_bg_fork_config():
+    config = BgForkConfig(update_main_session="blocked", allow_ping=False)
+    set_bg_fork_config(config)
+
+    result = get_bg_fork_config()
+
+    assert result.update_main_session == "blocked"
+    assert result.allow_ping is False
+    set_bg_fork_config(BgForkConfig())
+
+
+def test_bg_fork_config_default_when_unset():
+    set_bg_fork_config(BgForkConfig())
+
+    result = get_bg_fork_config()
+
+    assert result.update_main_session == "on_ping"
+    assert result.allow_ping is True
+
+
+# --- Reported flag ---
+
+
+def test_bg_reported_flag_default_false():
+    init_bg_reported_flag()
+
+    assert bg_reported() is False
+
+
+def test_bg_reported_flag_set_true():
+    init_bg_reported_flag()
+    mark_bg_reported()
+
+    assert bg_reported() is True
