@@ -56,6 +56,17 @@ def run_reminder_command(argv: list[str]) -> None:
     add_p.add_argument(
         "--isolated", action="store_true", help="Fresh context (bg only)"
     )
+    add_p.add_argument(
+        "--update-main-session",
+        default="on_ping",
+        choices=["always", "on_ping", "freely", "blocked"],
+        help="When to report to main session (bg only)",
+    )
+    add_p.add_argument(
+        "--no-ping",
+        action="store_true",
+        help="Disable ping_user/discord_embed (bg only)",
+    )
 
     sub.add_parser("list", help="Show pending reminders")
 
@@ -87,6 +98,8 @@ def _handle_add(args: argparse.Namespace) -> None:
         model=args.model,
         thinking=not args.no_thinking,
         isolated=args.isolated,
+        update_main_session=args.update_main_session,
+        allow_ping=not args.no_ping,
     )
     append_reminder(reminder)
     print(f"scheduled {reminder.id}: {_fmt_schedule(reminder)} -- {_summary(reminder)}")

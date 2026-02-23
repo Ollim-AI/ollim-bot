@@ -340,6 +340,8 @@ def _register_reminder(
                 model=reminder.model,
                 thinking=reminder.thinking,
                 isolated=reminder.isolated,
+                update_main_session=reminder.update_main_session,
+                allow_ping=reminder.allow_ping,
             )
 
         try:
