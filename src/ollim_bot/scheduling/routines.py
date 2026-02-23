@@ -22,6 +22,8 @@ class Routine:
     thinking: bool = True
     isolated: bool = False
     description: str = ""
+    update_main_session: str = "on_ping"
+    allow_ping: bool = True
 
     @staticmethod
     def new(
@@ -33,6 +35,8 @@ class Routine:
         thinking: bool = True,
         isolated: bool = False,
         description: str = "",
+        update_main_session: str = "on_ping",
+        allow_ping: bool = True,
     ) -> "Routine":
         return Routine(
             id=uuid4().hex[:8],
@@ -43,6 +47,8 @@ class Routine:
             thinking=thinking,
             isolated=isolated,
             description=description,
+            update_main_session=update_main_session,
+            allow_ping=allow_ping,
         )
 
 

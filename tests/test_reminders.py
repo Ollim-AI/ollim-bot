@@ -157,3 +157,39 @@ def test_chain_roundtrip_preserves_model_isolated(data_dir):
     assert loaded.isolated is True
     assert loaded.chain_depth == 1
     assert loaded.max_chain == 2
+
+
+def test_reminder_new_defaults_update_main_session_allow_ping():
+    reminder = Reminder.new(message="test", delay_minutes=30)
+
+    assert reminder.update_main_session == "on_ping"
+    assert reminder.allow_ping is True
+
+
+def test_reminder_new_custom_bg_config():
+    reminder = Reminder.new(
+        message="silent",
+        delay_minutes=30,
+        background=True,
+        update_main_session="freely",
+        allow_ping=False,
+    )
+
+    assert reminder.update_main_session == "freely"
+    assert reminder.allow_ping is False
+
+
+def test_reminder_bg_config_roundtrip(data_dir):
+    reminder = Reminder.new(
+        message="check",
+        delay_minutes=30,
+        background=True,
+        update_main_session="blocked",
+        allow_ping=False,
+    )
+    append_reminder(reminder)
+
+    loaded = list_reminders()[0]
+
+    assert loaded.update_main_session == "blocked"
+    assert loaded.allow_ping is False
