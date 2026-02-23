@@ -28,6 +28,7 @@ from ollim_bot.agent_tools import (
 from ollim_bot.config import USER_NAME
 from ollim_bot.embeds import fork_exit_embed
 from ollim_bot.forks import (
+    BgForkConfig,
     idle_timeout,
     in_interactive_fork,
     is_idle,
@@ -207,6 +208,10 @@ def _register_routine(
 
     async def _fire() -> None:
         busy = agent.lock().locked()
+        bg_config = BgForkConfig(
+            update_main_session=routine.update_main_session,
+            allow_ping=routine.allow_ping,
+        )
         prompt = _build_routine_prompt(
             routine,
             reminders=list_reminders(),
@@ -222,6 +227,7 @@ def _register_routine(
                     model=routine.model,
                     thinking=routine.thinking,
                     isolated=routine.isolated,
+                    bg_config=bg_config,
                 )
             else:
                 if routine.model or routine.isolated:
@@ -260,6 +266,10 @@ def _register_reminder(
 
     async def fire_oneshot() -> None:
         busy = agent.lock().locked()
+        bg_config = BgForkConfig(
+            update_main_session=reminder.update_main_session,
+            allow_ping=reminder.allow_ping,
+        )
         prompt = _build_reminder_prompt(
             reminder,
             reminders=list_reminders(),
@@ -292,6 +302,7 @@ def _register_reminder(
                     model=reminder.model,
                     thinking=reminder.thinking,
                     isolated=reminder.isolated,
+                    bg_config=bg_config,
                 )
             else:
                 if reminder.model or reminder.isolated:

@@ -347,6 +347,7 @@ async def run_agent_background(
     model: str | None = None,
     thinking: bool = True,
     isolated: bool = False,
+    bg_config: BgForkConfig | None = None,
 ) -> None:
     """Run agent on a disposable forked session — no lock needed.
 
@@ -378,6 +379,9 @@ async def run_agent_background(
     set_in_fork(True)
     set_busy(busy)
     init_bg_output_flag()
+    init_bg_reported_flag()
+    if bg_config:
+        set_bg_fork_config(bg_config)
     start_message_collector()
 
     try:
