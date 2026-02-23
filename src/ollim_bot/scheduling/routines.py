@@ -18,7 +18,6 @@ class Routine:
     message: str
     cron: str
     background: bool = False
-    skip_if_busy: bool = True
     model: str | None = None
     thinking: bool = True
     isolated: bool = False
@@ -30,7 +29,6 @@ class Routine:
         *,
         cron: str,
         background: bool = False,
-        skip_if_busy: bool = True,
         model: str | None = None,
         thinking: bool = True,
         isolated: bool = False,
@@ -41,7 +39,6 @@ class Routine:
             message=message,
             cron=cron,
             background=background,
-            skip_if_busy=skip_if_busy,
             model=model,
             thinking=thinking,
             isolated=isolated,

@@ -21,8 +21,6 @@ def _fmt_schedule(r: Reminder) -> str:
         parts = ["bg"]
         if r.isolated:
             parts.append("isolated")
-        if not r.skip_if_busy:
-            parts.append("queue")
         tag = f"[{','.join(parts)}]"
         sched = f"{tag} {sched}"
     if r.model:
@@ -43,7 +41,6 @@ def run_reminder_command(argv: list[str]) -> None:
     add_p.add_argument("--description", "-d", default="", help="Short summary for list")
     add_p.add_argument("--delay", type=int, required=True, help="Fire in N minutes")
     add_p.add_argument("--background", action="store_true", help="Silent mode")
-    add_p.add_argument("--no-skip", action="store_true", help="Always run (bg only)")
     add_p.add_argument(
         "--max-chain", type=int, default=0, help="Max follow-up chain depth"
     )
@@ -84,7 +81,6 @@ def _handle_add(args: argparse.Namespace) -> None:
         delay_minutes=args.delay,
         description=args.description,
         background=args.background,
-        skip_if_busy=not args.no_skip,
         max_chain=args.max_chain,
         chain_depth=args.chain_depth,
         chain_parent=args.chain_parent,
