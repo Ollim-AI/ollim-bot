@@ -10,6 +10,7 @@ from claude_agent_sdk.types import HookContext, HookInput, SyncHookJSONOutput
 
 from ollim_bot import ping_budget
 from ollim_bot.config import USER_NAME
+from ollim_bot.forks import is_busy
 from ollim_bot.sessions import track_message
 from ollim_bot.embeds import (
     ButtonConfig,
@@ -94,8 +95,23 @@ def _source() -> Literal["main", "bg", "fork"]:  # duplicate-ok
 
 
 def _check_bg_budget(args: dict[str, Any]) -> dict[str, Any] | None:
-    """Check ping budget for bg forks. Returns error dict if exhausted, None if OK."""
+    """Check busy state and ping budget for bg forks.
+
+    Returns error dict if blocked, None if OK.
+    Busy check runs first: non-critical pings blocked when user is mid-conversation.
+    Critical pings bypass the busy check.
+    """
     critical = args.get("critical", False)
+    if not critical and is_busy():
+        return {
+            "content": [
+                {
+                    "type": "text",
+                    "text": "User is mid-conversation. Use `report_updates` instead, "
+                    "or set `critical=True` for time-sensitive alerts.",
+                }
+            ]
+        }
     if not critical and not ping_budget.try_use():
         return {
             "content": [
