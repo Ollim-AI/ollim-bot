@@ -2,6 +2,7 @@
 
 from ollim_bot.webhook import (  # noqa: F401
     WebhookSpec,
+    build_webhook_prompt,
     list_webhooks,
     load_webhook,
     validate_payload,
@@ -186,3 +187,81 @@ def test_validate_payload_too_many_properties():
 
     assert len(errors) > 0
     assert any("properties" in e.lower() for e in errors)
+
+
+def test_build_webhook_prompt_has_tag(data_dir):
+    spec = WebhookSpec(
+        id="test-hook",
+        message="Check {repo}.",
+        fields={"type": "object", "properties": {"repo": {"type": "string"}}},
+    )
+
+    prompt = build_webhook_prompt(spec, {"repo": "ollim-bot"})
+
+    assert "[webhook:test-hook]" in prompt
+
+
+def test_build_webhook_prompt_data_section(data_dir):
+    spec = WebhookSpec(
+        id="ci",
+        message="Check build.",
+        fields={
+            "type": "object",
+            "properties": {
+                "repo": {"type": "string"},
+                "status": {"type": "string"},
+            },
+        },
+    )
+
+    prompt = build_webhook_prompt(spec, {"repo": "myrepo", "status": "failure"})
+
+    assert "WEBHOOK DATA" in prompt
+    assert "untrusted" in prompt.lower()
+    assert "repo: myrepo" in prompt
+    assert "status: failure" in prompt
+
+
+def test_build_webhook_prompt_task_section(data_dir):
+    spec = WebhookSpec(
+        id="ci",
+        message="Check {repo} build status.",
+        fields={"type": "object", "properties": {"repo": {"type": "string"}}},
+    )
+
+    prompt = build_webhook_prompt(spec, {"repo": "ollim-bot"})
+
+    assert "TASK" in prompt
+    assert "Check ollim-bot build status." in prompt
+
+
+def test_build_webhook_prompt_includes_preamble(data_dir):
+    spec = WebhookSpec(
+        id="ci",
+        message="Check.",
+        fields={"type": "object", "properties": {}},
+    )
+
+    prompt = build_webhook_prompt(spec, {})
+
+    assert "ping_user" in prompt or "discarded" in prompt
+
+
+def test_build_webhook_prompt_optional_fields_omitted(data_dir):
+    """Optional fields not in payload should not appear in data section."""
+    spec = WebhookSpec(
+        id="ci",
+        message="Check.",
+        fields={
+            "type": "object",
+            "properties": {
+                "repo": {"type": "string"},
+                "branch": {"type": "string"},
+            },
+        },
+    )
+
+    prompt = build_webhook_prompt(spec, {"repo": "test"})
+
+    assert "repo: test" in prompt
+    assert "branch" not in prompt
