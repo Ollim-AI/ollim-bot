@@ -55,9 +55,24 @@ from ollim_bot.sessions import (
 ModelName = Literal["opus", "sonnet", "haiku"]
 
 
+_TZ = ZoneInfo("America/Los_Angeles")
+
+
 def _timestamp() -> str:
-    now = datetime.now(ZoneInfo("America/Los_Angeles"))
-    return now.strftime("[%Y-%m-%d %a %I:%M %p PT]")
+    return datetime.now(_TZ).strftime("[%Y-%m-%d %a %I:%M %p PT]")
+
+
+def _relative_time(iso_ts: str) -> str:
+    """Format an ISO timestamp as relative time (e.g. '2h ago')."""
+    delta = datetime.now(_TZ) - datetime.fromisoformat(iso_ts)
+    seconds = int(delta.total_seconds())
+    if seconds < 60:
+        return "just now"
+    if seconds < 3600:
+        return f"{seconds // 60}m ago"
+    if seconds < 86400:
+        return f"{seconds // 3600}h ago"
+    return f"{seconds // 86400}d ago"
 
 
 async def _prepend_context(message: str, *, clear: bool = True) -> str:
@@ -69,7 +84,8 @@ async def _prepend_context(message: str, *, clear: bool = True) -> str:
     ts = _timestamp()
     updates = (await pop_pending_updates()) if clear else peek_pending_updates()
     if updates:
-        header = "RECENT BACKGROUND UPDATES:\n" + "\n".join(f"- {u}" for u in updates)
+        lines = [f"- ({_relative_time(u.ts)}) {u.message}" for u in updates]
+        header = "RECENT BACKGROUND UPDATES:\n" + "\n".join(lines)
         return f"{ts} {header}\n\n{message}"
     return f"{ts} {message}" if message else ts
 
@@ -267,7 +283,9 @@ class Agent:
         if action is ForkExitAction.NONE:
             return None
         updates = peek_pending_updates()
-        summary = updates[-1] if action is ForkExitAction.REPORT and updates else None
+        summary = (
+            updates[-1].message if action is ForkExitAction.REPORT and updates else None
+        )
         await self.exit_interactive_fork(action)
         return action, summary
 
