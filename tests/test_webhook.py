@@ -6,6 +6,7 @@ from ollim_bot.webhook import (  # noqa: F401
     list_webhooks,
     load_webhook,
     validate_payload,
+    verify_auth,
 )
 
 
@@ -265,3 +266,19 @@ def test_build_webhook_prompt_optional_fields_omitted(data_dir):
 
     assert "repo: test" in prompt
     assert "branch" not in prompt
+
+
+def test_verify_auth_valid():
+    assert verify_auth("Bearer my-secret", "my-secret") is True
+
+
+def test_verify_auth_wrong_token():
+    assert verify_auth("Bearer wrong", "my-secret") is False
+
+
+def test_verify_auth_missing_header():
+    assert verify_auth("", "my-secret") is False
+
+
+def test_verify_auth_no_bearer_prefix():
+    assert verify_auth("my-secret", "my-secret") is False
