@@ -2,7 +2,7 @@
 
 import asyncio
 import time
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -14,6 +14,7 @@ from ollim_bot.forks import (
     clear_pending_updates,
     idle_timeout,
     in_interactive_fork,
+    is_busy,
     is_idle,
     peek_pending_updates,
     pop_enter_fork,
@@ -22,6 +23,7 @@ from ollim_bot.forks import (
     prompted_at,
     request_enter_fork,
     run_agent_background,
+    set_busy,
     set_exit_action,
     set_interactive_fork,
     set_prompted_at,
@@ -255,7 +257,7 @@ def test_bg_fork_timeout_cancels_and_notifies(monkeypatch, data_dir):
     owner.create_dm = fake_create_dm
 
     agent = AsyncMock()
-    agent.lock.return_value = asyncio.Lock()
+    agent.lock = MagicMock(return_value=asyncio.Lock())
 
     async def hang_forever(*args, **kwargs):
         await asyncio.sleep(3600)
@@ -398,3 +400,68 @@ def test_many_concurrent_appends(data_dir):
         assert messages == expected
 
     _run(_scenario())
+
+
+# --- Busy contextvar ---
+
+
+def test_busy_contextvar_default_false():
+    assert is_busy() is False
+
+
+def test_busy_contextvar_set_and_read():
+    set_busy(True)
+    assert is_busy() is True
+    set_busy(False)
+    assert is_busy() is False
+
+
+def test_bg_fork_sets_busy_when_lock_held(monkeypatch, data_dir):
+    """When agent lock is held, the _busy contextvar is set during fork execution."""
+    observed_busy: list[bool] = []
+
+    owner = AsyncMock()
+    owner.create_dm = AsyncMock(return_value=AsyncMock())
+
+    agent = AsyncMock()
+    lock = asyncio.Lock()
+    agent.lock = MagicMock(return_value=lock)
+
+    async def capture_busy(client, prompt, **kwargs):
+        observed_busy.append(is_busy())
+        return "fork-session-id"
+
+    client = AsyncMock()
+    agent.create_forked_client = AsyncMock(return_value=client)
+    agent.run_on_client = AsyncMock(side_effect=capture_busy)
+
+    _run(lock.acquire())
+    try:
+        _run(run_agent_background(owner, agent, "[routine-bg:test] do stuff"))
+    finally:
+        lock.release()
+
+    assert observed_busy == [True]
+
+
+def test_bg_fork_not_busy_when_lock_free(monkeypatch, data_dir):
+    """When agent lock is free, the _busy contextvar stays False."""
+    observed_busy: list[bool] = []
+
+    owner = AsyncMock()
+    owner.create_dm = AsyncMock(return_value=AsyncMock())
+
+    agent = AsyncMock()
+    agent.lock = MagicMock(return_value=asyncio.Lock())
+
+    async def capture_busy(client, prompt, **kwargs):
+        observed_busy.append(is_busy())
+        return "fork-session-id"
+
+    client = AsyncMock()
+    agent.create_forked_client = AsyncMock(return_value=client)
+    agent.run_on_client = AsyncMock(side_effect=capture_busy)
+
+    _run(run_agent_background(owner, agent, "[routine-bg:test] do stuff"))
+
+    assert observed_busy == [False]

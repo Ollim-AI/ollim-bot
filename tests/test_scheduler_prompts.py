@@ -3,6 +3,7 @@
 from ollim_bot.scheduling.reminders import Reminder
 from ollim_bot.scheduling.routines import Routine
 from ollim_bot.scheduling.scheduler import (
+    _build_bg_preamble,
     _build_reminder_prompt,
     _build_routine_prompt,
     _convert_dow,
@@ -182,3 +183,44 @@ def test_convert_dow_list():
 
 def test_convert_dow_range_with_step():
     assert _convert_dow("1-5/2") == "mon-fri/2"
+
+
+# --- Busy-aware preamble ---
+
+
+def test_bg_preamble_normal_no_busy_line():
+    result = _build_bg_preamble([], [])
+    assert "mid-conversation" not in result
+    assert "report_updates" in result
+
+
+def test_bg_preamble_busy_includes_quiet_instruction():
+    result = _build_bg_preamble([], [], busy=True)
+    assert "mid-conversation" in result
+    assert "report_updates" in result
+    assert "critical" in result.lower()
+
+
+def test_bg_routine_prompt_busy(data_dir):
+    routine = Routine(
+        id="abc", message="Check tasks", cron="0 8 * * *", background=True
+    )
+
+    prompt = _build_routine_prompt(routine, reminders=[], routines=[], busy=True)
+
+    assert "mid-conversation" in prompt
+    assert "Check tasks" in prompt
+
+
+def test_bg_reminder_prompt_busy(data_dir):
+    reminder = Reminder(
+        id="r1",
+        message="Check email",
+        run_at="2026-02-16T12:00:00-08:00",
+        background=True,
+    )
+
+    prompt = _build_reminder_prompt(reminder, reminders=[], routines=[], busy=True)
+
+    assert "mid-conversation" in prompt
+    assert "Check email" in prompt
