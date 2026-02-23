@@ -1,15 +1,17 @@
 """Tests for scheduler.py prompt-building and cron conversion."""
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from ollim_bot.forks import BgForkConfig
 from ollim_bot.scheduling.reminders import Reminder
 from ollim_bot.scheduling.routines import Routine
 from ollim_bot.scheduling.scheduler import (
+    ScheduleEntry,
     _build_bg_preamble,
     _build_reminder_prompt,
     _build_routine_prompt,
+    _build_upcoming_schedule,
     _convert_dow,
     _fires_before_midnight,
     _remaining_bg_routine_firings,
@@ -425,6 +427,188 @@ def test_reminder_prompt_bg_with_allowed_tools():
 
 
 # --- _fires_before_midnight ---
+
+
+# --- _build_upcoming_schedule ---
+
+
+def _patch_now(monkeypatch, fixed_now):
+    """Monkeypatch datetime.now() in scheduler module."""
+    monkeypatch.setattr(
+        "ollim_bot.scheduling.scheduler.datetime",
+        type(
+            "dt",
+            (datetime,),
+            {"now": staticmethod(lambda tz=None: fixed_now)},
+        ),
+    )
+
+
+def test_schedule_includes_bg_routines(monkeypatch):
+    fixed_now = datetime.now(TZ).replace(hour=10, minute=0, second=0, microsecond=0)
+    _patch_now(monkeypatch, fixed_now)
+    routines = [
+        Routine(
+            id="r1",
+            message="Check tasks",
+            cron="0 12 * * *",
+            background=True,
+            description="Midday task review",
+        ),
+    ]
+
+    entries = _build_upcoming_schedule(routines, [], current_id="other")
+
+    assert len(entries) == 1
+    assert entries[0].id == "r1"
+    assert entries[0].description == "Midday task review"
+    assert entries[0].tag is None  # neither [just fired] nor [this task]
+
+
+def test_schedule_includes_bg_reminders(monkeypatch):
+    fixed_now = datetime.now(TZ).replace(hour=10, minute=0, second=0, microsecond=0)
+    _patch_now(monkeypatch, fixed_now)
+    later = fixed_now + timedelta(hours=1)
+    reminders = [
+        Reminder(
+            id="rem1",
+            message="Check if Julius started the pipeline",
+            run_at=later.isoformat(),
+            background=True,
+            description="ML pipeline check",
+        ),
+    ]
+
+    entries = _build_upcoming_schedule([], reminders, current_id="other")
+
+    assert len(entries) == 1
+    assert entries[0].id == "rem1"
+
+
+def test_schedule_excludes_foreground(monkeypatch):
+    fixed_now = datetime.now(TZ).replace(hour=10, minute=0, second=0, microsecond=0)
+    _patch_now(monkeypatch, fixed_now)
+    routines = [
+        Routine(id="fg", message="Foreground", cron="0 12 * * *", background=False),
+    ]
+
+    entries = _build_upcoming_schedule(routines, [], current_id="other")
+
+    assert len(entries) == 0
+
+
+def test_schedule_marks_current_task(monkeypatch):
+    fixed_now = datetime.now(TZ).replace(hour=10, minute=0, second=0, microsecond=0)
+    _patch_now(monkeypatch, fixed_now)
+    routines = [
+        Routine(id="r1", message="Task A", cron="0 12 * * *", background=True),
+    ]
+
+    entries = _build_upcoming_schedule(routines, [], current_id="r1")
+
+    assert entries[0].tag == "this task"
+
+
+def test_schedule_marks_recently_fired(monkeypatch):
+    fixed_now = datetime.now(TZ).replace(hour=10, minute=15, second=0, microsecond=0)
+    _patch_now(monkeypatch, fixed_now)
+    routines = [
+        # Fires at 10:00, which is 15 min ago (within grace window)
+        Routine(id="r1", message="Task A", cron="0 10 * * *", background=True),
+    ]
+
+    entries = _build_upcoming_schedule(routines, [], current_id="other")
+
+    assert len(entries) == 1
+    assert entries[0].tag == "just fired"
+
+
+def test_schedule_annotates_silent(monkeypatch):
+    fixed_now = datetime.now(TZ).replace(hour=10, minute=0, second=0, microsecond=0)
+    _patch_now(monkeypatch, fixed_now)
+    routines = [
+        Routine(
+            id="r1",
+            message="Silent",
+            cron="0 12 * * *",
+            background=True,
+            allow_ping=False,
+        ),
+    ]
+
+    entries = _build_upcoming_schedule(routines, [], current_id="other")
+
+    assert entries[0].silent is True
+
+
+def test_schedule_dynamic_extends_to_min_3(monkeypatch):
+    fixed_now = datetime.now(TZ).replace(hour=10, minute=0, second=0, microsecond=0)
+    _patch_now(monkeypatch, fixed_now)
+    routines = [
+        # Only 1 within 3h, but 3 total today
+        Routine(id="r1", message="A", cron="0 12 * * *", background=True),
+        Routine(id="r2", message="B", cron="0 16 * * *", background=True),
+        Routine(id="r3", message="C", cron="0 20 * * *", background=True),
+    ]
+
+    entries = _build_upcoming_schedule(routines, [], current_id="other")
+
+    assert len(entries) >= 3  # extends beyond 3h to show at least 3
+
+
+def test_schedule_uses_description_over_truncated_message(monkeypatch):
+    fixed_now = datetime.now(TZ).replace(hour=10, minute=0, second=0, microsecond=0)
+    _patch_now(monkeypatch, fixed_now)
+    routines = [
+        Routine(
+            id="r1",
+            message="A" * 200,
+            cron="0 12 * * *",
+            background=True,
+            description="Short summary",
+        ),
+    ]
+
+    entries = _build_upcoming_schedule(routines, [], current_id="other")
+
+    assert entries[0].description == "Short summary"
+
+
+def test_schedule_truncates_long_message_without_description(monkeypatch):
+    fixed_now = datetime.now(TZ).replace(hour=10, minute=0, second=0, microsecond=0)
+    _patch_now(monkeypatch, fixed_now)
+    long_msg = "A" * 200
+    routines = [
+        Routine(id="r1", message=long_msg, cron="0 12 * * *", background=True),
+    ]
+
+    entries = _build_upcoming_schedule(routines, [], current_id="other")
+
+    assert len(entries[0].description) <= 63  # 60 chars + "..."
+    assert entries[0].description.endswith("...")
+
+
+def test_schedule_includes_chain_info(monkeypatch):
+    fixed_now = datetime.now(TZ).replace(hour=10, minute=0, second=0, microsecond=0)
+    _patch_now(monkeypatch, fixed_now)
+    later = fixed_now + timedelta(hours=1)
+    reminders = [
+        Reminder(
+            id="rem1",
+            message="Check pipeline",
+            run_at=later.isoformat(),
+            background=True,
+            chain_depth=1,
+            max_chain=3,
+        ),
+    ]
+
+    entries = _build_upcoming_schedule([], reminders, current_id="other")
+
+    assert "2/4" in entries[0].label
+
+
+# --- _remaining_bg_routine_firings (legacy, to be removed) ---
 
 
 def test_remaining_bg_routine_firings_filters_correctly(monkeypatch):
