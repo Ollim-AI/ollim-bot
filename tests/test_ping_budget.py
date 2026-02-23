@@ -1,11 +1,12 @@
-"""Tests for ping_budget.py — daily ping budget tracking."""
+"""Tests for ping_budget.py — refill-on-read ping budget."""
 
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
+from pytest import approx
+
 from ollim_bot import ping_budget
-from ollim_bot.ping_budget import BudgetState, remaining_bg_reminders
-from ollim_bot.scheduling.reminders import Reminder
+from ollim_bot.ping_budget import BudgetState
 
 TZ = ZoneInfo("America/Los_Angeles")
 
@@ -13,141 +14,231 @@ TZ = ZoneInfo("America/Los_Angeles")
 def test_load_returns_defaults_when_no_file(data_dir):
     state = ping_budget.load()
 
-    assert state.daily_limit == 10
-    assert state.used == 0
+    assert state.capacity == 5
+    assert state.available == 5.0
+    assert state.refill_rate_minutes == 90
     assert state.critical_used == 0
-    assert state.last_reset == date.today().isoformat()
+    assert state.daily_used == 0
 
 
 def test_save_and_load_roundtrip(data_dir):
+    now = datetime.now(TZ)
     state = BudgetState(
-        daily_limit=5, used=2, critical_used=1, last_reset=date.today().isoformat()
+        capacity=5,
+        available=3.0,
+        refill_rate_minutes=90,
+        last_refill=now.isoformat(),
+        critical_used=1,
+        critical_reset_date=date.today().isoformat(),
+        daily_used=2,
+        daily_used_reset=date.today().isoformat(),
     )
 
     ping_budget.save(state)
     loaded = ping_budget.load()
 
-    assert loaded == state
+    assert loaded.capacity == 5
+    assert loaded.available >= 3.0  # may have tiny refill from elapsed
+    assert loaded.critical_used == 1
+    assert loaded.daily_used == 2
 
 
-def test_load_resets_on_stale_date(data_dir):
-    stale = BudgetState(
-        daily_limit=15, used=7, critical_used=3, last_reset="2025-01-01"
+def test_load_refills_based_on_elapsed_time(data_dir):
+    two_hours_ago = datetime.now(TZ) - timedelta(hours=2)
+    state = BudgetState(
+        capacity=5,
+        available=1.0,
+        refill_rate_minutes=60,
+        last_refill=two_hours_ago.isoformat(),
+        critical_used=0,
+        critical_reset_date=date.today().isoformat(),
+        daily_used=4,
+        daily_used_reset=date.today().isoformat(),
     )
-    ping_budget.save(stale)
+    ping_budget.save(state)
 
     loaded = ping_budget.load()
 
-    assert loaded.used == 0
+    assert loaded.available == approx(3.0, abs=0.01)  # 1.0 + 2h/60min = 3.0
+
+
+def test_load_refill_caps_at_capacity(data_dir):
+    long_ago = datetime.now(TZ) - timedelta(hours=24)
+    state = BudgetState(
+        capacity=5,
+        available=0.0,
+        refill_rate_minutes=60,
+        last_refill=long_ago.isoformat(),
+        critical_used=0,
+        critical_reset_date=date.today().isoformat(),
+        daily_used=10,
+        daily_used_reset=date.today().isoformat(),
+    )
+    ping_budget.save(state)
+
+    loaded = ping_budget.load()
+
+    assert loaded.available == 5.0
+
+
+def test_load_resets_daily_counters_on_stale_date(data_dir):
+    now = datetime.now(TZ)
+    state = BudgetState(
+        capacity=5,
+        available=2.0,
+        refill_rate_minutes=90,
+        last_refill=now.isoformat(),
+        critical_used=3,
+        critical_reset_date="2025-01-01",
+        daily_used=8,
+        daily_used_reset="2025-01-01",
+    )
+    ping_budget.save(state)
+
+    loaded = ping_budget.load()
+
     assert loaded.critical_used == 0
-    assert loaded.daily_limit == 15
-    assert loaded.last_reset == date.today().isoformat()
+    assert loaded.daily_used == 0
+    assert loaded.critical_reset_date == date.today().isoformat()
+    assert loaded.daily_used_reset == date.today().isoformat()
+
+
+def test_load_migrates_old_format(data_dir):
+    """Old format with daily_limit/used/last_reset gets migrated to fresh state."""
+    import json
+
+    old = {"daily_limit": 10, "used": 5, "critical_used": 1, "last_reset": "2026-02-23"}
+    ping_budget.BUDGET_FILE.parent.mkdir(parents=True, exist_ok=True)
+    ping_budget.BUDGET_FILE.write_text(json.dumps(old))
+
+    loaded = ping_budget.load()
+
+    assert loaded.capacity == 5
+    assert loaded.available == 5.0
+    assert loaded.refill_rate_minutes == 90
 
 
 def test_try_use_decrements(data_dir):
-    ping_budget.load()  # ensure file exists
+    ping_budget.load()
 
     result = ping_budget.try_use()
 
     assert result is True
-    assert ping_budget.load().used == 1
+    state = ping_budget.load()
+    assert state.available >= 3.0  # 5 - 1 = 4, plus tiny refill
+    assert state.daily_used == 1
 
 
-def test_try_use_returns_false_when_exhausted(data_dir):
-    exhausted = BudgetState(
-        daily_limit=10, used=10, critical_used=0, last_reset=date.today().isoformat()
+def test_try_use_returns_false_when_empty(data_dir):
+    now = datetime.now(TZ)
+    state = BudgetState(
+        capacity=5,
+        available=0.5,
+        refill_rate_minutes=90,
+        last_refill=now.isoformat(),
+        critical_used=0,
+        critical_reset_date=date.today().isoformat(),
+        daily_used=5,
+        daily_used_reset=date.today().isoformat(),
     )
-    ping_budget.save(exhausted)
+    ping_budget.save(state)
 
     result = ping_budget.try_use()
 
     assert result is False
-    assert ping_budget.load().used == 10
+
+
+def test_try_use_succeeds_after_refill(data_dir):
+    ninety_min_ago = datetime.now(TZ) - timedelta(minutes=90)
+    state = BudgetState(
+        capacity=5,
+        available=0.0,
+        refill_rate_minutes=90,
+        last_refill=ninety_min_ago.isoformat(),
+        critical_used=0,
+        critical_reset_date=date.today().isoformat(),
+        daily_used=5,
+        daily_used_reset=date.today().isoformat(),
+    )
+    ping_budget.save(state)
+
+    result = ping_budget.try_use()
+
+    assert result is True  # refilled 1.0, then spent it
 
 
 def test_record_critical_increments(data_dir):
-    ping_budget.load()  # ensure file exists
+    ping_budget.load()
 
     ping_budget.record_critical()
 
     state = ping_budget.load()
     assert state.critical_used == 1
-    assert state.used == 0
 
 
-def test_set_limit_updates_and_persists(data_dir):
-    original = BudgetState(
-        daily_limit=10, used=3, critical_used=1, last_reset=date.today().isoformat()
-    )
-    ping_budget.save(original)
+def test_set_capacity_updates(data_dir):
+    ping_budget.load()
 
-    ping_budget.set_limit(20)
+    ping_budget.set_capacity(7)
 
     state = ping_budget.load()
-    assert state.daily_limit == 20
-    assert state.used == 3
+    assert state.capacity == 7
 
 
-def test_get_status_fresh(data_dir):
-    ping_budget.load()  # ensure defaults
+def test_set_refill_rate_updates(data_dir):
+    ping_budget.load()
+
+    ping_budget.set_refill_rate(60)
+
+    state = ping_budget.load()
+    assert state.refill_rate_minutes == 60
+
+
+def test_get_status_at_capacity(data_dir):
+    ping_budget.load()
 
     status = ping_budget.get_status()
 
-    assert "10/10 remaining today" in status
+    assert "5/5 available" in status
+    assert "refills 1 every 90 min" in status
+    assert "next in" not in status  # at capacity, no refill line
 
 
-def test_get_status_after_use(data_dir):
+def test_get_status_below_capacity(data_dir):
+    now = datetime.now(TZ)
     state = BudgetState(
-        daily_limit=10, used=3, critical_used=1, last_reset=date.today().isoformat()
+        capacity=5,
+        available=3.0,
+        refill_rate_minutes=90,
+        last_refill=now.isoformat(),
+        critical_used=0,
+        critical_reset_date=date.today().isoformat(),
+        daily_used=2,
+        daily_used_reset=date.today().isoformat(),
     )
     ping_budget.save(state)
 
     status = ping_budget.get_status()
 
-    assert "7/10 remaining today" in status
-    assert "3 used" in status
-    assert "1 critical" in status
+    assert "3/5 available" in status
+    assert "next in" in status
 
 
-def test_remaining_bg_reminders_counts_bg_with_ping_only(data_dir, monkeypatch):
-    fixed_now = datetime.now(TZ).replace(hour=12, minute=0, second=0, microsecond=0)
-    monkeypatch.setattr(
-        ping_budget,
-        "datetime",
-        type(
-            "dt",
-            (),
-            {
-                "now": staticmethod(lambda tz=None: fixed_now),
-                "fromisoformat": staticmethod(datetime.fromisoformat),
-            },
-        ),
+def test_get_status_shows_daily_used(data_dir):
+    now = datetime.now(TZ)
+    state = BudgetState(
+        capacity=5,
+        available=5.0,
+        refill_rate_minutes=90,
+        last_refill=now.isoformat(),
+        critical_used=1,
+        critical_reset_date=date.today().isoformat(),
+        daily_used=3,
+        daily_used_reset=date.today().isoformat(),
     )
-    later = fixed_now + timedelta(hours=2)
-    tomorrow = fixed_now + timedelta(days=1)
+    ping_budget.save(state)
 
-    reminders = [
-        Reminder(
-            id="r1", message="bg today", run_at=later.isoformat(), background=True
-        ),
-        Reminder(
-            id="r2", message="fg today", run_at=later.isoformat(), background=False
-        ),
-        Reminder(
-            id="r3",
-            message="bg tomorrow",
-            run_at=tomorrow.isoformat(),
-            background=True,
-        ),
-        Reminder(
-            id="r4",
-            message="bg today no ping",
-            run_at=later.isoformat(),
-            background=True,
-            allow_ping=False,
-        ),
-    ]
+    status = ping_budget.get_full_status()
 
-    result = remaining_bg_reminders(reminders)
-
-    assert result == 1  # only r1 (bg, today, allow_ping=True)
+    assert "3 used today" in status
+    assert "1 critical" in status
