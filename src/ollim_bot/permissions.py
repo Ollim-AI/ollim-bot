@@ -121,10 +121,9 @@ async def request_approval(
     assert channel is not None, "permissions.set_channel() not called before approval"
 
     label = format_tool_label(tool_name, json.dumps(input_data))
-    text = f"`{label}` — react {APPROVE} allow {DENY} deny {ALWAYS} always"
 
     try:
-        msg = await channel.send(text)
+        msg = await channel.send(f"`{label}`")
         await msg.add_reaction(APPROVE)
         await msg.add_reaction(DENY)
         await msg.add_reaction(ALWAYS)
@@ -139,7 +138,7 @@ async def request_approval(
             await entry.event.wait()
     except TimeoutError:
         with contextlib.suppress(discord.DiscordException):
-            await msg.edit(content=f"~~{text}~~ — timed out")
+            await msg.edit(content=f"~~`{label}`~~ — timed out")
         return PermissionResultDeny(message="approval timed out")
     finally:
         _pending.pop(msg.id, None)
@@ -147,23 +146,23 @@ async def request_approval(
     if not entry.result:
         # Woken by cancel_pending() with no emoji → treat as deny
         with contextlib.suppress(discord.DiscordException):
-            await msg.edit(content=f"~~{text}~~ — cancelled")
+            await msg.edit(content=f"~~`{label}`~~ — cancelled")
         return PermissionResultDeny(message="approval cancelled")
 
     emoji = entry.result[0]
 
     if emoji == APPROVE:
         with contextlib.suppress(discord.DiscordException):
-            await msg.edit(content=f"~~{text}~~ — allowed")
+            await msg.edit(content=f"`{label}` — allowed")
         return PermissionResultAllow()
     if emoji == ALWAYS:
         session_allow(tool_name)
         with contextlib.suppress(discord.DiscordException):
-            await msg.edit(content=f"~~{text}~~ — always allowed")
+            await msg.edit(content=f"`{label}` — always allowed")
         return PermissionResultAllow()
 
     with contextlib.suppress(discord.DiscordException):
-        await msg.edit(content=f"~~{text}~~ — denied")
+        await msg.edit(content=f"`{label}` — denied")
     return PermissionResultDeny(message="denied via Discord")
 
 
