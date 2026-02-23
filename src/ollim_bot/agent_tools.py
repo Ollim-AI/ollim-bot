@@ -122,8 +122,8 @@ def _check_bg_budget(args: dict[str, Any]) -> dict[str, Any] | None:
             "content": [
                 {
                     "type": "text",
-                    "text": "Budget exhausted (0 remaining). Use critical=True "
-                    "only for genuinely urgent items.",
+                    "text": "Budget exhausted (0 remaining). "
+                    "Use report_updates to pass findings to the main session instead.",
                 }
             ]
         }

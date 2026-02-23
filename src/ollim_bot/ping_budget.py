@@ -14,7 +14,6 @@ from ollim_bot.storage import DATA_DIR, TZ
 
 if TYPE_CHECKING:
     from ollim_bot.scheduling.reminders import Reminder
-    from ollim_bot.scheduling.routines import Routine
 
 BUDGET_FILE: Path = DATA_DIR / "ping_budget.json"
 _DEFAULT_LIMIT = 10
@@ -93,24 +92,16 @@ def set_limit(limit: int) -> None:
     save(replace(state, daily_limit=limit))
 
 
-def remaining_today(
-    reminders: list[Reminder],
-    routines: list[Routine],
-) -> tuple[int, int]:
-    """Count bg reminders firing before midnight and bg routines (total count).
-
-    Returns (bg_reminders_remaining, bg_routines_count).
-    """
+def remaining_bg_reminders(reminders: list[Reminder]) -> int:
+    """Count bg reminders with allow_ping that fire between now and midnight."""
     now = datetime.now(TZ)
     midnight = (now + timedelta(days=1)).replace(
         hour=0, minute=0, second=0, microsecond=0
     )
-
-    bg_reminders = sum(
+    return sum(
         1
         for r in reminders
-        if r.background and now <= datetime.fromisoformat(r.run_at) < midnight
+        if r.background
+        and r.allow_ping
+        and now <= datetime.fromisoformat(r.run_at) < midnight
     )
-    bg_routines = sum(1 for r in routines if r.background)
-
-    return bg_reminders, bg_routines

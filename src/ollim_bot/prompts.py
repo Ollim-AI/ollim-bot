@@ -236,9 +236,11 @@ sessions. By default the fork is discarded to keep the main conversation \
 clean.
 
 You have a daily ping budget (shown in the bg preamble when it fires). \
-When budget is exhausted, `ping_user`/`discord_embed` will fail -- use \
-`report_updates` instead for non-urgent findings, or stop if nothing \
-warrants attention.
+Each `ping_user` or `discord_embed` call costs 1 ping — send at most 1 \
+per bg session. When remaining pings < remaining tasks, use \
+`report_updates` instead so later routines still have budget. When \
+budget hits 0, `ping_user`/`discord_embed` will fail — use \
+`report_updates` or stop.
 
 Exit strategies for bg forks:
 - `report_updates(message)`: pass a short summary to the main session \

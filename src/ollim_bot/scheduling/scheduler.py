@@ -89,9 +89,36 @@ def _convert_dow(dow: str) -> str:
     return ",".join(converted)
 
 
+def _fires_before_midnight(cron: str) -> bool:
+    """Check whether a cron expression fires between now and midnight."""
+    parts = cron.split()
+    trigger = CronTrigger(
+        minute=parts[0],
+        hour=parts[1],
+        day=parts[2],
+        month=parts[3],
+        day_of_week=_convert_dow(parts[4]),
+    )
+    now = datetime.now(TZ)
+    midnight = (now + timedelta(days=1)).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
+    next_fire = trigger.get_next_fire_time(None, now)
+    return next_fire is not None and next_fire < midnight
+
+
+def _remaining_bg_routine_firings(routines: list[Routine]) -> int:
+    """Count bg routines with allow_ping that fire between now and midnight."""
+    return sum(
+        1
+        for r in routines
+        if r.background and r.allow_ping and _fires_before_midnight(r.cron)
+    )
+
+
 def _build_bg_preamble(
-    reminders: list[Reminder],
-    routines: list[Routine],
+    bg_reminders_remaining: int,
+    bg_routines_remaining: int,
     *,
     busy: bool = False,
     bg_config: BgForkConfig | None = None,
@@ -149,39 +176,49 @@ def _build_bg_preamble(
     )
 
     if config.allow_ping:
-        bg_reminders, bg_routines = ping_budget.remaining_today(reminders, routines)
         budget_status = ping_budget.get_status()
         remaining_parts: list[str] = []
-        if bg_reminders > 0:
+        if bg_reminders_remaining > 0:
             remaining_parts.append(
-                f"{bg_reminders} bg reminder{'s' if bg_reminders != 1 else ''}"
+                f"{bg_reminders_remaining} bg reminder{'s' if bg_reminders_remaining != 1 else ''}"
             )
-        if bg_routines > 0:
+        if bg_routines_remaining > 0:
             remaining_parts.append(
-                f"{bg_routines} bg routine{'s' if bg_routines != 1 else ''}"
+                f"{bg_routines_remaining} bg routine{'s' if bg_routines_remaining != 1 else ''}"
             )
         remaining_line = (
-            f"Remaining today: {', '.join(remaining_parts)} before budget reset.\n"
+            f"Still to fire today: {', '.join(remaining_parts)}.\n"
             if remaining_parts
             else ""
         )
         report_hint = (
-            "Use report_updates for non-urgent summaries. "
+            "If remaining pings < remaining tasks, prefer report_updates — "
+            "save pings for higher-priority routines later today. "
             if config.update_main_session != "blocked"
             else ""
         )
         budget_section = (
             f"Ping budget: {budget_status}.\n"
             f"{remaining_line}"
-            f"Plan pings carefully -- you may not need to ping for every task. "
+            f"Send at most 1 ping or embed per bg session. "
+            f"If budget is 0, do not attempt to ping.\n"
             f"{report_hint}"
-            f"Set critical=True only for time-sensitive items "
-            f"(event in <30min, urgent message).\n\n"
+            f"critical=True is only for events starting within 30 minutes.\n\n"
         )
     else:
         budget_section = ""
 
     return f"{ping_section}{update_section}{busy_line}{budget_section}"
+
+
+def _compute_remaining(
+    reminders: list[Reminder], routines: list[Routine]
+) -> tuple[int, int]:
+    """Compute (bg_reminders_remaining, bg_routines_remaining) for preamble."""
+    return (
+        ping_budget.remaining_bg_reminders(reminders),
+        _remaining_bg_routine_firings(routines),
+    )
 
 
 def _build_routine_prompt(
@@ -193,9 +230,8 @@ def _build_routine_prompt(
     bg_config: BgForkConfig | None = None,
 ) -> str:
     if routine.background:
-        preamble = _build_bg_preamble(
-            reminders, routines, busy=busy, bg_config=bg_config
-        )
+        bg_rem, bg_rtn = _compute_remaining(reminders, routines)
+        preamble = _build_bg_preamble(bg_rem, bg_rtn, busy=busy, bg_config=bg_config)
         return f"[routine-bg:{routine.id}] {preamble}{routine.message}"
     return f"[routine:{routine.id}] {routine.message}"
 
@@ -216,10 +252,9 @@ def _build_reminder_prompt(
     parts = [f"[{tag}]"]
 
     if reminder.background:
+        bg_rem, bg_rtn = _compute_remaining(reminders, routines)
         parts.append(
-            _build_bg_preamble(
-                reminders, routines, busy=busy, bg_config=bg_config
-            ).rstrip()
+            _build_bg_preamble(bg_rem, bg_rtn, busy=busy, bg_config=bg_config).rstrip()
         )
 
     if reminder.max_chain > 0:
