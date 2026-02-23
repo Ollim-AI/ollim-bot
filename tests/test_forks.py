@@ -2,8 +2,11 @@
 
 import asyncio
 import time
+from unittest.mock import AsyncMock
 
+import ollim_bot.forks as forks_mod
 from ollim_bot.forks import (
+    BG_FORK_TIMEOUT,
     ForkExitAction,
     clear_pending_updates,
     idle_timeout,
@@ -15,6 +18,7 @@ from ollim_bot.forks import (
     pop_pending_updates,
     prompted_at,
     request_enter_fork,
+    run_agent_background,
     set_exit_action,
     set_interactive_fork,
     set_prompted_at,
@@ -222,3 +226,51 @@ def test_should_auto_exit_false_when_not_prompted():
     assert should_auto_exit() is False
 
     set_interactive_fork(False)
+
+
+# --- Background fork timeout ---
+
+
+def test_bg_fork_timeout_constant():
+    assert BG_FORK_TIMEOUT == 1800
+
+
+def test_bg_fork_timeout_cancels_and_notifies(monkeypatch, data_dir):
+    """A bg fork that exceeds the timeout is cancelled and sends a DM alert."""
+    sent_messages: list[str] = []
+
+    async def fake_create_dm():
+        channel = AsyncMock()
+        channel.send = AsyncMock(
+            side_effect=lambda msg, **kw: sent_messages.append(msg)
+        )
+        return channel
+
+    owner = AsyncMock()
+    owner.create_dm = fake_create_dm
+
+    agent = AsyncMock()
+    agent.lock.return_value = asyncio.Lock()
+
+    async def hang_forever(*args, **kwargs):
+        await asyncio.sleep(3600)
+
+    client = AsyncMock()
+    agent.create_forked_client = AsyncMock(return_value=client)
+    agent.run_on_client = AsyncMock(side_effect=hang_forever)
+
+    # Shrink timeout to 0.1s so the test runs fast
+    monkeypatch.setattr(forks_mod, "BG_FORK_TIMEOUT", 0.1)
+
+    _run(
+        run_agent_background(
+            owner, agent, "[routine-bg:test] do stuff", skip_if_busy=False
+        )
+    )
+
+    # Client should have been disconnected
+    client.disconnect.assert_awaited()
+
+    # User should have received a timeout notification
+    assert len(sent_messages) == 1
+    assert "timed out" in sent_messages[0].lower()

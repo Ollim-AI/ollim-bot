@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 import os
@@ -16,6 +17,8 @@ from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo
 
 log = logging.getLogger(__name__)
+
+BG_FORK_TIMEOUT = 1800  # 30 minutes
 
 if TYPE_CHECKING:
     import discord
@@ -227,14 +230,18 @@ def _extract_prompt_tag(prompt: str) -> str:
     return "bg fork"
 
 
-async def _notify_fork_failure(channel: discord.abc.Messageable, tag: str) -> None:
-    """Best-effort DM notification when a bg fork fails."""
-    try:
-        await channel.send(
-            f"Background task failed: `{tag}` -- check logs for details."
+async def _notify_fork_failure(
+    channel: discord.abc.Messageable, tag: str, *, timed_out: bool = False
+) -> None:
+    """Best-effort DM notification when a bg fork fails or times out."""
+    if timed_out:
+        msg = (
+            f"Background task timed out after {BG_FORK_TIMEOUT // 60} minutes: `{tag}`"
         )
-    except Exception:
-        log.exception("Failed to send error notification for %s", tag)
+    else:
+        msg = f"Background task failed: `{tag}` -- check logs for details."
+    with contextlib.suppress(Exception):
+        await channel.send(msg)
 
 
 async def run_agent_background(
@@ -279,26 +286,32 @@ async def run_agent_background(
     start_message_collector()
 
     try:
-        if isolated:
-            client = await agent.create_isolated_client(model=model, thinking=thinking)
-        else:
-            client = await agent.create_forked_client()
-        try:
-            fork_session_id = await agent.run_on_client(
-                client, prompt, prepend_updates=not isolated
-            )
-            log_session_event(
-                fork_session_id,
-                "isolated_bg" if isolated else "bg_fork",
-                parent_session_id=None if isolated else main_session_id,
-            )
-            flush_message_collector(
-                fork_session_id,
-                None if isolated else main_session_id,
-            )
-        finally:
-            await client.disconnect()
+        async with asyncio.timeout(BG_FORK_TIMEOUT):
+            if isolated:
+                client = await agent.create_isolated_client(
+                    model=model, thinking=thinking
+                )
+            else:
+                client = await agent.create_forked_client()
+            try:
+                fork_session_id = await agent.run_on_client(
+                    client, prompt, prepend_updates=not isolated
+                )
+                log_session_event(
+                    fork_session_id,
+                    "isolated_bg" if isolated else "bg_fork",
+                    parent_session_id=None if isolated else main_session_id,
+                )
+                flush_message_collector(
+                    fork_session_id,
+                    None if isolated else main_session_id,
+                )
+            finally:
+                await client.disconnect()
         log.info("bg fork completed: %s", tag)
+    except TimeoutError:
+        log.warning("bg fork timed out after %ds: %s", BG_FORK_TIMEOUT, tag)
+        await _notify_fork_failure(dm, tag, timed_out=True)
     except Exception:
         log.exception("bg fork failed: %s", tag)
         await _notify_fork_failure(dm, tag)
