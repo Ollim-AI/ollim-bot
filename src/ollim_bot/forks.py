@@ -10,6 +10,7 @@ import os
 import tempfile
 import time
 from contextvars import ContextVar
+from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
@@ -81,6 +82,56 @@ def mark_bg_output(sent: bool) -> None:
 
 def bg_output_sent() -> bool:
     flag = _bg_output_flag.get()
+    return bool(flag and flag[0])
+
+
+# ---------------------------------------------------------------------------
+# Bg fork config — controls ping and reporting behavior per routine/reminder
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class BgForkConfig:
+    update_main_session: str = "on_ping"  # always | on_ping | freely | blocked
+    allow_ping: bool = True
+
+
+_bg_fork_config_var: ContextVar[BgForkConfig] = ContextVar(
+    "_bg_fork_config", default=BgForkConfig()
+)
+
+
+def set_bg_fork_config(config: BgForkConfig) -> None:
+    _bg_fork_config_var.set(config)
+
+
+def get_bg_fork_config() -> BgForkConfig:
+    return _bg_fork_config_var.get()
+
+
+# ---------------------------------------------------------------------------
+# Bg reported flag — tracks whether report_updates was called (for "always" mode).
+# Mutable container, same pattern as _bg_output_flag.
+# ---------------------------------------------------------------------------
+
+_bg_reported_flag: ContextVar[list[bool] | None] = ContextVar(
+    "_bg_reported_flag", default=None
+)
+
+
+def init_bg_reported_flag() -> None:
+    """Call before client connect() so all child tasks share the mutable ref."""
+    _bg_reported_flag.set([False])
+
+
+def mark_bg_reported() -> None:
+    flag = _bg_reported_flag.get()
+    if flag is not None:
+        flag[0] = True
+
+
+def bg_reported() -> bool:
+    flag = _bg_reported_flag.get()
     return bool(flag and flag[0])
 
 
