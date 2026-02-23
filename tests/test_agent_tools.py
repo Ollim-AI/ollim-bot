@@ -17,10 +17,12 @@ from ollim_bot.agent_tools import (
 )
 from ollim_bot import ping_budget
 from ollim_bot.forks import (
+    BgForkConfig,
     ForkExitAction,
     pop_enter_fork,
     pop_exit_action,
     pop_pending_updates,
+    set_bg_fork_config,
     set_busy,
     set_in_fork,
     set_interactive_fork,
@@ -634,3 +636,62 @@ def test_embed_critical_bypasses_busy(data_dir):
     assert len(ch.messages) == 1
     set_in_fork(False)
     set_busy(False)
+
+
+# --- allow_ping enforcement ---
+
+
+def test_ping_user_blocked_when_allow_ping_false(data_dir):
+    ch = InMemoryChannel()
+    set_fork_channel(ch)
+    set_in_fork(True)
+    set_bg_fork_config(BgForkConfig(allow_ping=False))
+
+    result = _run(_ping({"message": "hello"}))
+
+    assert "disabled" in result["content"][0]["text"].lower()
+    assert len(ch.messages) == 0
+    set_in_fork(False)
+    set_bg_fork_config(BgForkConfig())
+
+
+def test_embed_blocked_when_allow_ping_false(data_dir):
+    ch = InMemoryChannel()
+    set_fork_channel(ch)
+    set_in_fork(True)
+    set_bg_fork_config(BgForkConfig(allow_ping=False))
+
+    result = _run(_embed({"title": "Tasks"}))
+
+    assert "disabled" in result["content"][0]["text"].lower()
+    assert len(ch.messages) == 0
+    set_in_fork(False)
+    set_bg_fork_config(BgForkConfig())
+
+
+def test_ping_user_critical_still_blocked_when_allow_ping_false(data_dir):
+    ch = InMemoryChannel()
+    set_fork_channel(ch)
+    set_in_fork(True)
+    set_bg_fork_config(BgForkConfig(allow_ping=False))
+
+    result = _run(_ping({"message": "urgent!", "critical": True}))
+
+    assert "disabled" in result["content"][0]["text"].lower()
+    assert len(ch.messages) == 0
+    set_in_fork(False)
+    set_bg_fork_config(BgForkConfig())
+
+
+# --- report_updates blocked mode ---
+
+
+def test_report_updates_blocked_when_update_blocked(data_dir):
+    set_in_fork(True)
+    set_bg_fork_config(BgForkConfig(update_main_session="blocked"))
+
+    result = _run(_report({"message": "summary"}))
+
+    assert "disabled" in result["content"][0]["text"].lower()
+    set_in_fork(False)
+    set_bg_fork_config(BgForkConfig())

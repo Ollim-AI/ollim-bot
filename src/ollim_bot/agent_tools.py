@@ -10,7 +10,6 @@ from claude_agent_sdk.types import HookContext, HookInput, SyncHookJSONOutput
 
 from ollim_bot import ping_budget
 from ollim_bot.config import USER_NAME
-from ollim_bot.forks import is_busy
 from ollim_bot.sessions import track_message
 from ollim_bot.embeds import (
     ButtonConfig,
@@ -23,10 +22,14 @@ from ollim_bot.forks import (
     ForkExitAction,
     append_update,
     bg_output_sent,
+    bg_reported,
     clear_pending_updates,
+    get_bg_fork_config,
     in_bg_fork,
     in_interactive_fork,
+    is_busy,
     mark_bg_output,
+    mark_bg_reported,
     request_enter_fork,
     set_exit_action,
 )
@@ -185,6 +188,15 @@ async def discord_embed(args: dict[str, Any]) -> dict[str, Any]:
         return {"content": [{"type": "text", "text": "Error: no active channel"}]}
 
     if _source() == "bg":
+        if not get_bg_fork_config().allow_ping:
+            return {
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "Pinging is disabled for this background task.",
+                    }
+                ]
+            }
         if budget_error := _check_bg_budget(args):
             return budget_error
 
@@ -233,6 +245,15 @@ async def ping_user(args: dict[str, Any]) -> dict[str, Any]:
                 {
                     "type": "text",
                     "text": "Error: ping_user is only available in background forks",
+                }
+            ]
+        }
+    if not get_bg_fork_config().allow_ping:
+        return {
+            "content": [
+                {
+                    "type": "text",
+                    "text": "Pinging is disabled for this background task.",
                 }
             ]
         }
@@ -363,7 +384,17 @@ async def save_context(args: dict[str, Any]) -> dict[str, Any]:
 )
 async def report_updates(args: dict[str, Any]) -> dict[str, Any]:
     if in_bg_fork():
+        if get_bg_fork_config().update_main_session == "blocked":
+            return {
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "Reporting to main session is disabled for this background task.",
+                    }
+                ]
+            }
         await append_update(args["message"])
+        mark_bg_reported()
         mark_bg_output(False)
         return {
             "content": [
