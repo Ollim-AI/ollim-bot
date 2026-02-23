@@ -48,16 +48,6 @@ if TYPE_CHECKING:
 TZ = ZoneInfo("America/Los_Angeles")
 log = logging.getLogger(__name__)
 
-_BG_PREAMBLE = (
-    "Your text output will be discarded. Use `ping_user` (MCP tool) to send "
-    "a plain text alert, or `discord_embed` for structured data. Only alert "
-    "if something genuinely warrants attention.\n\n"
-    "This runs on a forked session -- by default everything is discarded.\n"
-    "- Call `report_updates(message)` to pass a short summary to the main "
-    "session (fork discarded).\n"
-    "- Call nothing if nothing useful happened.\n\n"
-)
-
 _registered_routines: set[str] = set()
 _registered_reminders: set[str] = set()
 
@@ -104,43 +94,94 @@ def _build_bg_preamble(
     routines: list[Routine],
     *,
     busy: bool = False,
+    bg_config: BgForkConfig | None = None,
 ) -> str:
-    """Build BG_PREAMBLE with budget status and remaining task count."""
-    bg_reminders, bg_routines = ping_budget.remaining_today(reminders, routines)
-    budget_status = ping_budget.get_status()
+    """Build BG_PREAMBLE with budget status, remaining task count, and config."""
+    config = bg_config or BgForkConfig()
 
-    remaining_parts: list[str] = []
-    if bg_reminders > 0:
-        remaining_parts.append(
-            f"{bg_reminders} bg reminder{'s' if bg_reminders != 1 else ''}"
+    # --- Ping instructions ---
+    if config.allow_ping:
+        ping_section = (
+            "Your text output will be discarded. Use `ping_user` (MCP tool) to send "
+            "a plain text alert, or `discord_embed` for structured data. Only alert "
+            "if something genuinely warrants attention.\n\n"
         )
-    if bg_routines > 0:
-        remaining_parts.append(
-            f"{bg_routines} bg routine{'s' if bg_routines != 1 else ''}"
+    else:
+        ping_section = (
+            "Your text output will be discarded. "
+            "Pinging is disabled for this task — `ping_user` and `discord_embed` "
+            "are not available.\n\n"
         )
-    remaining_line = (
-        f"Remaining today: {', '.join(remaining_parts)} before budget reset.\n"
-        if remaining_parts
-        else ""
-    )
+
+    # --- Update instructions ---
+    mode = config.update_main_session
+    if mode == "always":
+        update_section = (
+            "This runs on a forked session -- by default everything is discarded.\n"
+            "You MUST call `report_updates(message)` before finishing to update "
+            "the main session on what happened.\n\n"
+        )
+    elif mode == "freely":
+        update_section = (
+            "This runs on a forked session -- by default everything is discarded.\n"
+            "You may optionally call `report_updates(message)` to update the main "
+            "session on what happened -- or just finish without it.\n\n"
+        )
+    elif mode == "blocked":
+        update_section = (
+            "This runs on a forked session. This task runs silently -- no "
+            "reporting to the main session.\n\n"
+        )
+    else:  # on_ping (default)
+        update_section = (
+            "This runs on a forked session -- by default everything is discarded.\n"
+            "- Call `report_updates(message)` to update the main session on what "
+            "happened (fork discarded).\n"
+            "- Call nothing if nothing useful happened.\n\n"
+        )
 
     busy_line = (
         "User is mid-conversation. Do NOT use `ping_user` or `discord_embed` "
         "unless `critical=True`. Use `report_updates` for all findings -- "
         "they'll appear in the main session when the conversation ends.\n\n"
-        if busy
+        if busy and config.allow_ping
         else ""
     )
 
-    return (
-        f"{_BG_PREAMBLE}"
-        f"{busy_line}"
-        f"Ping budget: {budget_status}.\n"
-        f"{remaining_line}"
-        "Plan pings carefully -- you may not need to ping for every task. "
-        "Use report_updates for non-urgent summaries. "
-        "Set critical=True only for time-sensitive items (event in <30min, urgent message).\n\n"
-    )
+    if config.allow_ping:
+        bg_reminders, bg_routines = ping_budget.remaining_today(reminders, routines)
+        budget_status = ping_budget.get_status()
+        remaining_parts: list[str] = []
+        if bg_reminders > 0:
+            remaining_parts.append(
+                f"{bg_reminders} bg reminder{'s' if bg_reminders != 1 else ''}"
+            )
+        if bg_routines > 0:
+            remaining_parts.append(
+                f"{bg_routines} bg routine{'s' if bg_routines != 1 else ''}"
+            )
+        remaining_line = (
+            f"Remaining today: {', '.join(remaining_parts)} before budget reset.\n"
+            if remaining_parts
+            else ""
+        )
+        report_hint = (
+            "Use report_updates for non-urgent summaries. "
+            if config.update_main_session != "blocked"
+            else ""
+        )
+        budget_section = (
+            f"Ping budget: {budget_status}.\n"
+            f"{remaining_line}"
+            f"Plan pings carefully -- you may not need to ping for every task. "
+            f"{report_hint}"
+            f"Set critical=True only for time-sensitive items "
+            f"(event in <30min, urgent message).\n\n"
+        )
+    else:
+        budget_section = ""
+
+    return f"{ping_section}{update_section}{busy_line}{budget_section}"
 
 
 def _build_routine_prompt(
@@ -149,9 +190,12 @@ def _build_routine_prompt(
     reminders: list[Reminder],
     routines: list[Routine],
     busy: bool = False,
+    bg_config: BgForkConfig | None = None,
 ) -> str:
     if routine.background:
-        preamble = _build_bg_preamble(reminders, routines, busy=busy)
+        preamble = _build_bg_preamble(
+            reminders, routines, busy=busy, bg_config=bg_config
+        )
         return f"[routine-bg:{routine.id}] {preamble}{routine.message}"
     return f"[routine:{routine.id}] {routine.message}"
 
@@ -162,6 +206,7 @@ def _build_reminder_prompt(
     reminders: list[Reminder],
     routines: list[Routine],
     busy: bool = False,
+    bg_config: BgForkConfig | None = None,
 ) -> str:
     tag = (
         f"reminder-bg:{reminder.id}"
@@ -171,7 +216,11 @@ def _build_reminder_prompt(
     parts = [f"[{tag}]"]
 
     if reminder.background:
-        parts.append(_build_bg_preamble(reminders, routines, busy=busy).rstrip())
+        parts.append(
+            _build_bg_preamble(
+                reminders, routines, busy=busy, bg_config=bg_config
+            ).rstrip()
+        )
 
     if reminder.max_chain > 0:
         check_num = reminder.chain_depth + 1
@@ -217,6 +266,7 @@ def _register_routine(
             reminders=list_reminders(),
             routines=list_routines(),
             busy=busy,
+            bg_config=bg_config,
         )
         try:
             if routine.background:
@@ -275,6 +325,7 @@ def _register_reminder(
             reminders=list_reminders(),
             routines=list_routines(),
             busy=busy,
+            bg_config=bg_config,
         )
         # follow_up_chain MCP tool reads this to schedule the next link
         chain_ctx = None

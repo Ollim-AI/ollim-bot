@@ -1,5 +1,6 @@
 """Tests for scheduler.py prompt-building and cron conversion."""
 
+from ollim_bot.forks import BgForkConfig
 from ollim_bot.scheduling.reminders import Reminder
 from ollim_bot.scheduling.routines import Routine
 from ollim_bot.scheduling.scheduler import (
@@ -224,3 +225,54 @@ def test_bg_reminder_prompt_busy(data_dir):
 
     assert "mid-conversation" in prompt
     assert "Check email" in prompt
+
+
+# --- BgForkConfig-aware preamble ---
+
+
+def test_bg_preamble_allow_ping_false():
+    config = BgForkConfig(allow_ping=False)
+
+    result = _build_bg_preamble([], [], bg_config=config)
+
+    assert "disabled" in result.lower()
+    assert "not available" in result.lower()
+    assert "Ping budget" not in result
+
+
+def test_bg_preamble_update_always():
+    config = BgForkConfig(update_main_session="always")
+
+    result = _build_bg_preamble([], [], bg_config=config)
+
+    assert "MUST" in result
+    assert "report_updates" in result
+
+
+def test_bg_preamble_update_freely():
+    config = BgForkConfig(update_main_session="freely")
+
+    result = _build_bg_preamble([], [], bg_config=config)
+
+    assert "optionally" in result.lower()
+    assert "report_updates" in result
+
+
+def test_bg_preamble_update_blocked():
+    config = BgForkConfig(update_main_session="blocked")
+
+    result = _build_bg_preamble([], [], bg_config=config)
+
+    assert "silently" in result.lower()
+    assert "report_updates" not in result.split("silently")[1]
+
+
+def test_bg_preamble_default_config_unchanged():
+    """Default config produces preamble with ping_user and report_updates."""
+    config = BgForkConfig()
+
+    result = _build_bg_preamble([], [], bg_config=config)
+
+    assert "ping_user" in result
+    assert "report_updates" in result
+    assert "what happened" in result
