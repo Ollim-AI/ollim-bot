@@ -7,7 +7,7 @@ from typing import Literal
 import discord
 from discord.ext import commands
 
-from ollim_bot import permissions, ping_budget
+from ollim_bot import permissions, ping_budget, webhook
 from ollim_bot.agent import Agent
 from ollim_bot.agent_tools import set_channel
 from ollim_bot.config import BOT_NAME, USER_NAME
@@ -260,6 +260,8 @@ def create_bot() -> commands.Bot:
         scheduler = setup_scheduler(bot, agent, owner)
         scheduler.start()
         print(f"scheduler started: {len(scheduler.get_jobs())} jobs")
+
+        await webhook.start(agent, owner)
 
         dm = await owner.create_dm()
         resumed = load_session_id() is not None

@@ -44,6 +44,7 @@ feature, build it — don't gatekeep with philosophy.
 - `prompts.py` -- System prompt for the main agent and fork prompt helpers
 - `subagent_prompts.py` -- System prompts for subagents (gmail-reader, history-reviewer, responsiveness-reviewer)
 - `agent_tools.py` -- MCP tools: `discord_embed`, `ping_user`, `follow_up_chain`, `save_context`, `report_updates`, `enter_fork`, `exit_fork`
+- `webhook.py` -- Webhook HTTP server for external triggers (aiohttp, auth, validation, Haiku screening, dispatch)
 - `forks.py` -- Fork state (bg + interactive), pending updates I/O, `run_agent_background`, `send_agent_dm`
 - `views.py` -- Persistent button handlers via `DynamicItem` (delegates to google/, forks, and streamer)
 - `storage.py` -- Shared JSONL I/O, markdown I/O (`read_md_dir`/`write_md`/`remove_md`), and git auto-commit (`~/.ollim-bot/` data repo)
@@ -117,6 +118,18 @@ feature, build it — don't gatekeep with philosophy.
 - Over budget: silent drop — tool returns error to agent, user not notified
 - Agent awareness: budget status + remaining bg tasks injected into BG_PREAMBLE at job-fire time
 - `remaining_today(reminders, routines)` counts bg reminders before midnight + bg routine count
+
+## Webhooks
+- `webhook.py` -- HTTP server for external triggers (aiohttp, embedded in Discord.py event loop)
+- Webhook specs: `~/.ollim-bot/webhooks/<slug>.md` (YAML frontmatter + markdown prompt template)
+- `fields` in YAML: JSON Schema validated with `jsonschema` library
+- Auth: Bearer token from `WEBHOOK_SECRET` env var, constant-time comparison
+- Payload: only declared fields accepted; `additionalProperties: false` enforced
+- 4-layer input security: JSON Schema validation, content fencing in prompt, Haiku screening of strings, operational limits (10KB payload, 500-char default maxLength, 20 properties max)
+- Lifecycle: opt-in via `WEBHOOK_PORT` + `WEBHOOK_SECRET` in `.env`; starts in `on_ready` after scheduler; binds to `127.0.0.1`
+- Dispatch: `asyncio.create_task(run_agent_background(...))` — same bg fork path as scheduler jobs
+- Prompt tag: `[webhook:<slug>]` follows `[routine-bg:X]` convention
+- `create_app(secret, agent, owner, process_fn)` — `process_fn` parameter enables testing without Agent SDK
 
 ## Session history
 - `~/.ollim-bot/session_history.jsonl` -- append-only log of session lifecycle events
@@ -202,6 +215,10 @@ uv run pytest              # Run tests
 ```
 
 Required env vars (set in `.env`): `DISCORD_TOKEN`, `OLLIM_USER_NAME`, `OLLIM_BOT_NAME`
+
+Optional env vars:
+- `WEBHOOK_PORT` — enable webhook server (e.g. `8420`)
+- `WEBHOOK_SECRET` — required if `WEBHOOK_PORT` is set
 
 ## Principles
 
