@@ -259,13 +259,13 @@ def _remaining_bg_routine_firings(routines: list[Routine]) -> int:
 
 
 def _build_bg_preamble(
-    bg_reminders_remaining: int,
-    bg_routines_remaining: int,
+    schedule: list[ScheduleEntry],
     *,
     busy: bool = False,
     bg_config: BgForkConfig | None = None,
 ) -> str:
-    """Build BG_PREAMBLE with budget status, remaining task count, and config."""
+    """Build BG_PREAMBLE with budget status, schedule, and config."""
+    now = datetime.now(TZ)
     config = bg_config or BgForkConfig()
 
     # --- Ping instructions ---
@@ -319,20 +319,37 @@ def _build_bg_preamble(
 
     if config.allow_ping:
         budget_status = ping_budget.get_status()
-        remaining_parts: list[str] = []
-        if bg_reminders_remaining > 0:
-            remaining_parts.append(
-                f"{bg_reminders_remaining} bg reminder{'s' if bg_reminders_remaining != 1 else ''}"
-            )
-        if bg_routines_remaining > 0:
-            remaining_parts.append(
-                f"{bg_routines_remaining} bg routine{'s' if bg_routines_remaining != 1 else ''}"
-            )
-        remaining_line = (
-            f"Still to fire today: {', '.join(remaining_parts)}.\n"
-            if remaining_parts
-            else ""
-        )
+
+        # --- Schedule ---
+        if schedule:
+            last_forward = [e for e in schedule if e.tag != "just fired"]
+            if last_forward:
+                hours = (last_forward[-1].fire_time - now).total_seconds() / 3600
+                window_label = f"next {max(1, round(hours))}h"
+            else:
+                window_label = "recent"
+            schedule_lines = [f"Upcoming bg tasks ({window_label}):"]
+            for entry in schedule:
+                time_str = entry.fire_time.strftime("%-I:%M %p")
+                silent = " (silent)" if entry.silent else ""
+                tag_str = f" [{entry.tag}]" if entry.tag else ""
+                schedule_lines.append(
+                    f"- {time_str}: {entry.label}{silent} — "
+                    f'"{entry.description}" ({entry.file_path}){tag_str}'
+                )
+            if last_forward:
+                minutes_to_last = (
+                    last_forward[-1].fire_time - now
+                ).total_seconds() / 60
+                refill_rate = ping_budget.load().refill_rate_minutes
+                refills = int(minutes_to_last / refill_rate)
+                if refills > 0:
+                    s = "s" if refills != 1 else ""
+                    schedule_lines.append(f"~{refills} refill{s} before last task.")
+            schedule_section = "\n".join(schedule_lines) + "\n"
+        else:
+            schedule_section = "No more bg tasks today.\n"
+
         can_report = config.update_main_session != "blocked"
         if can_report:
             regret_line = (
@@ -349,9 +366,8 @@ def _build_bg_preamble(
             )
         budget_section = (
             f"Ping budget: {budget_status}.\n"
-            f"{remaining_line}"
-            f"Send at most 1 ping or embed per bg session — multiple routines share the daily budget. "
-            f"If budget is 0, do not attempt to ping.\n"
+            f"{schedule_section}"
+            f"Send at most 1 ping or embed per bg session.\n"
             f"{regret_line}"
             f"critical=True bypasses the budget — reserve for things the user would be devastated to miss.\n\n"
         )
@@ -377,16 +393,6 @@ def _build_bg_preamble(
     return f"{ping_section}{update_section}{busy_line}{budget_section}{tools_section}"
 
 
-def _compute_remaining(
-    reminders: list[Reminder], routines: list[Routine]
-) -> tuple[int, int]:
-    """Compute (bg_reminders_remaining, bg_routines_remaining) for preamble."""
-    return (
-        ping_budget.remaining_bg_reminders(reminders),
-        _remaining_bg_routine_firings(routines),
-    )
-
-
 def _build_routine_prompt(
     routine: Routine,
     *,
@@ -396,8 +402,8 @@ def _build_routine_prompt(
     bg_config: BgForkConfig | None = None,
 ) -> str:
     if routine.background:
-        bg_rem, bg_rtn = _compute_remaining(reminders, routines)
-        preamble = _build_bg_preamble(bg_rem, bg_rtn, busy=busy, bg_config=bg_config)
+        schedule = _build_upcoming_schedule(routines, reminders, current_id=routine.id)
+        preamble = _build_bg_preamble(schedule, busy=busy, bg_config=bg_config)
         return f"[routine-bg:{routine.id}] {preamble}{routine.message}"
     return f"[routine:{routine.id}] {routine.message}"
 
@@ -418,9 +424,9 @@ def _build_reminder_prompt(
     parts = [f"[{tag}]"]
 
     if reminder.background:
-        bg_rem, bg_rtn = _compute_remaining(reminders, routines)
+        schedule = _build_upcoming_schedule(routines, reminders, current_id=reminder.id)
         parts.append(
-            _build_bg_preamble(bg_rem, bg_rtn, busy=busy, bg_config=bg_config).rstrip()
+            _build_bg_preamble(schedule, busy=busy, bg_config=bg_config).rstrip()
         )
 
     if reminder.max_chain > 0:

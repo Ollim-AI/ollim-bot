@@ -117,44 +117,28 @@ def test_reminder_prompt_chain_first():
 
 
 def test_bg_routine_prompt_includes_budget(data_dir):
-    from datetime import date
-
-    from ollim_bot import ping_budget
-
-    ping_budget.save(
-        ping_budget.BudgetState(
-            daily_limit=10, used=3, critical_used=1, last_reset=date.today().isoformat()
-        )
-    )
     routine = Routine(
         id="abc", message="Check tasks", cron="0 8 * * *", background=True
     )
 
     prompt = _build_routine_prompt(routine, reminders=[], routines=[routine])
 
-    assert "7/10 remaining today" in prompt
+    assert "available" in prompt
+    assert "Ping budget" in prompt
 
 
 def test_bg_reminder_prompt_includes_budget(data_dir):
-    from datetime import date, datetime
-    from zoneinfo import ZoneInfo
-
-    from ollim_bot import ping_budget
-
-    tz = ZoneInfo("America/Los_Angeles")
-    now = datetime.now(tz)
-    ping_budget.save(
-        ping_budget.BudgetState(
-            daily_limit=10, used=5, critical_used=0, last_reset=date.today().isoformat()
-        )
-    )
     reminder = Reminder(
-        id="r1", message="Check email", run_at=now.isoformat(), background=True
+        id="r1",
+        message="Check email",
+        run_at="2026-02-16T12:00:00-08:00",
+        background=True,
     )
 
     prompt = _build_reminder_prompt(reminder, reminders=[reminder], routines=[])
 
-    assert "5/10 remaining today" in prompt
+    assert "available" in prompt
+    assert "Ping budget" in prompt
 
 
 def test_fg_routine_prompt_unchanged(data_dir):
@@ -198,13 +182,13 @@ def test_convert_dow_range_with_step():
 
 
 def test_bg_preamble_normal_no_busy_line():
-    result = _build_bg_preamble(0, 0)
+    result = _build_bg_preamble([])
     assert "mid-conversation" not in result
     assert "report_updates" in result
 
 
 def test_bg_preamble_busy_includes_quiet_instruction():
-    result = _build_bg_preamble(0, 0, busy=True)
+    result = _build_bg_preamble([], busy=True)
     assert "mid-conversation" in result
     assert "report_updates" in result
     assert "critical" in result.lower()
@@ -241,7 +225,7 @@ def test_bg_reminder_prompt_busy(data_dir):
 def test_bg_preamble_allow_ping_false():
     config = BgForkConfig(allow_ping=False)
 
-    result = _build_bg_preamble(0, 0, bg_config=config)
+    result = _build_bg_preamble([], bg_config=config)
 
     assert "disabled" in result.lower()
     assert "not available" in result.lower()
@@ -251,7 +235,7 @@ def test_bg_preamble_allow_ping_false():
 def test_bg_preamble_update_always():
     config = BgForkConfig(update_main_session="always")
 
-    result = _build_bg_preamble(0, 0, bg_config=config)
+    result = _build_bg_preamble([], bg_config=config)
 
     assert "MUST" in result
     assert "report_updates" in result
@@ -260,7 +244,7 @@ def test_bg_preamble_update_always():
 def test_bg_preamble_update_freely():
     config = BgForkConfig(update_main_session="freely")
 
-    result = _build_bg_preamble(0, 0, bg_config=config)
+    result = _build_bg_preamble([], bg_config=config)
 
     assert "optionally" in result.lower()
     assert "report_updates" in result
@@ -269,7 +253,7 @@ def test_bg_preamble_update_freely():
 def test_bg_preamble_update_blocked():
     config = BgForkConfig(update_main_session="blocked")
 
-    result = _build_bg_preamble(0, 0, bg_config=config)
+    result = _build_bg_preamble([], bg_config=config)
 
     assert "silently" in result.lower()
     assert "report_updates" not in result.split("silently")[1]
@@ -279,7 +263,7 @@ def test_bg_preamble_default_config_unchanged():
     """Default config produces preamble with ping_user and report_updates."""
     config = BgForkConfig()
 
-    result = _build_bg_preamble(0, 0, bg_config=config)
+    result = _build_bg_preamble([], bg_config=config)
 
     assert "ping_user" in result
     assert "report_updates" in result
@@ -290,36 +274,34 @@ def test_bg_preamble_default_config_unchanged():
 
 
 def test_bg_preamble_max_1_per_session():
-    result = _build_bg_preamble(3, 5)
+    result = _build_bg_preamble([])
 
     assert "at most 1" in result
 
 
-def test_bg_preamble_shows_remaining_tasks():
-    result = _build_bg_preamble(2, 5)
+def test_bg_preamble_shows_schedule(data_dir):
+    now = datetime.now(TZ)
+    entries = [
+        ScheduleEntry(
+            id="r1",
+            fire_time=now + timedelta(hours=1),
+            label="Midday review",
+            description="Check tasks",
+            file_path="routines/r1.md",
+        ),
+    ]
 
-    assert "2 bg reminders" in result
-    assert "5 bg routines" in result
-    assert "Still to fire today" in result
+    result = _build_bg_preamble(entries)
+
+    assert "Upcoming bg tasks" in result
+    assert "Check tasks" in result
+    assert "routines/r1.md" in result
 
 
-def test_bg_preamble_zero_budget_says_do_not_ping(data_dir):
-    from datetime import date
+def test_bg_preamble_no_schedule_says_no_more(data_dir):
+    result = _build_bg_preamble([])
 
-    from ollim_bot import ping_budget
-
-    ping_budget.save(
-        ping_budget.BudgetState(
-            daily_limit=10,
-            used=10,
-            critical_used=0,
-            last_reset=date.today().isoformat(),
-        )
-    )
-
-    result = _build_bg_preamble(0, 3)
-
-    assert "do not attempt to ping" in result.lower()
+    assert "No more bg tasks today" in result
 
 
 # --- _fires_before_midnight ---
@@ -381,7 +363,7 @@ def test_bg_preamble_allowed_tools():
         allowed_tools=["Bash(ollim-bot gmail *)", "Bash(ollim-bot tasks *)"]
     )
 
-    result = _build_bg_preamble(0, 0, bg_config=config)
+    result = _build_bg_preamble([], bg_config=config)
 
     assert "TOOL RESTRICTIONS" in result
     assert "Only these tools" in result
@@ -392,7 +374,7 @@ def test_bg_preamble_allowed_tools():
 def test_bg_preamble_disallowed_tools():
     config = BgForkConfig(disallowed_tools=["WebFetch", "WebSearch"])
 
-    result = _build_bg_preamble(0, 0, bg_config=config)
+    result = _build_bg_preamble([], bg_config=config)
 
     assert "TOOL RESTRICTIONS" in result
     assert "NOT available" in result
@@ -403,7 +385,7 @@ def test_bg_preamble_disallowed_tools():
 def test_bg_preamble_no_tool_restrictions():
     config = BgForkConfig()
 
-    result = _build_bg_preamble(0, 0, bg_config=config)
+    result = _build_bg_preamble([], bg_config=config)
 
     assert "TOOL RESTRICTIONS" not in result
 
