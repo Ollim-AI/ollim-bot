@@ -72,7 +72,7 @@ class ChainContext:
     update_main_session: str = "on_ping"
     allow_ping: bool = True
     allowed_tools: list[str] | None = None
-    blocked_tools: list[str] | None = None
+    disallowed_tools: list[str] | None = None
 
 
 _chain_context: ChainContext | None = None
@@ -328,8 +328,8 @@ async def follow_up_chain(args: dict[str, Any]) -> dict[str, Any]:
         cmd.append("--no-ping")
     if ctx.allowed_tools:
         cmd.extend(["--allowed-tools", *ctx.allowed_tools])
-    if ctx.blocked_tools:
-        cmd.extend(["--blocked-tools", *ctx.blocked_tools])
+    if ctx.disallowed_tools:
+        cmd.extend(["--disallowed-tools", *ctx.disallowed_tools])
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
         return {

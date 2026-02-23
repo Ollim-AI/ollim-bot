@@ -223,10 +223,10 @@ def _build_bg_preamble(
             + "\n".join(f"  - {t}" for t in config.allowed_tools)
             + "\n\n"
         )
-    elif config.blocked_tools is not None:
+    elif config.disallowed_tools is not None:
         tools_section = (
             "TOOL RESTRICTIONS: These tools are NOT available for this task:\n"
-            + "\n".join(f"  - {t}" for t in config.blocked_tools)
+            + "\n".join(f"  - {t}" for t in config.disallowed_tools)
             + "\n\n"
         )
     else:
@@ -320,7 +320,7 @@ def _register_routine(
             update_main_session=routine.update_main_session,
             allow_ping=routine.allow_ping,
             allowed_tools=routine.allowed_tools,
-            blocked_tools=routine.blocked_tools,
+            disallowed_tools=routine.disallowed_tools,
         )
         prompt = _build_routine_prompt(
             routine,
@@ -381,7 +381,7 @@ def _register_reminder(
             update_main_session=reminder.update_main_session,
             allow_ping=reminder.allow_ping,
             allowed_tools=reminder.allowed_tools,
-            blocked_tools=reminder.blocked_tools,
+            disallowed_tools=reminder.disallowed_tools,
         )
         prompt = _build_reminder_prompt(
             reminder,
@@ -406,7 +406,7 @@ def _register_reminder(
                 update_main_session=reminder.update_main_session,
                 allow_ping=reminder.allow_ping,
                 allowed_tools=reminder.allowed_tools,
-                blocked_tools=reminder.blocked_tools,
+                disallowed_tools=reminder.disallowed_tools,
             )
 
         try:

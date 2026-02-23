@@ -312,7 +312,7 @@ class Agent:
         *,
         fork: bool = True,
         allowed_tools: list[str] | None = None,
-        blocked_tools: list[str] | None = None,
+        disallowed_tools: list[str] | None = None,
     ) -> ClaudeSDKClient:
         """Create a disposable client that forks from a given or current session.
 
@@ -324,7 +324,7 @@ class Agent:
             opts = replace(self.options, resume=sid, fork_session=fork)
         else:
             opts = self.options
-        opts = _apply_tool_restrictions(opts, allowed_tools, blocked_tools)
+        opts = _apply_tool_restrictions(opts, allowed_tools, disallowed_tools)
         client = ClaudeSDKClient(opts)
         await client.connect()
         return client
@@ -335,7 +335,7 @@ class Agent:
         model: str | None = None,
         thinking: bool = True,
         allowed_tools: list[str] | None = None,
-        blocked_tools: list[str] | None = None,
+        disallowed_tools: list[str] | None = None,
     ) -> ClaudeSDKClient:
         """Create a standalone client with no conversation history."""
         opts = self.options
@@ -343,7 +343,7 @@ class Agent:
             opts = replace(opts, model=model)
         thinking_tokens = 10000 if thinking else None
         opts = replace(opts, max_thinking_tokens=thinking_tokens)
-        opts = _apply_tool_restrictions(opts, allowed_tools, blocked_tools)
+        opts = _apply_tool_restrictions(opts, allowed_tools, disallowed_tools)
         client = ClaudeSDKClient(opts)
         await client.connect()
         return client
