@@ -8,6 +8,7 @@ Chain reminders inject chain context so the agent can call follow_up_chain.
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo
@@ -87,6 +88,147 @@ def _convert_dow(dow: str) -> str:
         a, b = part.split("-", 1)
         converted.append(f"{_CRON_DOW.get(a, a)}-{_CRON_DOW.get(b, b)}")
     return ",".join(converted)
+
+
+@dataclass(frozen=True, slots=True)
+class ScheduleEntry:
+    """One upcoming bg task in the forward schedule."""
+
+    id: str
+    fire_time: datetime
+    label: str  # e.g. "Chore-time routine" or "Chain reminder (2/4)"
+    description: str  # from YAML description or truncated message
+    file_path: str  # relative path for agent to Read
+    silent: bool = False  # allow_ping=False
+    tag: str | None = None  # "this task", "just fired", or None
+
+
+_GRACE_MINUTES = 15
+_BASE_WINDOW_HOURS = 3
+_MIN_FORWARD = 3
+_MAX_WINDOW_HOURS = 12
+_TRUNCATE_LEN = 60
+
+
+def _routine_next_fire(routine: Routine, after: datetime) -> datetime | None:
+    """Get next fire time for a routine after a given datetime."""
+    parts = routine.cron.split()
+    trigger = CronTrigger(
+        minute=parts[0],
+        hour=parts[1],
+        day=parts[2],
+        month=parts[3],
+        day_of_week=_convert_dow(parts[4]),
+    )
+    return trigger.get_next_fire_time(None, after)
+
+
+def _routine_prev_fire(routine: Routine, now: datetime) -> datetime | None:
+    """Get most recent fire time for a routine within the grace window."""
+    grace_start = now - timedelta(minutes=_GRACE_MINUTES)
+    nxt = _routine_next_fire(routine, grace_start)
+    if nxt is not None and nxt <= now:
+        return nxt
+    return None
+
+
+def _entry_description(item: Routine | Reminder) -> str:
+    """Use YAML description if available, else truncate message."""
+    if item.description:
+        return item.description
+    msg = item.message.replace("\n", " ").strip()
+    if len(msg) <= _TRUNCATE_LEN:
+        return msg
+    return msg[:_TRUNCATE_LEN] + "..."
+
+
+def _entry_label(item: Routine | Reminder) -> str:
+    """Build the label prefix."""
+    if isinstance(item, Routine):
+        return item.description or "Routine"
+    if item.max_chain > 0:
+        check = item.chain_depth + 1
+        total = item.max_chain + 1
+        return f"Chain reminder ({check}/{total})"
+    return "Reminder"
+
+
+def _entry_file_path(item: Routine | Reminder) -> str:
+    """Relative file path for the agent to Read."""
+    if isinstance(item, Routine):
+        return f"routines/{item.id}.md"
+    return f"reminders/{item.id}.md"
+
+
+def _build_upcoming_schedule(
+    routines: list[Routine],
+    reminders: list[Reminder],
+    *,
+    current_id: str,
+) -> list[ScheduleEntry]:
+    """Build the forward schedule for the bg preamble."""
+    now = datetime.now(TZ)
+    base_cutoff = now + timedelta(hours=_BASE_WINDOW_HOURS)
+    max_cutoff = now + timedelta(hours=_MAX_WINDOW_HOURS)
+    grace_start = now - timedelta(minutes=_GRACE_MINUTES)
+
+    candidates: list[tuple[datetime, Routine | Reminder]] = []
+
+    for r in routines:
+        if not r.background:
+            continue
+        prev = _routine_prev_fire(r, now)
+        if prev is not None:
+            candidates.append((prev, r))
+        nxt = _routine_next_fire(r, now)
+        if nxt is not None and nxt <= max_cutoff:
+            candidates.append((nxt, r))
+
+    for rem in reminders:
+        if not rem.background:
+            continue
+        fire = datetime.fromisoformat(rem.run_at)
+        if grace_start <= fire <= max_cutoff:
+            candidates.append((fire, rem))
+
+    candidates.sort(key=lambda x: x[0])
+
+    # Apply dynamic window: all within base_cutoff, extend for min forward count
+    forward = [(t, item) for t, item in candidates if t > now]
+    recent = [(t, item) for t, item in candidates if t <= now]
+
+    if len(forward) < _MIN_FORWARD:
+        selected_forward = forward
+    else:
+        in_window = [(t, item) for t, item in forward if t <= base_cutoff]
+        if len(in_window) >= _MIN_FORWARD:
+            selected_forward = in_window
+        else:
+            selected_forward = forward[:_MIN_FORWARD]
+
+    selected = recent + selected_forward
+
+    entries: list[ScheduleEntry] = []
+    for fire_time, item in selected:
+        if item.id == current_id:
+            tag = "this task"
+        elif fire_time <= now:
+            tag = "just fired"
+        else:
+            tag = None
+        entries.append(
+            ScheduleEntry(
+                id=item.id,
+                fire_time=fire_time,
+                label=_entry_label(item),
+                description=_entry_description(item),
+                file_path=_entry_file_path(item),
+                silent=not item.allow_ping,
+                tag=tag,
+            )
+        )
+
+    return entries
 
 
 def _fires_before_midnight(cron: str) -> bool:
