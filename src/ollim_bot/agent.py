@@ -48,25 +48,32 @@ from ollim_bot.sessions import (
     delete_session_id,
     load_session_id,
     log_session_event,
+    session_start_time,
     save_session_id,
     set_swap_in_progress,
 )
 
 ModelName = Literal["opus", "sonnet", "haiku"]
 
-_USAGE_LABELS = {"input_tokens": "in", "output_tokens": "out"}
+
+def _format_duration(seconds: float) -> str:
+    """Format seconds as '3h 12m', '45m', or '< 1m'."""
+    minutes = int(seconds // 60)
+    if minutes < 1:
+        return "< 1m"
+    hours, mins = divmod(minutes, 60)
+    if hours:
+        return f"{hours}h {mins}m" if mins else f"{hours}h"
+    return f"{mins}m"
 
 
 def _format_result_stats(msg: ResultMessage) -> str:
-    """Format ResultMessage fields as a compact stats line."""
-    parts: list[str] = []
-    parts.append(f"{msg.duration_ms / 1000:.1f}s")
-    if msg.total_cost_usd is not None:
-        parts.append(f"${msg.total_cost_usd:.4f}")
-    if msg.usage:
-        for key, label in _USAGE_LABELS.items():
-            if (val := msg.usage.get(key)) is not None:
-                parts.append(f"{label}: {val:,}")
+    """Format ResultMessage as productivity stats (turns + session age)."""
+    parts: list[str] = [f"{msg.num_turns} turns"]
+    start = session_start_time()
+    if start:
+        age = (datetime.now(_TZ) - start).total_seconds()
+        parts.append(_format_duration(age))
     return " · ".join(parts)
 
 
