@@ -9,7 +9,8 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 PROJECT_DIR = Path(__file__).resolve().parent.parent.parent
-PID_FILE = Path.home() / ".ollim-bot" / "bot.pid"
+DATA_DIR = Path.home() / ".ollim-bot"
+PID_FILE = DATA_DIR / "bot.pid"
 
 
 HELP = """\
@@ -47,6 +48,16 @@ examples:
 """
 
 
+def _ensure_spec_symlink() -> None:
+    """Symlink routine-reminder-spec.md into the data dir for agent access."""
+    source = PROJECT_DIR / "docs" / "routine-reminder-spec.md"
+    target = DATA_DIR / "routine-reminder-spec.md"
+    if target.is_symlink() or target.exists():
+        return
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    target.symlink_to(source)
+
+
 def _check_already_running() -> None:
     PID_FILE.parent.mkdir(parents=True, exist_ok=True)
     if PID_FILE.exists():
@@ -61,39 +72,33 @@ def _check_already_running() -> None:
     atexit.register(PID_FILE.unlink, missing_ok=True)
 
 
-def main() -> None:
-    if len(sys.argv) > 1 and sys.argv[1] in ("help", "--help", "-h"):
+def _dispatch_subcommand() -> bool:
+    """Route CLI subcommands. Returns True if handled."""
+    if len(sys.argv) < 2:
+        return False
+    cmd = sys.argv[1]
+    rest = sys.argv[2:]
+    if cmd in ("help", "--help", "-h"):
         print(HELP)
-        return
+        return True
+    routes: dict[str, tuple[str, str]] = {
+        "routine": ("ollim_bot.scheduling.routine_cmd", "run_routine_command"),
+        "reminder": ("ollim_bot.scheduling.reminder_cmd", "run_reminder_command"),
+        "tasks": ("ollim_bot.google.tasks", "run_tasks_command"),
+        "cal": ("ollim_bot.google.calendar", "run_calendar_command"),
+        "gmail": ("ollim_bot.google.gmail", "run_gmail_command"),
+    }
+    if cmd in routes:
+        from importlib import import_module
 
-    if len(sys.argv) > 1 and sys.argv[1] == "routine":
-        from ollim_bot.scheduling.routine_cmd import run_routine_command
+        mod_path, func_name = routes[cmd]
+        getattr(import_module(mod_path), func_name)(rest)
+        return True
+    return False
 
-        run_routine_command(sys.argv[2:])
-        return
 
-    if len(sys.argv) > 1 and sys.argv[1] == "reminder":
-        from ollim_bot.scheduling.reminder_cmd import run_reminder_command
-
-        run_reminder_command(sys.argv[2:])
-        return
-
-    if len(sys.argv) > 1 and sys.argv[1] == "tasks":
-        from ollim_bot.google.tasks import run_tasks_command
-
-        run_tasks_command(sys.argv[2:])
-        return
-
-    if len(sys.argv) > 1 and sys.argv[1] == "cal":
-        from ollim_bot.google.calendar import run_calendar_command
-
-        run_calendar_command(sys.argv[2:])
-        return
-
-    if len(sys.argv) > 1 and sys.argv[1] == "gmail":
-        from ollim_bot.google.gmail import run_gmail_command
-
-        run_gmail_command(sys.argv[2:])
+def main() -> None:
+    if _dispatch_subcommand():
         return
 
     load_dotenv(PROJECT_DIR / ".env")
@@ -104,6 +109,7 @@ def main() -> None:
         raise SystemExit(1)
 
     _check_already_running()
+    _ensure_spec_symlink()
 
     from ollim_bot.bot import create_bot
 
