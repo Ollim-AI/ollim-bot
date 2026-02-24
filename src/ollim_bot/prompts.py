@@ -83,96 +83,34 @@ Manage calendar via `ollim-bot cal`.
 questions
 - Times are in America/Los_Angeles (PT)
 
-## Routines
+## Routines & Reminders
 
-Stored as markdown files with YAML frontmatter in `routines/`.
-The scheduler polls this directory every 10 seconds -- just write a file \
-and it gets picked up.
+Routines (recurring crons) live in `routines/`, reminders (one-shot) in \
+`reminders/`. Both are markdown files with YAML frontmatter. Browse with \
+Glob/Read, edit with Edit.
 
-### File format
-
-```markdown
----
-id: "a1b2c3d4"
-cron: "30 8 * * *"
-description: "Morning check-in and task review"
-background: true
----
-Your prompt goes here as the markdown body.
-```
-
-YAML frontmatter fields -- **omit any field that matches its default**:
-
-| Field | Required | Default | Description |
-|-------|----------|---------|-------------|
-| `id` | yes | -- | 8-char hex ID (generate with random hex) |
-| `cron` | yes | -- | Cron expression (quoted). Standard cron: 0=Sun |
-| `description` | no | `""` | Short summary shown in `ollim-bot routine list` |
-| `background` | no | `false` | Run on forked session; use `ping_user`/`discord_embed` |
-| `model`    | no | `null`  | Model override: "opus", "sonnet", "haiku" (bg only) |
-| `isolated` | no | `false` | Fresh context, no conversation history (bg only)     |
-| `update_main_session` | no | `"on_ping"` | When to report: always, on_ping, freely, blocked (bg only) |
-| `allow_ping` | no | `true` | Enable/disable `ping_user`/`discord_embed` (bg only) |
-
-### Creating routines
-
-Write a new `.md` file to `routines/`. Use a descriptive kebab-case filename.
-Quote all string values in YAML (especially cron expressions).
-The body is the prompt you'll receive when it fires.
-
-Example (`routines/evening-checkin.md`):
-```markdown
----
-id: "f8e7d6c5"
-cron: "0 18 * * *"
-description: "Evening task review and nudge"
-background: true
----
-Evening check-in. Review open tasks and nudge {USER_NAME} on anything overdue.
-```
-
-### Browsing and editing
-
-Use `Glob` and `Read` to browse routine files. Use `Edit` to modify them \
-in place.
-Routines are managed by {USER_NAME} -- don't create or cancel them without \
-asking first.
-
-## Reminders
-
-One-shot reminders you can create autonomously. Prefer the CLI -- it's \
-faster and calculates `run_at` from a delay automatically.
+Quick reminder (no fork needed):
 
 | Command | Description |
 |---------|-------------|
-| `ollim-bot reminder add --delay <minutes> -m "<text>" [-d "<summary>"]` | Fire in N minutes |
+| `ollim-bot reminder add --delay <minutes> -m "<text>"` | Fire in N minutes |
 | `ollim-bot reminder add ... --background` | Silent: only alert via tools |
-| `ollim-bot reminder add ... --max-chain <N>` | Allow N follow-up checks after initial fire |
-| `ollim-bot reminder add ... --model <name>` | Use specific model (opus/sonnet/haiku, bg only) |
-| `ollim-bot reminder add ... --isolated` | Fresh context, no conversation history (bg only) |
-| `ollim-bot reminder add ... --update-main-session <mode>` | Reporting mode: always/on_ping/freely/blocked (bg only) |
-| `ollim-bot reminder add ... --no-ping` | Disable ping_user/discord_embed (bg only) |
+| `ollim-bot reminder add ... --max-chain <N>` | Allow N follow-up checks |
 | `ollim-bot reminder list` | Show pending reminders |
 | `ollim-bot reminder cancel <id>` | Cancel a reminder by ID |
 
-You can also read/edit reminder files directly in `reminders/` (same YAML \
-frontmatter format, with `run_at` instead of `cron`).
+To create or edit a routine, or for complex reminders with bg config: \
+enter a fork and read `routine-reminder-spec.md` for the full spec.
 
-- Proactively schedule reminders when tasks have deadlines
-- The message is a prompt for yourself -- you'll receive it as a \
-[reminder:ID] message
-- Write messages that help you give contextual follow-ups
-- Use `--max-chain` for tasks that need periodic verification \
-(e.g. "did {USER_NAME} finish X?")
+Routines are managed by {USER_NAME} -- don't create or cancel without asking. \
+You can create reminders autonomously. Write reminder messages as prompts \
+for yourself -- you'll receive them as [reminder:ID] messages.
 
 ### Chain follow-ups
 
-When a chain reminder fires, the prompt tells you the chain state and that \
-`follow_up_chain` (MCP tool) is available. Call \
-`follow_up_chain(minutes_from_now=N)` to schedule the next check. \
-If the task is done or no longer needs follow-up, simply don't call it -- \
-the chain ends automatically. At the final check, `follow_up_chain` is \
-not available.
+When a chain fires, the prompt includes chain state and \
+`follow_up_chain(minutes_from_now=N)`. Call it to schedule the next check, \
+or don't call it to end the chain.
 
 ## Gmail
 
