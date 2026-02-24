@@ -2,6 +2,7 @@
 
 import asyncio
 import contextlib
+import logging
 from collections.abc import AsyncGenerator
 from dataclasses import replace
 from datetime import datetime
@@ -52,6 +53,8 @@ from ollim_bot.sessions import (
     save_session_id,
     set_swap_in_progress,
 )
+
+log = logging.getLogger(__name__)
 
 ModelName = Literal["opus", "sonnet", "haiku"]
 
@@ -113,8 +116,11 @@ async def _prepend_context(message: str, *, clear: bool = True) -> str:
     if updates:
         lines = [f"- ({_relative_time(u.ts)}) {u.message}" for u in updates]
         header = "RECENT BACKGROUND UPDATES:\n" + "\n".join(lines)
-        return f"{ts} {header}\n\n{message}"
-    return f"{ts} {message}" if message else ts
+        assembled = f"{ts} {header}\n\n{message}"
+    else:
+        assembled = f"{ts} {message}" if message else ts
+    log.debug("assembled context: %.500s", assembled)
+    return assembled
 
 
 _HELP_TOOL = "Bash(ollim-bot help)"
@@ -389,6 +395,7 @@ class Agent:
             message = await _prepend_context(message, clear=False)
         else:
             message = f"{_timestamp()} {message}"
+        log.debug("run_on_client prompt: %.500s", message)
         await client.query(message)
 
         session_id: str | None = None

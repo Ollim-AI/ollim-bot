@@ -358,7 +358,11 @@ async def save_context(args: dict[str, Any]) -> dict[str, Any]:
     if in_bg_fork():
         return {
             "content": [
-                {"type": "text", "text": "Error: not available in background forks"}
+                {
+                    "type": "text",
+                    "text": "Error: save_context is not available in background forks. "
+                    "Use report_updates instead.",
+                }
             ]
         }
     if not in_interactive_fork():
@@ -451,8 +455,25 @@ async def report_updates(args: dict[str, Any]) -> dict[str, Any]:
     },
 )
 async def enter_fork(args: dict[str, Any]) -> dict[str, Any]:
-    if in_bg_fork() or in_interactive_fork():
-        return {"content": [{"type": "text", "text": "Error: already in a fork"}]}
+    if in_bg_fork():
+        return {
+            "content": [
+                {
+                    "type": "text",
+                    "text": "Error: enter_fork is not available in background forks.",
+                }
+            ]
+        }
+    if in_interactive_fork():
+        return {
+            "content": [
+                {
+                    "type": "text",
+                    "text": "Error: already in an interactive fork. "
+                    "Use exit_fork, save_context, or report_updates to end it first.",
+                }
+            ]
+        }
     request_enter_fork(args.get("topic"), idle_timeout=args.get("idle_timeout", 10))
     return {
         "content": [
@@ -474,7 +495,11 @@ async def exit_fork(args: dict[str, Any]) -> dict[str, Any]:
     if in_bg_fork():
         return {
             "content": [
-                {"type": "text", "text": "Error: not available in background forks"}
+                {
+                    "type": "text",
+                    "text": "Error: background forks end automatically. "
+                    "Use report_updates to pass findings to the main session.",
+                }
             ]
         }
     if not in_interactive_fork():

@@ -242,6 +242,7 @@ def build_bg_preamble(
             "This runs on a forked session -- by default everything is discarded.\n"
             "- Call `report_updates(message)` to update the main session on what "
             "happened (fork discarded).\n"
+            "- If you send a ping or embed, you MUST also call `report_updates`.\n"
             "- Call nothing if nothing useful happened.\n\n"
         )
 
