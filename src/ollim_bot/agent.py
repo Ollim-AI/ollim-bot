@@ -54,6 +54,21 @@ from ollim_bot.sessions import (
 
 ModelName = Literal["opus", "sonnet", "haiku"]
 
+_USAGE_LABELS = {"input_tokens": "in", "output_tokens": "out"}
+
+
+def _format_result_stats(msg: ResultMessage) -> str:
+    """Format ResultMessage fields as a compact stats line."""
+    parts: list[str] = []
+    parts.append(f"{msg.duration_ms / 1000:.1f}s")
+    if msg.total_cost_usd is not None:
+        parts.append(f"${msg.total_cost_usd:.4f}")
+    if msg.usage:
+        for key, label in _USAGE_LABELS.items():
+            if (val := msg.usage.get(key)) is not None:
+                parts.append(f"{label}: {val:,}")
+    return " · ".join(parts)
+
 
 _TZ = ZoneInfo("America/Los_Angeles")
 
@@ -376,17 +391,33 @@ class Agent:
         """Route a slash command and collect the response text.
 
         Returns the most informative response found: system message text,
-        then assistant text, then result fallback, then cost, then "done.".
+        then assistant text, then result fallback, then "done.".
         """
         client = await self._get_client()
+        parts, _ = await self._run_slash(client, command)
+        return "\n".join(parts) if parts else "done."
+
+    async def compact(self, instructions: str | None = None) -> str:
+        """Run /compact and return result with stats."""
+        client = await self._get_client()
+        cmd = f"/compact {instructions}" if instructions else "/compact"
+        parts, result_msg = await self._run_slash(client, cmd)
+
+        lines = list(parts)
+        if result_msg:
+            lines.append(_format_result_stats(result_msg))
+        return "\n".join(lines) if lines else "done."
+
+    async def _run_slash(
+        self, client: ClaudeSDKClient, command: str
+    ) -> tuple[list[str], ResultMessage | None]:
+        """Send a slash command, return (text parts, ResultMessage)."""
         await client.query(command)
 
         parts: list[str] = []
-        result_text: str | None = None
-        cost: float | None = None
+        result_msg: ResultMessage | None = None
         async for msg in client.receive_response():
             if isinstance(msg, SystemMessage):
-                # System messages carry slash command output (e.g. /cost)
                 data = msg.data
                 if text := data.get("text") or data.get("message"):
                     parts.append(text)
@@ -395,19 +426,13 @@ class Agent:
                     if isinstance(block, TextBlock):
                         parts.append(block.text)
             elif isinstance(msg, ResultMessage):
+                result_msg = msg
                 if msg.result:
-                    result_text = msg.result
-                cost = msg.total_cost_usd
+                    parts.append(msg.result)
                 if self._client is client:
                     save_session_id(msg.session_id)
 
-        if parts:
-            return "\n".join(parts)
-        if result_text:
-            return result_text
-        if cost is not None:
-            return f"session cost: ${cost:.4f}"
-        return "done."
+        return parts, result_msg
 
     async def _get_client(self) -> ClaudeSDKClient:
         if self._client is None:
