@@ -194,7 +194,7 @@ def test_enter_fork_while_in_bg_fork():
     result = _run(_enter({}))
 
     assert "Error" in result["content"][0]["text"]
-    assert "already in a fork" in result["content"][0]["text"]
+    assert "not available in background forks" in result["content"][0]["text"]
     pop_enter_fork()
     set_in_fork(False)
 
@@ -205,7 +205,7 @@ def test_enter_fork_while_in_interactive_fork():
     result = _run(_enter({}))
 
     assert "Error" in result["content"][0]["text"]
-    assert "already in a fork" in result["content"][0]["text"]
+    assert "already in an interactive fork" in result["content"][0]["text"]
     pop_enter_fork()
     set_interactive_fork(False)
 

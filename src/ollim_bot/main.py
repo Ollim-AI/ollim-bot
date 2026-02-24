@@ -48,14 +48,15 @@ examples:
 """
 
 
-def _ensure_spec_symlink() -> None:
-    """Symlink routine-reminder-spec.md into the data dir for agent access."""
-    source = PROJECT_DIR / "docs" / "routine-reminder-spec.md"
-    target = DATA_DIR / "routine-reminder-spec.md"
-    if target.is_symlink() or target.exists():
-        return
+def _ensure_spec_symlinks() -> None:
+    """Symlink spec docs into the data dir for agent access."""
     DATA_DIR.mkdir(parents=True, exist_ok=True)
-    target.symlink_to(source)
+    for name in ("routine-reminder-spec.md", "webhook-spec.md"):
+        source = PROJECT_DIR / "docs" / name
+        target = DATA_DIR / name
+        if target.is_symlink() or target.exists():
+            continue
+        target.symlink_to(source)
 
 
 def _check_already_running() -> None:
@@ -109,7 +110,7 @@ def main() -> None:
         raise SystemExit(1)
 
     _check_already_running()
-    _ensure_spec_symlink()
+    _ensure_spec_symlinks()
 
     from ollim_bot.bot import create_bot
 
