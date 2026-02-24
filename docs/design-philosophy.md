@@ -80,6 +80,27 @@ A good assistant doesn't wait to be asked. It surfaces relevant information at
 the right time. That's the core ADHD value proposition — not more features, but
 fewer things forgotten.
 
+## Anti-slop
+
+Slop is what happens when you give up agency to AI. Bad output and dangerous
+decisions are the same failure — both come from nobody maintaining quality
+control. An agent that submits code nobody reviewed, sends messages nobody
+approved, or makes decisions nobody understood isn't a productivity tool. It's a
+liability. Using AI where human judgment belongs is the root cause of slop, not
+AI itself.
+
+We fight this by investing in context engineering. Agentic capabilities improve
+fast, and context quality has to keep pace — that's the work other projects
+skip. We review every prompt, routine, and background task for whether it
+produces reliable output, so the human can focus on high-signal decisions
+instead of monitoring for stupid mistakes. The bot earns autonomy through
+engineering discipline, not by being left unsupervised.
+
+The bot's output follows the same standard. If it has enough context to be
+specific, generic advice is a failure. If it has nothing useful to say, silence
+is correct. A response that any stateless chatbot could have produced is slop —
+cut it.
+
 ## Conversation management
 
 DM-based chat makes context management complicated. You need to balance
