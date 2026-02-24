@@ -67,13 +67,18 @@ def _format_duration(seconds: float) -> str:
     return f"{mins}m"
 
 
-def _format_result_stats(msg: ResultMessage) -> str:
-    """Format ResultMessage as productivity stats (turns + session age)."""
-    parts: list[str] = [f"{msg.num_turns} turns"]
+def _format_compact_stats(result: ResultMessage | None, pre_tokens: int | None) -> str:
+    """Format compaction result as productivity stats."""
+    parts: list[str] = []
+    if result:
+        parts.append(f"{result.num_turns} turns")
     start = session_start_time()
     if start:
         age = (datetime.now(_TZ) - start).total_seconds()
         parts.append(_format_duration(age))
+    if pre_tokens is not None:
+        k = pre_tokens / 1000
+        parts.append(f"{k:.0f}k tokens compacted")
     return " · ".join(parts)
 
 
@@ -405,15 +410,24 @@ class Agent:
         return "\n".join(parts) if parts else "done."
 
     async def compact(self, instructions: str | None = None) -> str:
-        """Run /compact and return result with stats."""
+        """Run /compact and return productivity stats."""
         client = await self._get_client()
         cmd = f"/compact {instructions}" if instructions else "/compact"
-        parts, result_msg = await self._run_slash(client, cmd)
+        await client.query(cmd)
 
-        lines = list(parts)
-        if result_msg:
-            lines.append(_format_result_stats(result_msg))
-        return "\n".join(lines) if lines else "done."
+        pre_tokens: int | None = None
+        result_msg: ResultMessage | None = None
+        async for msg in client.receive_response():
+            if isinstance(msg, SystemMessage):
+                if msg.subtype == "compact_boundary":
+                    meta = msg.data.get("compact_metadata", {})
+                    pre_tokens = meta.get("pre_tokens")
+            elif isinstance(msg, ResultMessage):
+                result_msg = msg
+                if self._client is client:
+                    save_session_id(msg.session_id)
+
+        return _format_compact_stats(result_msg, pre_tokens)
 
     async def _run_slash(
         self, client: ClaudeSDKClient, command: str
