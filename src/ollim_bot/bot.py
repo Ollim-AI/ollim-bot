@@ -171,9 +171,8 @@ def create_bot() -> commands.Bot:
         interaction: discord.Interaction, instructions: str | None = None
     ):
         await interaction.response.send_message("compacting...")
-        cmd = f"/compact {instructions}" if instructions else "/compact"
         async with agent.lock():
-            result = await agent.slash(cmd)
+            result = await agent.compact(instructions)
         await interaction.followup.send(result)
 
     @bot.tree.command(name="cost", description="Show token usage for this session")
