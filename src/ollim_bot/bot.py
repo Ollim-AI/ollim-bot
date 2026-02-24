@@ -170,16 +170,16 @@ def create_bot() -> commands.Bot:
     async def slash_compact(
         interaction: discord.Interaction, instructions: str | None = None
     ):
+        await interaction.response.send_message("compacting...")
         cmd = f"/compact {instructions}" if instructions else "/compact"
         async with agent.lock():
-            await interaction.response.defer(thinking=True)
             result = await agent.slash(cmd)
-            await interaction.followup.send(result)
+        await interaction.followup.send(result)
 
     @bot.tree.command(name="cost", description="Show token usage for this session")
     async def slash_cost(interaction: discord.Interaction):
+        await interaction.response.defer(thinking=True)
         async with agent.lock():
-            await interaction.response.defer(thinking=True)
             result = await agent.slash("/cost")
             await interaction.followup.send(result)
 
