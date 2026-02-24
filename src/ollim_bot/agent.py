@@ -269,6 +269,7 @@ class Agent:
         self._fork_client = await self.create_forked_client(
             session_id=resume_session_id,
             fork=resume_session_id is None,
+            thinking=True,
         )
         self._fork_session_id = None
         set_interactive_fork(True, idle_timeout=idle_timeout)
@@ -311,6 +312,7 @@ class Agent:
         session_id: str | None = None,
         *,
         fork: bool = True,
+        thinking: bool | None = None,
         allowed_tools: list[str] | None = None,
         disallowed_tools: list[str] | None = None,
     ) -> ClaudeSDKClient:
@@ -318,12 +320,16 @@ class Agent:
 
         fork=False resumes the session directly without branching. Use when the
         target is a completed bg fork session that may not support re-forking.
+        thinking=None inherits from main session; True/False overrides.
         """
         sid = session_id or load_session_id()
         if sid:
             opts = replace(self.options, resume=sid, fork_session=fork)
         else:
             opts = self.options
+        if thinking is not None:
+            tokens = 10000 if thinking else None
+            opts = replace(opts, max_thinking_tokens=tokens)
         opts = _apply_tool_restrictions(opts, allowed_tools, disallowed_tools)
         client = ClaudeSDKClient(opts)
         await client.connect()
