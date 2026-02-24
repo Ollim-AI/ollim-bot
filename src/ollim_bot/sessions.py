@@ -53,6 +53,22 @@ def log_session_event(
     append_jsonl(HISTORY_FILE, entry, f"session {event}: {session_id[:8]}")
 
 
+def session_start_time() -> datetime | None:
+    """Return when the current session lineage started (most recent 'created')."""
+    if not HISTORY_FILE.exists():
+        return None
+    last_created: str | None = None
+    for line in HISTORY_FILE.read_text().splitlines():
+        if not line.strip():
+            continue
+        entry = json.loads(line)
+        if entry.get("event") == "created":
+            last_created = entry["timestamp"]
+    if last_created is None:
+        return None
+    return datetime.fromisoformat(last_created)
+
+
 def load_session_id() -> str | None:
     if not SESSIONS_FILE.exists():
         return None
