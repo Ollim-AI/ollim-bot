@@ -417,15 +417,19 @@ class Agent:
 
         pre_tokens: int | None = None
         result_msg: ResultMessage | None = None
+        compacted = False
         async for msg in client.receive_response():
             if isinstance(msg, SystemMessage):
                 if msg.subtype == "compact_boundary":
                     meta = msg.data.get("compact_metadata", {})
                     pre_tokens = meta.get("pre_tokens")
+                    compacted = True
             elif isinstance(msg, ResultMessage):
                 result_msg = msg
                 if self._client is client:
                     save_session_id(msg.session_id)
+                    if compacted:
+                        log_session_event(msg.session_id, "compacted")
 
         return _format_compact_stats(result_msg, pre_tokens)
 
