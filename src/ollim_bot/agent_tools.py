@@ -104,11 +104,13 @@ def _source() -> Literal["main", "bg", "fork"]:  # duplicate-ok
 
 
 def _check_bg_budget(args: dict[str, Any]) -> dict[str, Any] | None:
-    """Check busy state and ping budget for bg forks.
+    """Check per-session ping limit, busy state, and ping budget for bg forks.
 
-    Returns error dict if blocked, None if OK.
-    Busy check runs first: non-critical pings blocked when user is mid-conversation.
-    Critical pings bypass the busy check.
+    Returns error dict if blocked, None if OK.  Check order:
+    1. Per-session limit (1 ping per bg fork session)
+    2. Busy state (user is mid-conversation)
+    3. Ping budget (capacity-based rate limit)
+    Critical pings bypass all three checks.
     """
     critical = args.get("critical", False)
     if not critical and bg_ping_count() >= 1:
