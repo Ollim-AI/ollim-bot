@@ -125,16 +125,33 @@ adds ping tools to `disallowed_tools` (or filters from `allowed_tools`).
 in `create_bot()`. Also enforced DM-only via `allowed_installs` and
 `allowed_contexts` on the command tree.
 
+### ~~Separate Agent Workspace from Code-Only State~~ ✓ Implemented
+Code-only infrastructure files (sessions, ping budget, credentials, PID)
+moved to `~/.ollim-bot/state/`. Agent workspace root now only contains
+agent-managed directories (`routines/`, `reminders/`, `webhooks/`) and
+spec symlinks. `storage.STATE_DIR` is the single source of truth for all
+state file paths — no more hardcoded `Path.home()` across modules.
+
 ## Under Consideration
 
 ### Stop Re-Prepending Stale Updates in Interactive Forks
 `_prepend_context(clear=False)` peeks without consuming -- correct for not
 stealing updates from the main session, but a 5-exchange fork wastes tokens
-showing the same `RECENT BACKGROUND UPDATES` block 5 times.
+showing the same `RECENT BACKGROUND UPDATES` block 5 times (~100-200
+tokens per redundant prepend, scaling with fork length and update count).
 
-- Track update count at fork entry time on the Agent instance
-- Only prepend updates with index >= that count on subsequent exchanges
-- Targeted change in `agent.py:_prepend_context()`
+Fix: add `_fork_updates_offset` module-level global in `forks.py`
+(consistent with existing fork state pattern: `_in_interactive_fork`,
+`_fork_exit_action`, etc.):
+
+- Set to `len(peek_pending_updates())` in `enter_interactive_fork()`
+- Slice `updates[offset:]` in `_prepend_context()` when `clear=False`
+- Reset to 0 in `exit_interactive_fork()`
+- First exchange shows all pre-existing updates; subsequent exchanges
+  only show NEW updates from concurrent bg forks
+- Safe because agent lock serializes all main/fork exchanges
+- `save_context` clearing the file is a non-issue (fork gets promoted)
+- ~10-15 lines across `forks.py` + `agent.py`
 
 ## Rejected / Already Covered
 
