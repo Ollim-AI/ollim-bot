@@ -72,24 +72,15 @@ patterns, and critical facts.
 - Related to Session Memory Snapshots (different scope: snapshots are
   per-session summaries for claude-history, this is living context)
 
-### Enforce 1-Ping-Per-Session Architecturally
-"At most 1 ping or embed per bg session" is currently a prompt instruction.
-Enforce it in code so the model can't accidentally send 2.
-
-- Track per-session ping count in a contextvar (like `_bg_output_flag`)
-- Block second `ping_user`/`discord_embed` with error: "Already sent 1
-  ping this session. Use report_updates for additional findings."
-- Removes reliance on prompt compliance for a behavioral constraint
+### ~~Enforce 1-Ping-Per-Session Architecturally~~ ✓ Implemented
+Mutable-container contextvar (`_bg_ping_count`) in `forks.py`. Checked in
+`_check_bg_budget()` before busy/budget checks. `critical=True` bypasses.
 
 ## Backlog
 
-### Owner Identity Guard
-Verify `interaction.user` / `message.author` is the bot owner before processing.
-
-- Currently safe: bot is private, invite-link controlled
-- Needed before making the project public
-- Check `app_info.owner` against sender in `on_message`, slash commands, reaction handlers, button handlers
-- Without this, any Discord user who can DM or mention the bot gets full access
+### ~~Owner Identity Guard~~ ✓ Implemented
+Module-level `_owner_id` set in `on_ready`. Guards on `on_message`,
+`on_raw_reaction_add`, and all slash commands via `@app_commands.check`.
 
 ### External Content Sanitization
 Tag external content (emails, calendar events, web pages) as untrusted in agent context.
@@ -113,13 +104,9 @@ Add confirmation step before destructive actions.
 client disconnected, user notified via DM. Google API / subprocess timeouts
 remain as separate backlog items.
 
-### Silent Button Handler Failures
-Surface errors when Google API calls fail in button handlers.
-
-- discord.py silently swallows unhandled exceptions in view callbacks
-- User clicks "delete," gets no response, action didn't happen
-- Failed one-shot reminders are also lost (no retry, no alert)
-- Options: try/except with ephemeral error response, retry queue
+### ~~Silent Button Handler Failures~~ ✓ Implemented
+`HttpError` try/except on `_handle_task_done`, `_handle_task_delete`,
+`_handle_event_delete` in `views.py`. Ephemeral error response on failure.
 
 ### Agent Uncertainty Instructions
 Add system prompt guidance for what to do when uncertain.
@@ -129,20 +116,14 @@ Add system prompt guidance for what to do when uncertain.
 - No guidance on confirming irreversible actions
 - May be addressed as part of a broader system prompt refactor (user-configurable prompts)
 
-### Align `allow_ping: false` with Tool Visibility
-When `allow_ping: false`, preamble says tools are "not available" but they
-remain in the MCP tool list. Model could waste a call testing the constraint.
+### ~~Align `allow_ping: false` with Tool Visibility~~ ✓ Implemented
+`_hide_ping_tools()` helper in `scheduler.py`. When `allow_ping` is false,
+adds ping tools to `disallowed_tools` (or filters from `allowed_tools`).
 
-- In scheduler.py, add `mcp__discord__ping_user` and
-  `mcp__discord__discord_embed` to `disallowed_tools` when `allow_ping`
-  is false, so SDK hides them entirely
-- No current routines use `allow_ping: false` — implement when needed
-
-### Bot Presence Always Offline
-Bot shows as offline in Discord even when running.
-
-- Likely needs explicit presence/activity setting in `on_ready`
-- `discord.Activity` or `discord.CustomActivity` to show status
+### ~~Bot Presence Always Offline~~ ✓ Implemented
+`activity=discord.Activity(type=ActivityType.watching, name="your DMs")`
+in `create_bot()`. Also enforced DM-only via `allowed_installs` and
+`allowed_contexts` on the command tree.
 
 ## Under Consideration
 
@@ -191,5 +172,4 @@ user only replies to recent fork messages.
 ### Presence / Availability Tracking
 Track user idle/away state to skip non-critical pings during AFK hours.
 Not needed — routines are scheduled during waking hours, busy flag covers
-mid-conversation. Bot presence (always offline) is a separate bug, tracked
-in Backlog.
+mid-conversation. Bot presence bug is fixed (see Backlog).
