@@ -44,8 +44,8 @@ from ollim_bot.subagent_prompts import (
     HISTORY_REVIEWER_PROMPT,
     RESPONSIVENESS_REVIEWER_PROMPT,
 )
+from ollim_bot.storage import DATA_DIR
 from ollim_bot.sessions import (
-    SESSIONS_FILE,
     delete_session_id,
     load_session_id,
     log_session_event,
@@ -143,7 +143,7 @@ def _apply_tool_restrictions(
 class Agent:
     def __init__(self) -> None:
         self.options = ClaudeAgentOptions(
-            cwd=SESSIONS_FILE.parent,
+            cwd=DATA_DIR,
             include_partial_messages=True,
             can_use_tool=handle_tool_permission,
             system_prompt=SYSTEM_PROMPT,

@@ -4,9 +4,10 @@ import json
 import os
 import tempfile
 import time
-from pathlib import Path
 from typing import TypedDict
 from uuid import uuid4
+
+from ollim_bot.storage import STATE_DIR
 
 
 class _InquiryEntry(TypedDict):
@@ -14,7 +15,7 @@ class _InquiryEntry(TypedDict):
     ts: float
 
 
-INQUIRIES_FILE = Path.home() / ".ollim-bot" / "inquiries.json"
+INQUIRIES_FILE = STATE_DIR / "inquiries.json"
 MAX_AGE = 7 * 24 * 3600  # 7 days
 
 

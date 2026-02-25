@@ -16,6 +16,7 @@ import yaml
 
 TZ = ZoneInfo("America/Los_Angeles")
 DATA_DIR = Path.home() / ".ollim-bot"
+STATE_DIR = DATA_DIR / "state"
 
 T = TypeVar("T")
 log = logging.getLogger(__name__)

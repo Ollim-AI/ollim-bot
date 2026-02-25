@@ -19,19 +19,21 @@ def data_dir(tmp_path, monkeypatch):
     import ollim_bot.sessions as sessions_mod
     import ollim_bot.storage as storage_mod
 
+    state_dir = tmp_path / "state"
     monkeypatch.setattr(storage_mod, "DATA_DIR", tmp_path)
+    monkeypatch.setattr(storage_mod, "STATE_DIR", state_dir)
     monkeypatch.setattr(routines_mod, "ROUTINES_DIR", tmp_path / "routines")
     monkeypatch.setattr(reminders_mod, "REMINDERS_DIR", tmp_path / "reminders")
-    monkeypatch.setattr(inquiries_mod, "INQUIRIES_FILE", tmp_path / "inquiries.json")
-    monkeypatch.setattr(ping_budget_mod, "BUDGET_FILE", tmp_path / "ping_budget.json")
-    monkeypatch.setattr(sessions_mod, "SESSIONS_FILE", tmp_path / "sessions.json")
+    monkeypatch.setattr(inquiries_mod, "INQUIRIES_FILE", state_dir / "inquiries.json")
+    monkeypatch.setattr(ping_budget_mod, "BUDGET_FILE", state_dir / "ping_budget.json")
+    monkeypatch.setattr(sessions_mod, "SESSIONS_FILE", state_dir / "sessions.json")
     monkeypatch.setattr(
-        sessions_mod, "HISTORY_FILE", tmp_path / "session_history.jsonl"
+        sessions_mod, "HISTORY_FILE", state_dir / "session_history.jsonl"
     )
     monkeypatch.setattr(
-        sessions_mod, "FORK_MESSAGES_FILE", tmp_path / "fork_messages.json"
+        sessions_mod, "FORK_MESSAGES_FILE", state_dir / "fork_messages.json"
     )
-    monkeypatch.setattr(forks_mod, "_UPDATES_FILE", tmp_path / "pending_updates.json")
+    monkeypatch.setattr(forks_mod, "_UPDATES_FILE", state_dir / "pending_updates.json")
 
     import ollim_bot.webhook as webhook_mod
 

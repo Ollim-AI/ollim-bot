@@ -7,14 +7,13 @@ import time
 from contextvars import ContextVar
 from dataclasses import dataclass
 from datetime import datetime
-from pathlib import Path
 from typing import Literal, TypedDict
 from zoneinfo import ZoneInfo
 
-from ollim_bot.storage import append_jsonl
+from ollim_bot.storage import STATE_DIR, append_jsonl
 
-SESSIONS_FILE = Path.home() / ".ollim-bot" / "sessions.json"
-HISTORY_FILE = Path.home() / ".ollim-bot" / "session_history.jsonl"
+SESSIONS_FILE = STATE_DIR / "sessions.json"
+HISTORY_FILE = STATE_DIR / "session_history.jsonl"
 
 SessionEventType = Literal[
     "created",
@@ -117,7 +116,7 @@ def delete_session_id() -> None:
 # Fork message tracking — maps Discord message IDs to fork session IDs
 # ---------------------------------------------------------------------------
 
-FORK_MESSAGES_FILE = Path.home() / ".ollim-bot" / "fork_messages.json"
+FORK_MESSAGES_FILE = STATE_DIR / "fork_messages.json"
 _MAX_AGE = 7 * 24 * 3600  # 7 days
 
 _msg_collector: ContextVar[list[int] | None] = ContextVar(

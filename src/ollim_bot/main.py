@@ -8,9 +8,10 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from ollim_bot.storage import DATA_DIR, STATE_DIR
+
 PROJECT_DIR = Path(__file__).resolve().parent.parent.parent
-DATA_DIR = Path.home() / ".ollim-bot"
-PID_FILE = DATA_DIR / "bot.pid"
+PID_FILE = STATE_DIR / "bot.pid"
 
 
 HELP = """\
@@ -60,7 +61,7 @@ def _ensure_spec_symlinks() -> None:
 
 
 def _check_already_running() -> None:
-    PID_FILE.parent.mkdir(parents=True, exist_ok=True)
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
     if PID_FILE.exists():
         pid = int(PID_FILE.read_text().strip())
         proc_cmdline = Path(f"/proc/{pid}/cmdline")

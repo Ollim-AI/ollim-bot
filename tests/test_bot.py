@@ -87,7 +87,6 @@ class _FakeMessage:
         self.attachments: list[object] = []
         self.reference = None
 
-
     async def add_reaction(self, emoji: str) -> None:
         raise _Processed("passed DM guard")
 
