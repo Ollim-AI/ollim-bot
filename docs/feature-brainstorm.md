@@ -5,14 +5,15 @@ Ideas sourced from [OpenClaw docs](https://docs.openclaw.ai/) and conversation.
 ## Confirmed Interest
 
 ### Session Memory Snapshots
-On `/clear`, auto-save a session summary before wiping context.
+Auto-save a session summary on `/clear` and compaction to enhance
+claude-history with searchable summaries.
 
-- Hook into `/clear` flow
-- Agent summarizes the conversation (or we use claude-history to pull it)
+- Hook into `/clear` flow and compaction (`compact_boundary` SystemMessage)
+- Agent summarizes the conversation (or extract post-hoc from JSONL)
 - Save summary to `~/.ollim-bot/memory/` (or alongside existing session JSONL)
 - Summaries become searchable via `claude-history` -- guide transcript deep-dives
-- Respects existing Claude SDK session history (JSONL already logged)
-- Agent gets awareness of past session topics without loading full transcripts
+- Different from Persistent Context File: snapshots are per-session
+  historical records, context file is living agent memory
 
 Open questions:
 - Format: standalone summary file per session, or append to a rolling memory log?
@@ -33,17 +34,15 @@ See `webhook.py` and `docs/plans/2026-02-22-webhook-endpoints-design.md`.
 ### ~~Per-Job Tool Restrictions~~ ✓ Implemented
 Routines/reminders configure which MCP tools are available.
 
-- `allowed_tools` in routine/reminder YAML frontmatter
+- `allowed_tools` / `disallowed_tools` in routine/reminder YAML frontmatter
 - Restricts what the agent can do during that job
-- `silent: true` shorthand -- blocks `ping_user` and `discord_embed`,
-  agent can only use `report_updates` to queue findings for later
+- Uses SDK tool format directly (`Bash(ollim-bot gmail *)`, `mcp__discord__*`, etc.)
 - Broader use: email triage only gets gmail + tasks tools, not calendar or forks
-- Similar to Claude Code skill `allowed_tools` concept
 
 Design:
 - `allowed_tools: [a, b]` -- allowlist is source of truth (explicit, safe)
-- `disallowed_tools: [x, y]` -- denylist shorthand, subtracts from allowed (or from all if allowed omitted)
-- `silent: true` -- sugar for `disallowed_tools: [ping_user, discord_embed]`
+- `disallowed_tools: [x, y]` -- denylist shorthand, subtracts from default set
+- Orthogonal to `allow_ping` / `update_main_session` (those have their own rich behavior)
 
 ### ~~Session ID History (JSONL)~~ ✓ Implemented
 Save main session IDs to a JSONL log for claude-history lookup efficiency.
@@ -57,6 +56,30 @@ Save main session IDs to a JSONL log for claude-history lookup efficiency.
 ### ~~Default-Deny Permission Mode (`dontAsk`)~~ ✓ Implemented
 `dontAsk` is the default permission mode. Non-whitelisted tools silently denied.
 Switch via `/permissions` slash command.
+
+### Persistent Context File
+Agent maintains a living context file (`~/.ollim-bot/context.md`) that
+survives compaction and `/clear`. Compaction-proof memory for preferences,
+patterns, and critical facts.
+
+- Agent reads on reconnect (system prompt or `_prepend_context` injection)
+- Agent writes/updates as it learns things worth remembering
+- Needs brainstorming on: what triggers a write? how to prevent bloat?
+  what's the right granularity? how does the agent decide what's "worth
+  remembering" vs transient conversation?
+- Subsumes "Default Compaction Instructions" — if critical context is
+  externalized, compaction loss matters less
+- Related to Session Memory Snapshots (different scope: snapshots are
+  per-session summaries for claude-history, this is living context)
+
+### Enforce 1-Ping-Per-Session Architecturally
+"At most 1 ping or embed per bg session" is currently a prompt instruction.
+Enforce it in code so the model can't accidentally send 2.
+
+- Track per-session ping count in a contextvar (like `_bg_output_flag`)
+- Block second `ping_user`/`discord_embed` with error: "Already sent 1
+  ping this session. Use report_updates for additional findings."
+- Removes reliance on prompt compliance for a behavioral constraint
 
 ## Backlog
 
@@ -106,37 +129,31 @@ Add system prompt guidance for what to do when uncertain.
 - No guidance on confirming irreversible actions
 - May be addressed as part of a broader system prompt refactor (user-configurable prompts)
 
+### Align `allow_ping: false` with Tool Visibility
+When `allow_ping: false`, preamble says tools are "not available" but they
+remain in the MCP tool list. Model could waste a call testing the constraint.
+
+- In scheduler.py, add `mcp__discord__ping_user` and
+  `mcp__discord__discord_embed` to `disallowed_tools` when `allow_ping`
+  is false, so SDK hides them entirely
+- No current routines use `allow_ping: false` — implement when needed
+
+### Bot Presence Always Offline
+Bot shows as offline in Discord even when running.
+
+- Likely needs explicit presence/activity setting in `on_ready`
+- `discord.Activity` or `discord.CustomActivity` to show status
+
 ## Under Consideration
 
-### Memory Flush Before Compaction
-When auto-compaction triggers, agent gets a silent turn to save important
-info to disk before older messages get summarized away.
+### Stop Re-Prepending Stale Updates in Interactive Forks
+`_prepend_context(clear=False)` peeks without consuming -- correct for not
+stealing updates from the main session, but a 5-exchange fork wastes tokens
+showing the same `RECENT BACKGROUND UPDATES` block 5 times.
 
-- Prevents information loss during compaction
-- Currently `/compact` just summarizes -- no pre-save step
-- Needs technical investigation: what's actually feasible with the SDK's
-  compaction flow? Can we hook into it or does it happen server-side?
-
-Key question: what would be useful to save that auto-summarization wouldn't
-preserve? Compaction already keeps a summary. Candidates:
-- Exact task IDs / event IDs mentioned (summaries tend to lose specifics)
-- User preferences expressed in conversation ("I prefer morning reminders")
-- Commitments / promises ("I told X I'd do Y by Friday")
-- Emotional context (was the user frustrated? celebrating?)
-- Are any of these actually lost in practice?
-
-### Presence / Availability Tracking
-Track whether user is active, idle, or away based on last interaction time.
-More granular than `skip_if_busy` (only checks mid-conversation).
-
-- Could inform scheduling: don't ping if idle 3+ hours (asleep/AFK)
-- Could adjust reminder urgency based on availability
-- Discord already has presence (online/idle/dnd/offline) -- could read that
-
-Needs real use cases to justify:
-- What would the bot do differently if it knew the user was idle vs active?
-- Is Discord's built-in presence status sufficient?
-- Does this overlap with `silent: true` and `skip_if_busy`?
+- Track update count at fork entry time on the Agent instance
+- Only prepend updates with index >= that count on subsequent exchanges
+- Targeted change in `agent.py:_prepend_context()`
 
 ## Rejected / Already Covered
 
@@ -166,3 +183,13 @@ OS-level voice-to-text (phone keyboard, Windows, macOS) already covers this.
 ### Gmail Push (Pub/Sub)
 Requires Google Cloud Pub/Sub setup + webhook endpoint. Only valuable
 after webhook endpoints exist. Can revisit then.
+
+### Reply-to-Fork Staleness Signal
+Could add age indicator when resuming old bg fork sessions. Not needed —
+user only replies to recent fork messages.
+
+### Presence / Availability Tracking
+Track user idle/away state to skip non-critical pings during AFK hours.
+Not needed — routines are scheduled during waking hours, busy flag covers
+mid-conversation. Bot presence (always offline) is a separate bug, tracked
+in Backlog.
