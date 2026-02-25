@@ -86,14 +86,14 @@ class _FakeMessage:
         self.content = "hello"
         self.attachments: list[object] = []
         self.reference = None
-        self.mentions: list[object] = []
+
 
     async def add_reaction(self, emoji: str) -> None:
         raise _Processed("passed DM guard")
 
 
 @pytest.mark.asyncio
-async def test_non_dm_message_ignored_even_with_mention():
+async def test_non_dm_message_ignored():
     bot_mod._owner_id = 42
     bot = bot_mod.create_bot()
 
