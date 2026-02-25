@@ -5,6 +5,7 @@ import contextlib
 from typing import Literal
 
 import discord
+from discord import app_commands
 from discord.ext import commands
 
 from ollim_bot import permissions, ping_budget, webhook
@@ -270,6 +271,13 @@ def create_bot() -> commands.Bot:
         init_views(agent)
         bot.add_dynamic_items(ActionButton)
 
+        bot.tree.allowed_installs = app_commands.AppInstallationType(
+            guild=False, user=True
+        )
+        bot.tree.allowed_contexts = app_commands.AppCommandContext(
+            guild=False, dm_channel=True, private_channel=True
+        )
+
         synced = await bot.tree.sync()
         print(f"synced {len(synced)} slash commands")
 
@@ -304,17 +312,10 @@ def create_bot() -> commands.Bot:
         if not is_owner(message.author.id):
             return
 
-        is_dm = isinstance(message.channel, discord.DMChannel)
-        is_mentioned = bot.user in message.mentions if bot.user else False
-
-        if not is_dm and not is_mentioned:
+        if not isinstance(message.channel, discord.DMChannel):
             return
 
-        content = (
-            message.content.replace(f"<@{bot.user.id}>", "").strip()
-            if bot.user
-            else message.content.strip()
-        )
+        content = message.content.strip()
 
         images = await _read_images(message.attachments)
 

@@ -1,5 +1,6 @@
-"""Tests for bot.py — owner identity guard."""
+"""Tests for bot.py — owner guard and DM-only enforcement."""
 
+import discord
 import pytest
 
 import ollim_bot.bot as bot_mod
@@ -50,3 +51,63 @@ def test_slash_command_from_owner_accepted():
     bot_mod._owner_id = 42
 
     assert bot_mod._owner_check(_FakeInteraction(user_id=42)) is True
+
+
+# --- DM-only enforcement ---
+
+
+class _Processed(Exception):
+    """Sentinel raised when on_message passes all guards and starts processing."""
+
+
+class _FakeAuthor:
+    def __init__(self, user_id: int, *, bot: bool = False):
+        self.id = user_id
+        self.bot = bot
+
+
+class _GuildChannel:
+    """Non-DM channel — on_message should reject messages here."""
+
+
+class _FakeDMChannel(discord.DMChannel):
+    """Minimal DMChannel subclass that passes isinstance checks."""
+
+    def __init__(self) -> None:
+        pass  # skip discord internals
+
+
+class _FakeMessage:
+    """Message that raises _Processed on add_reaction (first side effect after guards)."""
+
+    def __init__(self, channel: object, author: _FakeAuthor) -> None:
+        self.channel = channel
+        self.author = author
+        self.content = "hello"
+        self.attachments: list[object] = []
+        self.reference = None
+        self.mentions: list[object] = []
+
+    async def add_reaction(self, emoji: str) -> None:
+        raise _Processed("passed DM guard")
+
+
+@pytest.mark.asyncio
+async def test_non_dm_message_ignored_even_with_mention():
+    bot_mod._owner_id = 42
+    bot = bot_mod.create_bot()
+
+    msg = _FakeMessage(channel=_GuildChannel(), author=_FakeAuthor(42))
+    # Should return silently — never reaches add_reaction
+    await bot.on_message(msg)
+
+
+@pytest.mark.asyncio
+async def test_dm_message_processed():
+    bot_mod._owner_id = 42
+    bot = bot_mod.create_bot()
+
+    msg = _FakeMessage(channel=_FakeDMChannel(), author=_FakeAuthor(42))
+    # Should pass DM guard and reach add_reaction, raising _Processed
+    with pytest.raises(_Processed):
+        await bot.on_message(msg)
