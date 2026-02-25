@@ -19,6 +19,7 @@ from ollim_bot import ping_budget
 from ollim_bot.forks import (
     BgForkConfig,
     ForkExitAction,
+    init_bg_ping_count,
     pop_enter_fork,
     pop_exit_action,
     pop_pending_updates,
@@ -734,3 +735,84 @@ def test_stop_hook_allows_on_blocked():
     assert result == {}
     set_in_fork(False)
     set_bg_fork_config(BgForkConfig())
+
+
+# --- 1-ping-per-session enforcement ---
+
+
+def test_second_ping_user_blocked_in_bg_fork(data_dir):
+    ch = InMemoryChannel()
+    set_fork_channel(ch)
+    set_in_fork(True)
+    init_bg_ping_count()
+
+    async def _check():
+        first = await _ping({"message": "first"})
+        second = await _ping({"message": "second"})
+        return first, second
+
+    first, second = _run(_check())
+
+    assert first["content"][0]["text"] == "Message sent."
+    assert "Already sent 1 ping" in second["content"][0]["text"]
+    assert len(ch.messages) == 1
+    set_in_fork(False)
+
+
+def test_second_embed_blocked_in_bg_fork(data_dir):
+    ch = InMemoryChannel()
+    set_fork_channel(ch)
+    set_in_fork(True)
+    init_bg_ping_count()
+
+    async def _check():
+        first = await _embed({"title": "First"})
+        second = await _embed({"title": "Second"})
+        return first, second
+
+    first, second = _run(_check())
+
+    assert first["content"][0]["text"] == "Embed sent."
+    assert "Already sent 1 ping" in second["content"][0]["text"]
+    assert len(ch.messages) == 1
+    set_in_fork(False)
+
+
+def test_critical_bypasses_ping_limit_in_bg_fork(data_dir):
+    ch = InMemoryChannel()
+    set_fork_channel(ch)
+    set_in_fork(True)
+    init_bg_ping_count()
+
+    async def _check():
+        first = await _ping({"message": "first"})
+        second = await _ping({"message": "critical", "critical": True})
+        return first, second
+
+    first, second = _run(_check())
+
+    assert first["content"][0]["text"] == "Message sent."
+    assert second["content"][0]["text"] == "Message sent."
+    assert len(ch.messages) == 2
+    set_in_fork(False)
+
+
+def test_ping_limit_not_checked_on_main_or_interactive_fork(data_dir):
+    """Counter not initialized outside bg forks, so limit never triggers."""
+    ch = InMemoryChannel()
+    set_fork_channel(None)
+    set_channel(ch)
+    set_in_fork(False)
+    set_interactive_fork(False)
+
+    async def _check():
+        first = await _embed({"title": "First"})
+        second = await _embed({"title": "Second"})
+        return first, second
+
+    first, second = _run(_check())
+
+    assert first["content"][0]["text"] == "Embed sent."
+    assert second["content"][0]["text"] == "Embed sent."
+    assert len(ch.messages) == 2
+    set_channel(None)
