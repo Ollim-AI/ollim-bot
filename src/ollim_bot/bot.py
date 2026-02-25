@@ -25,6 +25,18 @@ from ollim_bot.streamer import stream_to_channel
 from ollim_bot.views import ActionButton
 from ollim_bot.views import init as init_views
 
+_owner_id: int | None = None
+
+
+def is_owner(user_id: int) -> bool:
+    """Check if user is the bot owner. Allows all when owner not yet resolved."""
+    return _owner_id is None or user_id == _owner_id
+
+
+def _owner_check(interaction: discord.Interaction) -> bool:
+    return is_owner(interaction.user.id)
+
+
 _ImageMime = Literal["image/jpeg", "image/png", "image/gif", "image/webp"]
 
 _MAGIC: list[tuple[bytes, _ImageMime]] = [
@@ -166,12 +178,14 @@ def create_bot() -> commands.Bot:
             await channel.send(embed=fork_exit_embed(action, summary))
 
     @bot.tree.command(name="clear", description="Clear conversation and start fresh")
+    @discord.app_commands.check(_owner_check)
     async def slash_clear(interaction: discord.Interaction):
         await agent.clear()
         await interaction.response.send_message("conversation cleared. fresh start.")
 
     @bot.tree.command(name="compact", description="Compress conversation context")
     @discord.app_commands.describe(instructions="Optional focus for the summary")
+    @discord.app_commands.check(_owner_check)
     async def slash_compact(
         interaction: discord.Interaction, instructions: str | None = None
     ):
@@ -181,6 +195,7 @@ def create_bot() -> commands.Bot:
         await interaction.followup.send(result)
 
     @bot.tree.command(name="cost", description="Show token usage for this session")
+    @discord.app_commands.check(_owner_check)
     async def slash_cost(interaction: discord.Interaction):
         await interaction.response.defer(thinking=True)
         async with agent.lock():
@@ -189,6 +204,7 @@ def create_bot() -> commands.Bot:
 
     @bot.tree.command(name="fork", description="Start a forked conversation")
     @discord.app_commands.describe(topic="Optional topic to start with")
+    @discord.app_commands.check(_owner_check)
     async def slash_fork(interaction: discord.Interaction, topic: str | None = None):
         if agent.in_fork:
             await interaction.response.send_message(
@@ -212,6 +228,7 @@ def create_bot() -> commands.Bot:
 
     @bot.tree.command(name="model", description="Switch the AI model")
     @discord.app_commands.describe(name="Model to use")
+    @discord.app_commands.check(_owner_check)
     @discord.app_commands.choices(
         name=[
             discord.app_commands.Choice(name="opus", value="opus"),
@@ -227,6 +244,7 @@ def create_bot() -> commands.Bot:
 
     @bot.tree.command(name="thinking", description="Toggle extended thinking")
     @discord.app_commands.describe(enabled="Turn thinking on or off")
+    @discord.app_commands.check(_owner_check)
     @discord.app_commands.choices(
         enabled=[
             discord.app_commands.Choice(name="on", value="on"),
@@ -255,11 +273,14 @@ def create_bot() -> commands.Bot:
         synced = await bot.tree.sync()
         print(f"synced {len(synced)} slash commands")
 
+        global _owner_id
         app_info = await bot.application_info()
         owner = app_info.owner
         if not owner:
             print("warning: no owner found; scheduler and DM disabled")
             return
+
+        _owner_id = owner.id
 
         scheduler = setup_scheduler(bot, agent, owner)
         scheduler.start()
@@ -279,6 +300,8 @@ def create_bot() -> commands.Bot:
     @bot.event
     async def on_message(message: discord.Message):
         if message.author.bot:
+            return
+        if not is_owner(message.author.id):
             return
 
         is_dm = isinstance(message.channel, discord.DMChannel)
@@ -337,9 +360,12 @@ def create_bot() -> commands.Bot:
     async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
         if bot.user and payload.user_id == bot.user.id:
             return
+        if not is_owner(payload.user_id):
+            return
         permissions.resolve_approval(payload.message_id, str(payload.emoji))
 
     @bot.tree.command(name="interrupt", description="Stop the current response")
+    @discord.app_commands.check(_owner_check)
     async def slash_interrupt(interaction: discord.Interaction):
         if agent.lock().locked():
             await agent.interrupt()
@@ -348,6 +374,7 @@ def create_bot() -> commands.Bot:
 
     @bot.tree.command(name="permissions", description="Set permission mode")
     @discord.app_commands.describe(mode="Permission mode to use")
+    @discord.app_commands.check(_owner_check)
     @discord.app_commands.choices(
         mode=[
             discord.app_commands.Choice(name="dontAsk", value="dontAsk"),
@@ -374,6 +401,7 @@ def create_bot() -> commands.Bot:
         capacity="Max pings (omit to view current)",
         refill_rate="Minutes per refill (default 90)",
     )
+    @discord.app_commands.check(_owner_check)
     async def slash_ping_budget(
         interaction: discord.Interaction,
         capacity: int | None = None,
@@ -389,5 +417,18 @@ def create_bot() -> commands.Bot:
         else:
             status = ping_budget.get_full_status()
             await interaction.response.send_message(f"ping budget: {status}.")
+
+    @bot.tree.error
+    async def on_app_command_error(
+        interaction: discord.Interaction,
+        error: discord.app_commands.AppCommandError,
+    ) -> None:
+        if isinstance(error, discord.app_commands.CheckFailure):
+            if not interaction.response.is_done():
+                await interaction.response.send_message(
+                    "not authorized", ephemeral=True
+                )
+            return
+        raise error
 
     return bot
