@@ -8,6 +8,7 @@ Chain reminders inject chain context so the agent can call follow_up_chain.
 from __future__ import annotations
 
 import logging
+from dataclasses import replace
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo
@@ -59,6 +60,20 @@ log = logging.getLogger(__name__)
 _registered_routines: set[str] = set()
 _registered_reminders: set[str] = set()
 
+_PING_TOOLS = ["mcp__discord__ping_user", "mcp__discord__discord_embed"]
+
+
+def _apply_ping_restrictions(config: BgForkConfig) -> BgForkConfig:
+    """Hide ping/embed tools from SDK when allow_ping is false."""
+    if config.allow_ping:
+        return config
+    if config.allowed_tools is not None:
+        filtered = [t for t in config.allowed_tools if t not in _PING_TOOLS]
+        return replace(config, allowed_tools=filtered)
+    existing = config.disallowed_tools or []
+    merged = existing + [t for t in _PING_TOOLS if t not in existing]
+    return replace(config, disallowed_tools=merged)
+
 
 def _register_routine(
     scheduler: AsyncIOScheduler,
@@ -72,11 +87,13 @@ def _register_routine(
 
     async def _fire() -> None:
         busy = agent.lock().locked()
-        bg_config = BgForkConfig(
-            update_main_session=routine.update_main_session,
-            allow_ping=routine.allow_ping,
-            allowed_tools=routine.allowed_tools,
-            disallowed_tools=routine.disallowed_tools,
+        bg_config = _apply_ping_restrictions(
+            BgForkConfig(
+                update_main_session=routine.update_main_session,
+                allow_ping=routine.allow_ping,
+                allowed_tools=routine.allowed_tools,
+                disallowed_tools=routine.disallowed_tools,
+            )
         )
         prompt = build_routine_prompt(
             routine,
@@ -133,11 +150,13 @@ def _register_reminder(
 
     async def fire_oneshot() -> None:
         busy = agent.lock().locked()
-        bg_config = BgForkConfig(
-            update_main_session=reminder.update_main_session,
-            allow_ping=reminder.allow_ping,
-            allowed_tools=reminder.allowed_tools,
-            disallowed_tools=reminder.disallowed_tools,
+        bg_config = _apply_ping_restrictions(
+            BgForkConfig(
+                update_main_session=reminder.update_main_session,
+                allow_ping=reminder.allow_ping,
+                allowed_tools=reminder.allowed_tools,
+                disallowed_tools=reminder.disallowed_tools,
+            )
         )
         prompt = build_reminder_prompt(
             reminder,
