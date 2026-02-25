@@ -92,7 +92,12 @@ def create_bot() -> commands.Bot:
     intents.message_content = True
 
     bot = commands.Bot(
-        command_prefix="!", intents=intents, status=discord.Status.online
+        command_prefix="!",
+        intents=intents,
+        status=discord.Status.online,
+        activity=discord.Activity(
+            type=discord.ActivityType.watching, name="your DMs"
+        ),
     )
     agent = Agent()
     _ready_fired = False
