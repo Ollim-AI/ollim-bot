@@ -10,9 +10,9 @@ from dataclasses import asdict, dataclass, replace
 from datetime import date, datetime
 from pathlib import Path
 
-from ollim_bot.storage import DATA_DIR, TZ
+from ollim_bot.storage import STATE_DIR, TZ
 
-BUDGET_FILE: Path = DATA_DIR / "ping_budget.json"
+BUDGET_FILE: Path = STATE_DIR / "ping_budget.json"
 _DEFAULT_CAPACITY = 5
 _DEFAULT_REFILL_RATE = 90  # minutes per ping
 

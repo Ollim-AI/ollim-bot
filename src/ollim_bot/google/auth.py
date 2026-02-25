@@ -1,10 +1,8 @@
 """Shared Google OAuth2 credentials for Tasks + Calendar APIs.
 
 Add new scopes to SCOPES when integrating additional Google services.
-After adding scopes, delete ~/.ollim-bot/token.json to re-consent.
+After adding scopes, delete ~/.ollim-bot/state/token.json to re-consent.
 """
-
-from pathlib import Path
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
@@ -12,15 +10,16 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import Resource
 from googleapiclient.discovery import build as _build
 
+from ollim_bot.storage import STATE_DIR
+
 SCOPES = [
     "https://www.googleapis.com/auth/tasks",
     "https://www.googleapis.com/auth/calendar.events",
     "https://www.googleapis.com/auth/gmail.readonly",
 ]
 
-CONFIG_DIR = Path.home() / ".ollim-bot"
-CREDENTIALS_FILE = CONFIG_DIR / "credentials.json"
-TOKEN_FILE = CONFIG_DIR / "token.json"
+CREDENTIALS_FILE = STATE_DIR / "credentials.json"
+TOKEN_FILE = STATE_DIR / "token.json"
 
 
 def get_credentials() -> Credentials:
@@ -43,7 +42,7 @@ def get_credentials() -> Credentials:
     )
     flow = InstalledAppFlow.from_client_secrets_file(str(CREDENTIALS_FILE), SCOPES)
     creds = flow.run_local_server(port=0, bind_addr="127.0.0.1")
-    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    STATE_DIR.mkdir(parents=True, exist_ok=True)
     TOKEN_FILE.write_text(creds.to_json())
     return creds
 

@@ -47,14 +47,14 @@ feature, build it — don't gatekeep with philosophy.
 - `webhook.py` -- Webhook HTTP server for external triggers (aiohttp, auth, validation, Haiku screening, dispatch)
 - `forks.py` -- Fork state (bg + interactive), pending updates I/O, `run_agent_background`, `send_agent_dm`
 - `views.py` -- Persistent button handlers via `DynamicItem` (delegates to google/, forks, and streamer)
-- `storage.py` -- Shared JSONL I/O, markdown I/O (`read_md_dir`/`write_md`/`remove_md`), and git auto-commit (`~/.ollim-bot/` data repo)
+- `storage.py` -- Shared JSONL I/O, markdown I/O (`read_md_dir`/`write_md`/`remove_md`), git auto-commit, and path constants (`DATA_DIR` for agent workspace, `STATE_DIR` for code-only infrastructure in `~/.ollim-bot/state/`)
 - `streamer.py` -- Streams agent responses to Discord (throttled edits, 2000-char overflow)
 - `sessions.py` -- Persists Agent SDK session ID (plain string file) + session history JSONL log (lifecycle events)
 - `permissions.py` -- Discord-based tool approval (canUseTool callback, reaction-based approval, session-allowed set)
 - `formatting.py` -- Tool-label formatting helpers (shared by agent and permissions)
 - `config.py` -- Env vars: `OLLIM_USER_NAME`, `OLLIM_BOT_NAME` (loaded from `.env` via dotenv)
 - `embeds.py` -- Embed/button types, builders, maps, and `build_embed`/`build_view` (shared by agent_tools and views)
-- `inquiries.py` -- Persists button inquiry prompts to `~/.ollim-bot/inquiries.json` (7-day TTL)
+- `inquiries.py` -- Persists button inquiry prompts to `~/.ollim-bot/state/inquiries.json` (7-day TTL)
 - `ping_budget.py` -- Refill-on-read ping budget for bg fork notifications (state, enforcement, status formatting)
 - `google/` -- Google API integration sub-package
   - `auth.py` -- Shared Google OAuth2 (Tasks + Calendar + Gmail)
@@ -79,7 +79,7 @@ feature, build it — don't gatekeep with philosophy.
 - `ResultMessage.result` is a fallback — don't double-count with `AssistantMessage` text blocks
 - `include_partial_messages=True` -- enables `StreamEvent` for real-time streaming
 - `StreamEvent` imported from `claude_agent_sdk.types` (not in `__init__.__all__`)
-- Session ID persisted to `~/.ollim-bot/sessions.json` (plain string, not JSON); `resume=session_id` on reconnect
+- Session ID persisted to `~/.ollim-bot/state/sessions.json` (plain string, not JSON); `resume=session_id` on reconnect
 - `_drop_client()`: set `_client = None` first, then interrupt + disconnect; suppresses `CLIConnectionError` on interrupt (subprocess may have exited)
 - `swap_client(client, session_id)`: promotes forked client to main (avoids reconnect); drops old client
 - Race guard: `save_session_id` skipped if `self._client is not client` (client was dropped mid-stream by `/clear` or `/model`)
@@ -108,10 +108,10 @@ feature, build it — don't gatekeep with philosophy.
 - Agent inquiry (agent:<uuid>): stored prompts, route back through agent via views.py
 - Fork actions (fork_save, fork_report, fork_exit): exit interactive fork with chosen strategy
 - `DynamicItem[Button]` for persistent buttons across restarts
-- Inquiry prompts persisted to `~/.ollim-bot/inquiries.json` (survive restarts, 7-day TTL)
+- Inquiry prompts persisted to `~/.ollim-bot/state/inquiries.json` (survive restarts, 7-day TTL)
 
 ## Ping budget
-- `~/.ollim-bot/ping_budget.json` — ephemeral state (no git commit)
+- `~/.ollim-bot/state/ping_budget.json` — ephemeral state (no git commit)
 - Refill-on-read bucket: capacity (default 5), refills 1 per 90 min, capped at capacity
 - Lazy refill: `load()` computes accumulated pings from elapsed time since `last_refill`
 - Daily counters (`daily_used`, `critical_used`) reset at midnight
@@ -137,7 +137,7 @@ feature, build it — don't gatekeep with philosophy.
 - `create_app(secret, agent, owner, process_fn)` — `process_fn` parameter enables testing without Agent SDK
 
 ## Session history
-- `~/.ollim-bot/session_history.jsonl` -- append-only log of session lifecycle events
+- `~/.ollim-bot/state/session_history.jsonl` -- append-only log of session lifecycle events
 - Events: `created`, `compacted`, `swapped`, `cleared`, `interactive_fork`, `bg_fork`
 - `save_session_id()` auto-detects `created` (no prior ID) and `compacted` (ID changed)
 - `_swap_in_progress` flag prevents `save_session_id()` from logging `compacted` during `swap_client()`
@@ -156,7 +156,7 @@ feature, build it — don't gatekeep with philosophy.
 
 ## Reply-to-fork
 - Replying to a bg fork message starts an interactive fork that resumes from that bg fork's session
-- `sessions.py` tracks Discord message IDs → fork session IDs via `~/.ollim-bot/fork_messages.json` (7-day TTL)
+- `sessions.py` tracks Discord message IDs → fork session IDs via `~/.ollim-bot/state/fork_messages.json` (7-day TTL)
 - Collector API: `start_message_collector()` / `track_message(msg_id)` / `flush_message_collector()` — contextvar-scoped
 - `streamer.py` and MCP tools (`ping_user`, `discord_embed`) call `track_message()` after sending
 - `run_agent_background` calls `start_message_collector()` before and `flush_message_collector()` after
@@ -164,8 +164,8 @@ feature, build it — don't gatekeep with philosophy.
 - Replying to a non-fork message prepends quoted context: plain text from `.content`, or title + description + fields from first embed (truncated to 500 chars)
 
 ## Google integration
-- OAuth credentials: `~/.ollim-bot/credentials.json` (from Google Cloud Console)
-- Token: `~/.ollim-bot/token.json` (auto-generated on first auth)
+- OAuth credentials: `~/.ollim-bot/state/credentials.json` (from Google Cloud Console)
+- Token: `~/.ollim-bot/state/token.json` (auto-generated on first auth)
 - Gmail is read-only (`gmail.readonly` scope), accessed via the gmail-reader subagent
 - Add new Google services: add scope to `google/auth.py`, create `google/*.py`, add commands to SYSTEM_PROMPT
 
@@ -186,7 +186,7 @@ feature, build it — don't gatekeep with philosophy.
   - Model override: `model: "haiku"` in YAML — passed to `create_isolated_client(model=)`; bg-only, ignored on non-bg jobs
   - Thinking override: `thinking: true` (default) in YAML — passed to `create_isolated_client(thinking=)`; bg-only, `--no-thinking` CLI flag to disable
   - Always discarded — `save_context` blocked in bg forks (only available in interactive forks)
-  - `report_updates(message)` MCP tool: persists summary to `~/.ollim-bot/pending_updates.json`
+  - `report_updates(message)` MCP tool: persists summary to `~/.ollim-bot/state/pending_updates.json`
   - Not called: fork silently discarded, zero context bloat
   - Pending updates prepended to all interactions: main sessions pop (read + clear), forks peek (read-only)
   - `update_main_session`: `always` (must report), `on_ping` (report if pinged, default), `freely` (optional), `blocked` (report_updates returns error)
