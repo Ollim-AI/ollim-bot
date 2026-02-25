@@ -22,11 +22,13 @@ from ollim_bot.forks import (
     ForkExitAction,
     append_update,
     bg_output_sent,
+    bg_ping_count,
     bg_reported,
     clear_pending_updates,
     get_bg_fork_config,
     in_bg_fork,
     in_interactive_fork,
+    increment_bg_ping_count,
     is_busy,
     mark_bg_output,
     mark_bg_reported,
@@ -109,6 +111,16 @@ def _check_bg_budget(args: dict[str, Any]) -> dict[str, Any] | None:
     Critical pings bypass the busy check.
     """
     critical = args.get("critical", False)
+    if not critical and bg_ping_count() >= 1:
+        return {
+            "content": [
+                {
+                    "type": "text",
+                    "text": "Already sent 1 ping this session. "
+                    "Use report_updates for additional findings.",
+                }
+            ]
+        }
     if not critical and is_busy():
         return {
             "content": [
@@ -220,6 +232,7 @@ async def discord_embed(args: dict[str, Any]) -> dict[str, Any]:
     track_message(msg.id)
     if source == "bg":
         mark_bg_output(True)
+        increment_bg_ping_count()
     return {"content": [{"type": "text", "text": "Embed sent."}]}
 
 
@@ -270,6 +283,7 @@ async def ping_user(args: dict[str, Any]) -> dict[str, Any]:
     msg = await channel.send(f"[bg] {args['message']}")
     track_message(msg.id)
     mark_bg_output(True)
+    increment_bg_ping_count()
     return {"content": [{"type": "text", "text": "Message sent."}]}
 
 

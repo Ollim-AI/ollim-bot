@@ -142,6 +142,33 @@ def bg_reported() -> bool:
 
 
 # ---------------------------------------------------------------------------
+# Bg ping counter — mutable container so mutations propagate across
+# sibling tasks in the SDK's anyio task group (same pattern as _bg_output_flag).
+# Enforces 1-ping-per-session limit for bg forks.
+# ---------------------------------------------------------------------------
+
+_bg_ping_count: ContextVar[list[int] | None] = ContextVar(
+    "_bg_ping_count", default=None
+)
+
+
+def init_bg_ping_count() -> None:
+    """Call before client connect() so all child tasks share the mutable ref."""
+    _bg_ping_count.set([0])
+
+
+def increment_bg_ping_count() -> None:
+    counter = _bg_ping_count.get()
+    if counter is not None:
+        counter[0] += 1
+
+
+def bg_ping_count() -> int:
+    counter = _bg_ping_count.get()
+    return counter[0] if counter is not None else 0
+
+
+# ---------------------------------------------------------------------------
 # Pending updates (fork → main session bridge)
 # ---------------------------------------------------------------------------
 
@@ -386,6 +413,7 @@ async def run_agent_background(
     set_busy(busy)
     init_bg_output_flag()
     init_bg_reported_flag()
+    init_bg_ping_count()
     if bg_config:
         set_bg_fork_config(bg_config)
     start_message_collector()
