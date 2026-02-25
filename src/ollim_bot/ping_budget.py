@@ -70,21 +70,6 @@ def load() -> BudgetState:
 
     data = json.loads(BUDGET_FILE.read_text())
 
-    # Migrate old format (daily_limit/used/last_reset)
-    if "daily_limit" in data and "capacity" not in data:
-        state = BudgetState(
-            capacity=_DEFAULT_CAPACITY,
-            available=float(_DEFAULT_CAPACITY),
-            refill_rate_minutes=_DEFAULT_REFILL_RATE,
-            last_refill=now.isoformat(),
-            critical_used=0,
-            critical_reset_date=today,
-            daily_used=0,
-            daily_used_reset=today,
-        )
-        save(state)
-        return state
-
     state = BudgetState(**data)
     state = _refill(state)
     state = _reset_daily(state)

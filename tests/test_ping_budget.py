@@ -103,21 +103,6 @@ def test_load_resets_daily_counters_on_stale_date(data_dir):
     assert loaded.daily_used_reset == date.today().isoformat()
 
 
-def test_load_migrates_old_format(data_dir):
-    """Old format with daily_limit/used/last_reset gets migrated to fresh state."""
-    import json
-
-    old = {"daily_limit": 10, "used": 5, "critical_used": 1, "last_reset": "2026-02-23"}
-    ping_budget.BUDGET_FILE.parent.mkdir(parents=True, exist_ok=True)
-    ping_budget.BUDGET_FILE.write_text(json.dumps(old))
-
-    loaded = ping_budget.load()
-
-    assert loaded.capacity == 5
-    assert loaded.available == 5.0
-    assert loaded.refill_rate_minutes == 90
-
-
 def test_try_use_decrements(data_dir):
     ping_budget.load()
 

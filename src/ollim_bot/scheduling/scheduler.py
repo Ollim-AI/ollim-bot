@@ -1,6 +1,6 @@
 """Proactive routines and reminders via APScheduler.
 
-Polls routines.jsonl and reminders.jsonl every 10s, registers APScheduler jobs.
+Polls routines/ and reminders/ markdown files every 10s, registers APScheduler jobs.
 Routines use CronTrigger, reminders use DateTrigger (one-shot, auto-removed).
 Chain reminders inject chain context so the agent can call follow_up_chain.
 """
