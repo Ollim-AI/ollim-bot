@@ -22,6 +22,8 @@ from ollim_bot.forks import (
 )
 from ollim_bot.config import USER_NAME
 from ollim_bot.embeds import fork_enter_embed, fork_enter_view, fork_exit_embed
+from googleapiclient.errors import HttpError
+
 from ollim_bot.google.calendar import delete_event
 from ollim_bot.google.tasks import complete_task, delete_task
 from ollim_bot.prompts import fork_bg_resume_prompt
@@ -81,19 +83,31 @@ class ActionButton(
 
 
 async def _handle_task_done(interaction: discord.Interaction, task_id: str) -> None:
-    title = await asyncio.to_thread(complete_task, task_id)
+    try:
+        title = await asyncio.to_thread(complete_task, task_id)
+    except HttpError as e:
+        await interaction.response.send_message(f"Error: {e.reason}", ephemeral=True)
+        return
     await append_update(f'User completed task "{title}"')
     await interaction.response.send_message("done ✓", ephemeral=True)
 
 
 async def _handle_task_delete(interaction: discord.Interaction, task_id: str) -> None:
-    title = await asyncio.to_thread(delete_task, task_id)
+    try:
+        title = await asyncio.to_thread(delete_task, task_id)
+    except HttpError as e:
+        await interaction.response.send_message(f"Error: {e.reason}", ephemeral=True)
+        return
     await append_update(f'User deleted task "{title}"')
     await interaction.response.send_message("deleted", ephemeral=True)
 
 
 async def _handle_event_delete(interaction: discord.Interaction, event_id: str) -> None:
-    summary = await asyncio.to_thread(delete_event, event_id)
+    try:
+        summary = await asyncio.to_thread(delete_event, event_id)
+    except HttpError as e:
+        await interaction.response.send_message(f"Error: {e.reason}", ephemeral=True)
+        return
     await append_update(f'User deleted calendar event "{summary}"')
     await interaction.response.send_message("deleted", ephemeral=True)
 
