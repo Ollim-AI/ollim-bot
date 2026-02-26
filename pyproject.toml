@@ -30,7 +30,7 @@ dependencies = [
 ]
 
 [project.urls]
-Documentation = "https://ollim.mintlify.app/"
+Documentation = "https://docs.ollim.ai/"
 Repository = "https://github.com/Ollim-AI/ollim-bot"
 Issues = "https://github.com/Ollim-AI/ollim-bot/issues"
 
