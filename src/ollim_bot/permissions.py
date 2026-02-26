@@ -104,9 +104,7 @@ def reset() -> None:
 # ---------------------------------------------------------------------------
 
 
-async def request_approval(
-    tool_name: str, input_data: dict[str, Any]
-) -> PermissionResult:
+async def request_approval(tool_name: str, input_data: dict[str, Any]) -> PermissionResult:
     """Send approval message to Discord, await reaction, return result.
 
     Uses anyio primitives (Event + fail_after) because this callback runs

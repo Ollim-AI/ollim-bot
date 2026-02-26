@@ -2,6 +2,7 @@
 
 import asyncio
 
+from ollim_bot import ping_budget
 from ollim_bot.agent_tools import (
     ChainContext,
     discord_embed,
@@ -15,7 +16,6 @@ from ollim_bot.agent_tools import (
     set_channel,
     set_fork_channel,
 )
-from ollim_bot import ping_budget
 from ollim_bot.forks import (
     BgForkConfig,
     ForkExitAction,

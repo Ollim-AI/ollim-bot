@@ -125,11 +125,7 @@ def _run(coro):
 def test_handle_tool_permission_denies_bg_fork():
     set_in_fork(True)
     try:
-        result = _run(
-            handle_tool_permission(
-                "Bash", {"command": "rm -rf /"}, ToolPermissionContext()
-            )
-        )
+        result = _run(handle_tool_permission("Bash", {"command": "rm -rf /"}, ToolPermissionContext()))
 
         assert isinstance(result, PermissionResultDeny)
         assert "not allowed" in result.message
@@ -142,11 +138,7 @@ def test_handle_tool_permission_allows_session_allowed():
     set_dont_ask(False)
     session_allow("WebFetch")
     try:
-        result = _run(
-            handle_tool_permission(
-                "WebFetch", {"url": "https://example.com"}, ToolPermissionContext()
-            )
-        )
+        result = _run(handle_tool_permission("WebFetch", {"url": "https://example.com"}, ToolPermissionContext()))
 
         assert isinstance(result, PermissionResultAllow)
     finally:
@@ -164,9 +156,7 @@ def test_dont_ask_default_true():
 def test_dont_ask_denies_non_whitelisted():
     set_dont_ask(True)
     try:
-        result = _run(
-            handle_tool_permission("Bash", {"command": "ls"}, ToolPermissionContext())
-        )
+        result = _run(handle_tool_permission("Bash", {"command": "ls"}, ToolPermissionContext()))
 
         assert isinstance(result, PermissionResultDeny)
         assert "not allowed" in result.message
@@ -179,11 +169,7 @@ def test_dont_ask_allows_session_allowed():
     set_dont_ask(True)
     session_allow("WebFetch")
     try:
-        result = _run(
-            handle_tool_permission(
-                "WebFetch", {"url": "https://example.com"}, ToolPermissionContext()
-            )
-        )
+        result = _run(handle_tool_permission("WebFetch", {"url": "https://example.com"}, ToolPermissionContext()))
 
         assert isinstance(result, PermissionResultAllow)
     finally:
@@ -200,10 +186,6 @@ def test_dont_ask_off_reaches_approval_flow():
     set_channel(None)
     try:
         with pytest.raises(AssertionError, match="set_channel"):
-            _run(
-                handle_tool_permission(
-                    "Bash", {"command": "ls"}, ToolPermissionContext()
-                )
-            )
+            _run(handle_tool_permission("Bash", {"command": "ls"}, ToolPermissionContext()))
     finally:
         set_dont_ask(True)

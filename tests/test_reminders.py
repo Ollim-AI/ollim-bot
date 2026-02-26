@@ -46,7 +46,7 @@ def test_reminder_new_chain_with_explicit_parent():
 
 
 def test_reminder_new_chain_depth_exceeds_max():
-    with pytest.raises(AssertionError, match="chain_depth.*>.*max_chain"):
+    with pytest.raises(AssertionError, match=r"chain_depth.*>.*max_chain"):
         Reminder.new(message="bad", delay_minutes=10, max_chain=2, chain_depth=3)
 
 
@@ -114,9 +114,7 @@ def test_reminder_new_defaults_model_isolated():
 
 
 def test_reminder_new_with_model_isolated():
-    reminder = Reminder.new(
-        message="check", delay_minutes=30, model="haiku", isolated=True
-    )
+    reminder = Reminder.new(message="check", delay_minutes=30, model="haiku", isolated=True)
 
     assert reminder.model == "haiku"
     assert reminder.isolated is True

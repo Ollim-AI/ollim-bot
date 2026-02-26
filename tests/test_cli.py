@@ -16,9 +16,7 @@ def _capture_stdout(fn, *args):
 
 
 def test_routine_add_and_list(data_dir):
-    output = _capture_stdout(
-        run_routine_command, ["add", "--cron", "0 9 * * *", "-m", "morning check"]
-    )
+    output = _capture_stdout(run_routine_command, ["add", "--cron", "0 9 * * *", "-m", "morning check"])
     assert "scheduled" in output
     assert "morning check" in output
 
@@ -28,9 +26,7 @@ def test_routine_add_and_list(data_dir):
 
 
 def test_routine_cancel(data_dir):
-    output = _capture_stdout(
-        run_routine_command, ["add", "--cron", "0 9 * * *", "-m", "to cancel"]
-    )
+    output = _capture_stdout(run_routine_command, ["add", "--cron", "0 9 * * *", "-m", "to cancel"])
     routine_id = output.split()[1].rstrip(":")
 
     output = _capture_stdout(run_routine_command, ["cancel", routine_id])
@@ -52,9 +48,7 @@ def test_routine_add_background(data_dir):
 
 
 def test_reminder_add_and_list(data_dir):
-    output = _capture_stdout(
-        run_reminder_command, ["add", "--delay", "30", "-m", "take a break"]
-    )
+    output = _capture_stdout(run_reminder_command, ["add", "--delay", "30", "-m", "take a break"])
     assert "scheduled" in output
     assert "take a break" in output
 
@@ -63,9 +57,7 @@ def test_reminder_add_and_list(data_dir):
 
 
 def test_reminder_cancel(data_dir):
-    output = _capture_stdout(
-        run_reminder_command, ["add", "--delay", "10", "-m", "to cancel"]
-    )
+    output = _capture_stdout(run_reminder_command, ["add", "--delay", "10", "-m", "to cancel"])
     reminder_id = output.split()[1].rstrip(":")
 
     output = _capture_stdout(run_reminder_command, ["cancel", reminder_id])

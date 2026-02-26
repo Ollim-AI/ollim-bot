@@ -31,9 +31,7 @@ def test_pop_removes_entry(data_dir):
 def test_expired_entries_filtered(data_dir, monkeypatch):
     inquiries_file = data_dir / "inquiries.json"
     old_ts = time.time() - (8 * 24 * 3600)  # 8 days ago
-    inquiries_file.write_text(
-        json.dumps({"old_id": {"prompt": "expired", "ts": old_ts}})
-    )
+    inquiries_file.write_text(json.dumps({"old_id": {"prompt": "expired", "ts": old_ts}}))
 
     assert inquiries.pop("old_id") is None
 

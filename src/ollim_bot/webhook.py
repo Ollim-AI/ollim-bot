@@ -85,20 +85,18 @@ def build_webhook_prompt(
 ) -> str:
     """Build tagged prompt with content fencing between data and instructions."""
     from ollim_bot.forks import BgForkConfig
-    from ollim_bot.scheduling.reminders import list_reminders
-    from ollim_bot.scheduling.routines import list_routines
     from ollim_bot.scheduling.preamble import (
         build_bg_preamble,
         build_upcoming_schedule,
     )
+    from ollim_bot.scheduling.reminders import list_reminders
+    from ollim_bot.scheduling.routines import list_routines
 
     bg_config = BgForkConfig(
         update_main_session=spec.update_main_session,
         allow_ping=spec.allow_ping,
     )
-    schedule = build_upcoming_schedule(
-        list_routines(), list_reminders(), current_id=spec.id
-    )
+    schedule = build_upcoming_schedule(list_routines(), list_reminders(), current_id=spec.id)
     preamble = build_bg_preamble(schedule, busy=busy, bg_config=bg_config)
 
     data_lines = [f"- {key}: {value}" for key, value in data.items()]
@@ -192,9 +190,7 @@ async def _default_process(
     if string_fields:
         flagged = await _screen_with_haiku(agent, string_fields)
         if flagged:
-            log.warning(
-                "Webhook %s: flagged fields %s, skipping dispatch", spec.id, flagged
-            )
+            log.warning("Webhook %s: flagged fields %s, skipping dispatch", spec.id, flagged)
             return
 
     bg_config = BgForkConfig(
@@ -256,9 +252,7 @@ async def _handle_webhook(request: web.Request) -> web.Response:
 
     errors = validate_payload(spec.fields, data)
     if errors:
-        return web.json_response(
-            {"error": "validation failed", "details": errors}, status=400
-        )
+        return web.json_response({"error": "validation failed", "details": errors}, status=400)
 
     busy = False
     agent: Agent | None = request.app.get(_KEY_AGENT)
@@ -269,7 +263,9 @@ async def _handle_webhook(request: web.Request) -> web.Response:
     process_fn: Callable = request.app[_KEY_PROCESS_FN]
     owner = request.app.get(_KEY_OWNER)
 
-    asyncio.create_task(process_fn(agent, owner, spec, data, prompt))
+    task = asyncio.create_task(process_fn(agent, owner, spec, data, prompt))
+    request.app.setdefault("_bg_tasks", set()).add(task)
+    task.add_done_callback(request.app["_bg_tasks"].discard)
     return web.json_response({"status": "accepted"}, status=202)
 
 
@@ -299,7 +295,7 @@ _runner: web.AppRunner | None = None
 
 async def start(agent: Agent, owner: discord.User) -> None:
     """Start webhook server if WEBHOOK_PORT and WEBHOOK_SECRET are set."""
-    global _runner  # noqa: PLW0603
+    global _runner
     port_str = os.environ.get("WEBHOOK_PORT")
     secret = os.environ.get("WEBHOOK_SECRET")
 
@@ -320,7 +316,7 @@ async def start(agent: Agent, owner: discord.User) -> None:
 
 async def stop() -> None:
     """Graceful shutdown of webhook server."""
-    global _runner  # noqa: PLW0603
+    global _runner
     if _runner:
         await _runner.cleanup()
         _runner = None

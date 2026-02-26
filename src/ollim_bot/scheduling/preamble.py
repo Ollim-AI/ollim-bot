@@ -234,8 +234,7 @@ def build_bg_preamble(
         )
     elif mode == "blocked":
         update_section = (
-            "This runs on a forked session. This task runs silently -- no "
-            "reporting to the main session.\n\n"
+            "This runs on a forked session. This task runs silently -- no reporting to the main session.\n\n"
         )
     else:  # on_ping (default)
         update_section = (
@@ -271,13 +270,10 @@ def build_bg_preamble(
                 silent = " (silent)" if entry.silent else ""
                 tag_str = f" [{entry.tag}]" if entry.tag else ""
                 schedule_lines.append(
-                    f"- {time_str}: {entry.label}{silent} — "
-                    f'"{entry.description}" ({entry.file_path}){tag_str}'
+                    f'- {time_str}: {entry.label}{silent} — "{entry.description}" ({entry.file_path}){tag_str}'
                 )
             if last_forward:
-                minutes_to_last = (
-                    last_forward[-1].fire_time - now
-                ).total_seconds() / 60
+                minutes_to_last = (last_forward[-1].fire_time - now).total_seconds() / 60
                 refill_rate = ping_budget.load().refill_rate_minutes
                 refills = int(minutes_to_last / refill_rate)
                 if refills > 0:
@@ -353,18 +349,12 @@ def build_reminder_prompt(
     busy: bool = False,
     bg_config: BgForkConfig | None = None,
 ) -> str:
-    tag = (
-        f"reminder-bg:{reminder.id}"
-        if reminder.background
-        else f"reminder:{reminder.id}"
-    )
+    tag = f"reminder-bg:{reminder.id}" if reminder.background else f"reminder:{reminder.id}"
     parts = [f"[{tag}]"]
 
     if reminder.background:
         schedule = build_upcoming_schedule(routines, reminders, current_id=reminder.id)
-        parts.append(
-            build_bg_preamble(schedule, busy=busy, bg_config=bg_config).rstrip()
-        )
+        parts.append(build_bg_preamble(schedule, busy=busy, bg_config=bg_config).rstrip())
 
     if reminder.max_chain > 0:
         check_num = reminder.chain_depth + 1

@@ -65,9 +65,7 @@ def _check_already_running() -> None:
     if PID_FILE.exists():
         pid = int(PID_FILE.read_text().strip())
         proc_cmdline = Path(f"/proc/{pid}/cmdline")
-        if proc_cmdline.exists() and "ollim-bot" in proc_cmdline.read_bytes().decode(
-            errors="replace"
-        ):
+        if proc_cmdline.exists() and "ollim-bot" in proc_cmdline.read_bytes().decode(errors="replace"):
             print(f"ollim-bot is already running (pid {pid})")
             raise SystemExit(1)
     PID_FILE.write_text(str(os.getpid()))

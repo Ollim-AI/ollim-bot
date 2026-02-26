@@ -36,9 +36,7 @@ def run_routine_command(argv: list[str]) -> None:
 
     add_p = sub.add_parser("add", help="Add a recurring routine")
     add_p.add_argument("--message", "-m", required=True, help="Agent prompt")
-    add_p.add_argument(
-        "--cron", required=True, help='5-field cron (e.g. "0 9 * * 1-5")'
-    )
+    add_p.add_argument("--cron", required=True, help='5-field cron (e.g. "0 9 * * 1-5")')
     add_p.add_argument("--description", "-d", default="", help="Short summary for list")
     add_p.add_argument("--background", action="store_true", help="Silent mode")
     add_p.add_argument("--model", default=None, help="Model override (bg only)")
@@ -47,9 +45,7 @@ def run_routine_command(argv: list[str]) -> None:
         action="store_true",
         help="Disable extended thinking (bg only)",
     )
-    add_p.add_argument(
-        "--isolated", action="store_true", help="Fresh context (bg only)"
-    )
+    add_p.add_argument("--isolated", action="store_true", help="Fresh context (bg only)")
     add_p.add_argument(
         "--update-main-session",
         default="on_ping",

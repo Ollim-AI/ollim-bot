@@ -44,9 +44,7 @@ _FORK_EXIT_COLORS: dict[ForkExitAction, discord.Color] = {
 }
 
 
-def fork_exit_embed(
-    action: ForkExitAction, summary: str | None = None
-) -> discord.Embed:
+def fork_exit_embed(action: ForkExitAction, summary: str | None = None) -> discord.Embed:
     return discord.Embed(
         title="Fork Ended",
         description=summary,

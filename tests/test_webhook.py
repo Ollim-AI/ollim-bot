@@ -5,7 +5,7 @@ import asyncio
 import pytest
 from aiohttp.test_utils import TestClient, TestServer
 
-from ollim_bot.webhook import (  # noqa: F401
+from ollim_bot.webhook import (
     WebhookSpec,
     build_screening_prompt,
     build_webhook_prompt,
@@ -55,15 +55,7 @@ def test_load_webhook_by_slug(data_dir):
     webhooks_dir = data_dir / "webhooks"
     webhooks_dir.mkdir()
     (webhooks_dir / "my-hook.md").write_text(
-        "---\n"
-        'id: "my-hook"\n'
-        "fields:\n"
-        "  type: object\n"
-        "  properties:\n"
-        "    msg:\n"
-        "      type: string\n"
-        "---\n"
-        "Handle: {msg}\n"
+        '---\nid: "my-hook"\nfields:\n  type: object\n  properties:\n    msg:\n      type: string\n---\nHandle: {msg}\n'
     )
 
     spec = load_webhook("my-hook")

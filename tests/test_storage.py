@@ -44,9 +44,7 @@ def test_read_jsonl_empty_file(tmp_path):
 
 def test_read_jsonl_filters_extra_fields(tmp_path):
     filepath = tmp_path / "items.jsonl"
-    filepath.write_text(
-        json.dumps({"id": "a", "name": "x", "count": 1, "extra": "ignored"}) + "\n"
-    )
+    filepath.write_text(json.dumps({"id": "a", "name": "x", "count": 1, "extra": "ignored"}) + "\n")
 
     result = read_jsonl(filepath, Item)
 
@@ -57,11 +55,7 @@ def test_read_jsonl_filters_extra_fields(tmp_path):
 def test_read_jsonl_skips_blank_lines(tmp_path):
     filepath = tmp_path / "items.jsonl"
     filepath.write_text(
-        json.dumps({"id": "a", "name": "x"})
-        + "\n"
-        + "\n"
-        + json.dumps({"id": "b", "name": "y"})
-        + "\n"
+        json.dumps({"id": "a", "name": "x"}) + "\n" + "\n" + json.dumps({"id": "b", "name": "y"}) + "\n"
     )
 
     result = read_jsonl(filepath, Item)

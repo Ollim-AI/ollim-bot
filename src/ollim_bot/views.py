@@ -8,10 +8,12 @@ from typing import TYPE_CHECKING
 
 import discord
 from discord.ui import Button, DynamicItem
+from googleapiclient.errors import HttpError
 
-from ollim_bot import inquiries
-from ollim_bot import permissions
+from ollim_bot import inquiries, permissions
 from ollim_bot.agent_tools import set_channel
+from ollim_bot.config import USER_NAME
+from ollim_bot.embeds import fork_enter_embed, fork_enter_view, fork_exit_embed
 from ollim_bot.forks import (
     append_update,
     clear_prompted,
@@ -20,10 +22,6 @@ from ollim_bot.forks import (
     pop_enter_fork,
     touch_activity,
 )
-from ollim_bot.config import USER_NAME
-from ollim_bot.embeds import fork_enter_embed, fork_enter_view, fork_exit_embed
-from googleapiclient.errors import HttpError
-
 from ollim_bot.google.calendar import delete_event
 from ollim_bot.google.tasks import complete_task, delete_task
 from ollim_bot.prompts import fork_bg_resume_prompt
@@ -44,9 +42,7 @@ def init(agent: Agent) -> None:
     _agent = agent
 
 
-class ActionButton(
-    DynamicItem[Button], template=r"act:(?P<action>[a-z_]+):(?P<data>.+)"
-):
+class ActionButton(DynamicItem[Button], template=r"act:(?P<action>[a-z_]+):(?P<data>.+)"):
     def __init__(self, button: Button):
         super().__init__(button)
         self.action: str = ""
@@ -112,14 +108,10 @@ async def _handle_event_delete(interaction: discord.Interaction, event_id: str) 
     await interaction.response.send_message("deleted", ephemeral=True)
 
 
-async def _handle_agent_inquiry(
-    interaction: discord.Interaction, inquiry_id: str
-) -> None:
+async def _handle_agent_inquiry(interaction: discord.Interaction, inquiry_id: str) -> None:
     prompt = inquiries.pop(inquiry_id)
     if not prompt:
-        await interaction.response.send_message(
-            "this button has expired.", ephemeral=True
-        )
+        await interaction.response.send_message("this button has expired.", ephemeral=True)
         return
 
     assert _agent is not None
@@ -142,9 +134,7 @@ async def _handle_agent_inquiry(
         set_channel(channel)
         permissions.set_channel(channel)
         await channel.typing()
-        message = (
-            fork_bg_resume_prompt(prompt) if fork_session_id else f"[button] {prompt}"
-        )
+        message = fork_bg_resume_prompt(prompt) if fork_session_id else f"[button] {prompt}"
         await stream_to_channel(channel, _agent.stream_chat(message))
         if enter_fork_requested():
             pop_enter_fork()  # drain; fork entry requires the bot.py loop
@@ -174,9 +164,7 @@ async def _handle_fork_save(interaction: discord.Interaction, _data: str) -> Non
             await interaction.followup.send("fork already ended.", ephemeral=True)
             return
         await _agent.exit_interactive_fork(ForkExitAction.SAVE)
-    await interaction.followup.send(
-        embed=fork_exit_embed(ForkExitAction.SAVE, "context saved")
-    )
+    await interaction.followup.send(embed=fork_exit_embed(ForkExitAction.SAVE, "context saved"))
 
 
 async def _handle_fork_report(interaction: discord.Interaction, _data: str) -> None:
@@ -214,9 +202,7 @@ async def _handle_fork_report(interaction: discord.Interaction, _data: str) -> N
         new_updates = updates_after[updates_before:]
         await _agent.exit_interactive_fork(ForkExitAction.REPORT)
     summary = new_updates[-1].message if new_updates else "no summary reported"
-    await interaction.followup.send(
-        embed=fork_exit_embed(ForkExitAction.REPORT, summary)
-    )
+    await interaction.followup.send(embed=fork_exit_embed(ForkExitAction.REPORT, summary))
 
 
 async def _handle_fork_exit(interaction: discord.Interaction, _data: str) -> None:

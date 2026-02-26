@@ -93,9 +93,7 @@ def try_use() -> bool:
     state = load()
     if state.available < 1.0:
         return False
-    save(
-        replace(state, available=state.available - 1.0, daily_used=state.daily_used + 1)
-    )
+    save(replace(state, available=state.available - 1.0, daily_used=state.daily_used + 1))
     return True
 
 
@@ -111,9 +109,7 @@ def get_status() -> str:
     avail = int(state.available)
     base = f"{avail}/{state.capacity} available (refills 1 every {state.refill_rate_minutes} min"
     if state.available < state.capacity:
-        minutes_to_next = math.ceil(
-            (1.0 - (state.available - int(state.available))) * state.refill_rate_minutes
-        )
+        minutes_to_next = math.ceil((1.0 - (state.available - int(state.available))) * state.refill_rate_minutes)
         if state.available == int(state.available):
             minutes_to_next = state.refill_rate_minutes
         base += f", next in {minutes_to_next} min"

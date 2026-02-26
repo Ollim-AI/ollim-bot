@@ -4,16 +4,16 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from ollim_bot.forks import BgForkConfig
-from ollim_bot.scheduling.reminders import Reminder
-from ollim_bot.scheduling.routines import Routine
 from ollim_bot.scheduling.preamble import (
     ScheduleEntry,
+    _convert_dow,
     build_bg_preamble,
     build_reminder_prompt,
     build_routine_prompt,
     build_upcoming_schedule,
 )
-from ollim_bot.scheduling.preamble import _convert_dow
+from ollim_bot.scheduling.reminders import Reminder
+from ollim_bot.scheduling.routines import Routine
 
 TZ = ZoneInfo("America/Los_Angeles")
 
@@ -27,9 +27,7 @@ def test_routine_prompt_foreground():
 
 
 def test_routine_prompt_background():
-    routine = Routine(
-        id="def", message="Silent check", cron="0 8 * * *", background=True
-    )
+    routine = Routine(id="def", message="Silent check", cron="0 8 * * *", background=True)
 
     prompt = build_routine_prompt(routine, reminders=[], routines=[])
 
@@ -39,9 +37,7 @@ def test_routine_prompt_background():
 
 
 def test_reminder_prompt_plain():
-    reminder = Reminder(
-        id="r1", message="Take a break", run_at="2026-02-16T12:00:00-08:00"
-    )
+    reminder = Reminder(id="r1", message="Take a break", run_at="2026-02-16T12:00:00-08:00")
 
     prompt = build_reminder_prompt(reminder, reminders=[], routines=[])
 
@@ -115,9 +111,7 @@ def test_reminder_prompt_chain_first():
 
 
 def test_bg_routine_prompt_includes_budget(data_dir):
-    routine = Routine(
-        id="abc", message="Check tasks", cron="0 8 * * *", background=True
-    )
+    routine = Routine(id="abc", message="Check tasks", cron="0 8 * * *", background=True)
 
     prompt = build_routine_prompt(routine, reminders=[], routines=[routine])
 
@@ -193,9 +187,7 @@ def test_bg_preamble_busy_includes_quiet_instruction():
 
 
 def test_bg_routine_prompt_busy(data_dir):
-    routine = Routine(
-        id="abc", message="Check tasks", cron="0 8 * * *", background=True
-    )
+    routine = Routine(id="abc", message="Check tasks", cron="0 8 * * *", background=True)
 
     prompt = build_routine_prompt(routine, reminders=[], routines=[], busy=True)
 
@@ -309,9 +301,7 @@ def test_bg_preamble_no_schedule_says_no_more(data_dir):
 
 
 def test_bg_preamble_allowed_tools():
-    config = BgForkConfig(
-        allowed_tools=["Bash(ollim-bot gmail *)", "Bash(ollim-bot tasks *)"]
-    )
+    config = BgForkConfig(allowed_tools=["Bash(ollim-bot gmail *)", "Bash(ollim-bot tasks *)"])
 
     result = build_bg_preamble([], bg_config=config)
 
@@ -350,9 +340,7 @@ def test_reminder_prompt_bg_with_allowed_tools():
     )
     config = BgForkConfig(allowed_tools=reminder.allowed_tools)
 
-    prompt = build_reminder_prompt(
-        reminder, reminders=[], routines=[], bg_config=config
-    )
+    prompt = build_reminder_prompt(reminder, reminders=[], routines=[], bg_config=config)
 
     assert "TOOL RESTRICTIONS" in prompt
     assert "Bash(ollim-bot gmail *)" in prompt
