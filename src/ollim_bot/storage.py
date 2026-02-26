@@ -124,7 +124,7 @@ def _parse_md(text: str, cls: type[T]) -> T:
     if not isinstance(data, dict):
         raise ValueError("YAML frontmatter is not a mapping")
 
-    fields = {f.name: f for f in dataclasses.fields(cls)}  # type: ignore[arg-type]
+    fields = {f.name: f for f in dataclasses.fields(cls)}
     filtered: dict[str, object] = {}
     for key, value in data.items():
         if key not in fields:
@@ -135,7 +135,7 @@ def _parse_md(text: str, cls: type[T]) -> T:
         else:
             filtered[key] = value
     filtered["message"] = body
-    return cls(**filtered)  # type: ignore[call-arg]
+    return cls(**filtered)
 
 
 def read_md_dir(dir_path: Path, cls: type[T]) -> list[T]:
@@ -201,14 +201,14 @@ def read_jsonl(filepath: Path, cls: type[T]) -> list[T]:
     """Skips corrupt lines; filters to known dataclass fields for forward compatibility."""
     if not filepath.exists():
         return []
-    fields = {f.name for f in dataclasses.fields(cls)}  # type: ignore[arg-type]
+    fields = {f.name for f in dataclasses.fields(cls)}
     result: list[T] = []
     for line in filepath.read_text().splitlines():
         stripped = line.strip()
         if not stripped or not stripped.startswith("{"):
             continue
         data = json.loads(stripped)
-        result.append(cls(**{k: v for k, v in data.items() if k in fields}))  # type: ignore[call-arg]
+        result.append(cls(**{k: v for k, v in data.items() if k in fields}))
     return result
 
 

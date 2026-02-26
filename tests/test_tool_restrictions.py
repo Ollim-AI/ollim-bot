@@ -64,6 +64,7 @@ def test_allow_ping_false_merges_with_existing_disallowed():
 
     result = _apply_ping_restrictions(config)
 
+    assert result.disallowed_tools is not None
     assert "WebFetch" in result.disallowed_tools
     assert "mcp__discord__ping_user" in result.disallowed_tools
     assert "mcp__discord__discord_embed" in result.disallowed_tools

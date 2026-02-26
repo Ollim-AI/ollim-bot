@@ -1,6 +1,9 @@
 """Tests for agent_tools.py — chain context, follow_up_chain, tool handlers."""
 
 import asyncio
+from typing import cast
+
+from claude_agent_sdk.types import HookContext, HookInput, StopHookInput
 
 from ollim_bot import ping_budget
 from ollim_bot.agent_tools import (
@@ -56,6 +59,19 @@ class InMemoryChannel:
     async def send(self, content=None, *, embed=None, view=None):
         self.messages.append({"content": content, "embed": embed, "view": view})
         return _FakeMessage()
+
+
+_STOP_INPUT = cast(
+    HookInput,
+    StopHookInput(
+        session_id="",
+        transcript_path="",
+        cwd="",
+        hook_event_name="Stop",
+        stop_hook_active=True,
+    ),
+)
+_STOP_CTX = cast(HookContext, {"signal": None})
 
 
 def _run(coro):
@@ -406,7 +422,7 @@ def test_stop_hook_allows_normal_stop():
 
     set_in_fork(False)
 
-    result = _run(require_report_hook({}, None, {"signal": None}))
+    result = _run(require_report_hook(_STOP_INPUT, None, _STOP_CTX))
 
     assert result == {}
 
@@ -418,7 +434,7 @@ def test_stop_hook_allows_bg_stop_without_output():
     set_in_fork(True)
     init_bg_output_flag()
 
-    result = _run(require_report_hook({}, None, {"signal": None}))
+    result = _run(require_report_hook(_STOP_INPUT, None, _STOP_CTX))
 
     assert result == {}
     set_in_fork(False)
@@ -435,7 +451,7 @@ def test_stop_hook_blocks_bg_stop_with_unreported_output(data_dir):
 
     async def _check():
         await _ping({"message": "test"})
-        return await require_report_hook({}, None, {"signal": None})
+        return await require_report_hook(_STOP_INPUT, None, _STOP_CTX)
 
     result = _run(_check())
 
@@ -673,7 +689,7 @@ def test_stop_hook_blocks_on_always_without_report():
     init_bg_reported_flag()
     set_bg_fork_config(BgForkConfig(update_main_session="always"))
 
-    result = _run(require_report_hook({}, None, {"signal": None}))
+    result = _run(require_report_hook(_STOP_INPUT, None, _STOP_CTX))
 
     assert "report_updates" in result.get("systemMessage", "")
     set_in_fork(False)
@@ -694,7 +710,7 @@ def test_stop_hook_allows_on_always_with_report():
     mark_bg_reported()
     set_bg_fork_config(BgForkConfig(update_main_session="always"))
 
-    result = _run(require_report_hook({}, None, {"signal": None}))
+    result = _run(require_report_hook(_STOP_INPUT, None, _STOP_CTX))
 
     assert result == {}
     set_in_fork(False)
@@ -713,7 +729,7 @@ def test_stop_hook_allows_on_freely_with_unreported_output(data_dir):
 
     async def _check():
         await _ping({"message": "test"})
-        return await require_report_hook({}, None, {"signal": None})
+        return await require_report_hook(_STOP_INPUT, None, _STOP_CTX)
 
     result = _run(_check())
 
@@ -730,7 +746,7 @@ def test_stop_hook_allows_on_blocked():
     init_bg_output_flag()
     set_bg_fork_config(BgForkConfig(update_main_session="blocked"))
 
-    result = _run(require_report_hook({}, None, {"signal": None}))
+    result = _run(require_report_hook(_STOP_INPUT, None, _STOP_CTX))
 
     assert result == {}
     set_in_fork(False)

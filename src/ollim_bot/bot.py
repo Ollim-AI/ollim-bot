@@ -2,14 +2,14 @@
 
 import base64
 import contextlib
-from typing import Literal
+from typing import Literal, cast
 
 import discord
 from discord import app_commands
 from discord.ext import commands
 
 from ollim_bot import permissions, ping_budget, webhook
-from ollim_bot.agent import Agent
+from ollim_bot.agent import Agent, ModelName
 from ollim_bot.agent_tools import set_channel
 from ollim_bot.config import BOT_NAME, USER_NAME
 from ollim_bot.embeds import fork_enter_embed, fork_enter_view, fork_exit_embed
@@ -230,7 +230,7 @@ def create_bot() -> commands.Bot:
         ]
     )
     async def slash_model(interaction: discord.Interaction, name: discord.app_commands.Choice[str]):
-        await agent.set_model(name.value)
+        await agent.set_model(cast(ModelName, name.value))
         await interaction.response.send_message(f"switched to {name.value}.")
 
     @bot.tree.command(name="thinking", description="Toggle extended thinking")
@@ -334,8 +334,9 @@ def create_bot() -> commands.Bot:
                 clear_prompted()
             await _check_fork_transitions(message.channel)
 
-        with contextlib.suppress(discord.NotFound):
-            await message.remove_reaction("\N{EYES}", bot.user)
+        if bot.user:
+            with contextlib.suppress(discord.NotFound):
+                await message.remove_reaction("\N{EYES}", bot.user)
 
     @bot.event
     async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
