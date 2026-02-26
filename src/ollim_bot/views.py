@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import asyncio
 import re
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 
 import discord
-from discord.ui import Button, DynamicItem
+from discord.ui import Button, DynamicItem, Item
 from googleapiclient.errors import HttpError
 
 from ollim_bot import inquiries, permissions
@@ -52,10 +52,11 @@ class ActionButton(DynamicItem[Button], template=r"act:(?P<action>[a-z_]+):(?P<d
     async def from_custom_id(
         cls,
         interaction: discord.Interaction,
-        item: Button,
+        item: Item[Any],
         match: re.Match[str],
+        /,
     ) -> ActionButton:
-        inst = cls(item)
+        inst = cls(cast(Button, item))
         inst.action = match.group("action")
         inst.data = match.group("data")
         return inst
@@ -118,6 +119,7 @@ async def _handle_agent_inquiry(interaction: discord.Interaction, inquiry_id: st
     channel = interaction.channel
     assert isinstance(channel, discord.abc.Messageable)
 
+    assert interaction.message is not None
     fork_session_id = lookup_fork_session(interaction.message.id)
 
     if fork_session_id and in_interactive_fork():
@@ -148,6 +150,7 @@ async def _handle_agent_inquiry(interaction: discord.Interaction, inquiry_id: st
 
 
 async def _handle_dismiss(interaction: discord.Interaction, _data: str) -> None:
+    assert interaction.message is not None
     await interaction.message.delete()
 
 

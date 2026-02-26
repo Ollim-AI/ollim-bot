@@ -29,7 +29,7 @@ def test_session_event_is_frozen():
     event = SessionEvent(session_id="abc", event="created", timestamp="2026-01-01T00:00:00")
 
     try:
-        event.session_id = "xyz"
+        event.session_id = "xyz"  # type: ignore[invalid-assignment]
         raise AssertionError("Should have raised FrozenInstanceError")
     except AttributeError:
         pass

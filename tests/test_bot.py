@@ -1,5 +1,7 @@
 """Tests for bot.py — owner guard and DM-only enforcement."""
 
+from typing import cast
+
 import discord
 import pytest
 
@@ -44,13 +46,13 @@ def test_owner_unset_accepts_all():
 def test_slash_command_from_non_owner_returns_error():
     bot_mod._owner_id = 42
 
-    assert bot_mod._owner_check(_FakeInteraction(user_id=99)) is False
+    assert bot_mod._owner_check(cast(discord.Interaction, _FakeInteraction(user_id=99))) is False
 
 
 def test_slash_command_from_owner_accepted():
     bot_mod._owner_id = 42
 
-    assert bot_mod._owner_check(_FakeInteraction(user_id=42)) is True
+    assert bot_mod._owner_check(cast(discord.Interaction, _FakeInteraction(user_id=42))) is True
 
 
 # --- DM-only enforcement ---
@@ -98,7 +100,7 @@ async def test_non_dm_message_ignored():
 
     msg = _FakeMessage(channel=_GuildChannel(), author=_FakeAuthor(42))
     # Should return silently — never reaches add_reaction
-    await bot.on_message(msg)
+    await bot.on_message(cast(discord.Message, msg))
 
 
 @pytest.mark.asyncio
@@ -109,4 +111,4 @@ async def test_dm_message_processed():
     msg = _FakeMessage(channel=_FakeDMChannel(), author=_FakeAuthor(42))
     # Should pass DM guard and reach add_reaction, raising _Processed
     with pytest.raises(_Processed):
-        await bot.on_message(msg)
+        await bot.on_message(cast(discord.Message, msg))
