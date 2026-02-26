@@ -119,9 +119,7 @@ def delete_session_id() -> None:
 FORK_MESSAGES_FILE = STATE_DIR / "fork_messages.json"
 _MAX_AGE = 7 * 24 * 3600  # 7 days
 
-_msg_collector: ContextVar[list[int] | None] = ContextVar(
-    "_msg_collector", default=None
-)
+_msg_collector: ContextVar[list[int] | None] = ContextVar("_msg_collector", default=None)
 
 
 class _ForkMessageRecord(TypedDict):
@@ -148,9 +146,7 @@ def track_message(message_id: int) -> None:
         collector.append(message_id)
 
 
-def flush_message_collector(
-    fork_session_id: str, parent_session_id: str | None
-) -> None:
+def flush_message_collector(fork_session_id: str, parent_session_id: str | None) -> None:
     """Write collected message IDs to fork_messages.json and clear the collector."""
     collector = _msg_collector.get()
     _msg_collector.set(None)

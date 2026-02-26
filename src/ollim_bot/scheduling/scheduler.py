@@ -219,14 +219,10 @@ def _register_reminder(
     if run_at < now:
         run_at = now + timedelta(seconds=5)
 
-    scheduler.add_job(
-        fire_oneshot, DateTrigger(run_date=run_at), id=f"rem_{reminder.id}"
-    )
+    scheduler.add_job(fire_oneshot, DateTrigger(run_date=run_at), id=f"rem_{reminder.id}")
 
 
-def setup_scheduler(
-    bot: discord.Client, agent: Agent, owner: discord.User
-) -> AsyncIOScheduler:
+def setup_scheduler(bot: discord.Client, agent: Agent, owner: discord.User) -> AsyncIOScheduler:
     """Polls routines/reminders every 10s, registering new and pruning stale jobs."""
     scheduler = AsyncIOScheduler(timezone="America/Los_Angeles")
 

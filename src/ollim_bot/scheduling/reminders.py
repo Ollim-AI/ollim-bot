@@ -57,9 +57,7 @@ class Reminder:
         """Create a reminder, auto-setting chain_parent to own ID for chain roots."""
         run_at = (datetime.now(TZ) + timedelta(minutes=delay_minutes)).isoformat()
         rid = uuid4().hex[:8]
-        assert chain_depth <= max_chain, (
-            f"chain_depth ({chain_depth}) > max_chain ({max_chain})"
-        )
+        assert chain_depth <= max_chain, f"chain_depth ({chain_depth}) > max_chain ({max_chain})"
         return Reminder(
             id=rid,
             message=message,

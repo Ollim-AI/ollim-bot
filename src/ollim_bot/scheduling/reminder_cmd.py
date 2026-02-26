@@ -41,9 +41,7 @@ def run_reminder_command(argv: list[str]) -> None:
     add_p.add_argument("--description", "-d", default="", help="Short summary for list")
     add_p.add_argument("--delay", type=int, required=True, help="Fire in N minutes")
     add_p.add_argument("--background", action="store_true", help="Silent mode")
-    add_p.add_argument(
-        "--max-chain", type=int, default=0, help="Max follow-up chain depth"
-    )
+    add_p.add_argument("--max-chain", type=int, default=0, help="Max follow-up chain depth")
     # Internal flags used by follow_up_chain MCP tool — not documented to the agent
     add_p.add_argument("--chain-depth", type=int, default=0)
     add_p.add_argument("--chain-parent", type=str, default=None)
@@ -53,9 +51,7 @@ def run_reminder_command(argv: list[str]) -> None:
         action="store_true",
         help="Disable extended thinking (bg only)",
     )
-    add_p.add_argument(
-        "--isolated", action="store_true", help="Fresh context (bg only)"
-    )
+    add_p.add_argument("--isolated", action="store_true", help="Fresh context (bg only)")
     add_p.add_argument(
         "--update-main-session",
         default="on_ping",

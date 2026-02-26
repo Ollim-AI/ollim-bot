@@ -4,10 +4,7 @@ from ollim_bot.formatting import format_tool_label
 
 
 def test_simple_tool():
-    assert (
-        format_tool_label("Read", '{"file_path": "/home/user/notes.md"}')
-        == "Read(user/notes.md)"
-    )
+    assert format_tool_label("Read", '{"file_path": "/home/user/notes.md"}') == "Read(user/notes.md)"
 
 
 def test_mcp_tool_strips_prefix():
@@ -30,9 +27,7 @@ def test_bad_json_returns_name():
 
 
 def test_path_shortening():
-    label = format_tool_label(
-        "Write", '{"file_path": "/home/user/.ollim-bot/reminders/foo.md"}'
-    )
+    label = format_tool_label("Write", '{"file_path": "/home/user/.ollim-bot/reminders/foo.md"}')
     assert label == "Write(reminders/foo.md)"
 
 

@@ -65,9 +65,7 @@ def is_busy() -> bool:
 # bool does NOT propagate between start_soon tasks).
 # ---------------------------------------------------------------------------
 
-_bg_output_flag: ContextVar[list[bool] | None] = ContextVar(
-    "_bg_output_flag", default=None
-)
+_bg_output_flag: ContextVar[list[bool] | None] = ContextVar("_bg_output_flag", default=None)
 
 
 def init_bg_output_flag() -> None:
@@ -104,7 +102,8 @@ class BgForkConfig:
 
 
 _bg_fork_config_var: ContextVar[BgForkConfig] = ContextVar(
-    "_bg_fork_config", default=BgForkConfig()
+    "_bg_fork_config",
+    default=BgForkConfig(),  # noqa: B039 — frozen dataclass, immutable
 )
 
 
@@ -121,9 +120,7 @@ def get_bg_fork_config() -> BgForkConfig:
 # Mutable container, same pattern as _bg_output_flag.
 # ---------------------------------------------------------------------------
 
-_bg_reported_flag: ContextVar[list[bool] | None] = ContextVar(
-    "_bg_reported_flag", default=None
-)
+_bg_reported_flag: ContextVar[list[bool] | None] = ContextVar("_bg_reported_flag", default=None)
 
 
 def init_bg_reported_flag() -> None:
@@ -148,9 +145,7 @@ def bg_reported() -> bool:
 # Enforces 1-ping-per-session limit for bg forks.
 # ---------------------------------------------------------------------------
 
-_bg_ping_count: ContextVar[list[int] | None] = ContextVar(
-    "_bg_ping_count", default=None
-)
+_bg_ping_count: ContextVar[list[int] | None] = ContextVar("_bg_ping_count", default=None)
 
 
 def init_bg_ping_count() -> None:
@@ -191,9 +186,7 @@ async def append_update(message: str) -> None:
     """
     async with _updates_lock:
         _UPDATES_FILE.parent.mkdir(parents=True, exist_ok=True)
-        updates = (
-            json.loads(_UPDATES_FILE.read_text()) if _UPDATES_FILE.exists() else []
-        )
+        updates = json.loads(_UPDATES_FILE.read_text()) if _UPDATES_FILE.exists() else []
         updates.append({"ts": datetime.now(_TZ).isoformat(), "message": message})
         fd, tmp = tempfile.mkstemp(dir=_UPDATES_FILE.parent, suffix=".tmp")
         try:
@@ -259,11 +252,7 @@ def in_interactive_fork() -> bool:
 
 def set_interactive_fork(active: bool, *, idle_timeout: int = 10) -> None:
     """Enter or exit interactive fork mode."""
-    global \
-        _in_interactive_fork, \
-        _fork_exit_action, \
-        _fork_idle_timeout, \
-        _fork_prompted_at
+    global _in_interactive_fork, _fork_exit_action, _fork_idle_timeout, _fork_prompted_at
     _in_interactive_fork = active
     _fork_idle_timeout = idle_timeout
     if active:
@@ -359,14 +348,10 @@ def _extract_prompt_tag(prompt: str) -> str:
     return "bg fork"
 
 
-async def _notify_fork_failure(
-    channel: discord.abc.Messageable, tag: str, *, timed_out: bool = False
-) -> None:
+async def _notify_fork_failure(channel: discord.abc.Messageable, tag: str, *, timed_out: bool = False) -> None:
     """Best-effort DM notification when a bg fork fails or times out."""
     if timed_out:
-        msg = (
-            f"Background task timed out after {BG_FORK_TIMEOUT // 60} minutes: `{tag}`"
-        )
+        msg = f"Background task timed out after {BG_FORK_TIMEOUT // 60} minutes: `{tag}`"
     else:
         msg = f"Background task failed: `{tag}` -- check logs for details."
     with contextlib.suppress(Exception):
@@ -437,9 +422,7 @@ async def run_agent_background(
                     disallowed_tools=blocked,
                 )
             try:
-                fork_session_id = await agent.run_on_client(
-                    client, prompt, prepend_updates=not isolated
-                )
+                fork_session_id = await agent.run_on_client(client, prompt, prepend_updates=not isolated)
                 log_session_event(
                     fork_session_id,
                     "isolated_bg" if isolated else "bg_fork",
@@ -471,10 +454,9 @@ async def send_agent_dm(
     prompt: str,
 ) -> None:
     """Inject a prompt into the agent session and stream the response as a DM."""
+    from ollim_bot import permissions
     from ollim_bot.agent_tools import set_channel
     from ollim_bot.streamer import stream_to_channel
-
-    from ollim_bot import permissions
 
     dm = await owner.create_dm()
     async with agent.lock():

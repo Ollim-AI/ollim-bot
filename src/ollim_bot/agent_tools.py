@@ -10,7 +10,6 @@ from claude_agent_sdk.types import HookContext, HookInput, SyncHookJSONOutput
 
 from ollim_bot import ping_budget
 from ollim_bot.config import USER_NAME
-from ollim_bot.sessions import track_message
 from ollim_bot.embeds import (
     ButtonConfig,
     EmbedConfig,
@@ -35,6 +34,7 @@ from ollim_bot.forks import (
     request_enter_fork,
     set_exit_action,
 )
+from ollim_bot.sessions import track_message
 
 # ---------------------------------------------------------------------------
 # Channel reference — globals for main session, contextvars for bg forks
@@ -78,9 +78,7 @@ class ChainContext:
 
 
 _chain_context: ChainContext | None = None
-_chain_context_var: ContextVar[ChainContext | None] = ContextVar(
-    "_chain_context", default=None
-)
+_chain_context_var: ContextVar[ChainContext | None] = ContextVar("_chain_context", default=None)
 
 
 def set_chain_context(ctx: ChainContext | None) -> None:
@@ -118,8 +116,7 @@ def _check_bg_budget(args: dict[str, Any]) -> dict[str, Any] | None:
             "content": [
                 {
                     "type": "text",
-                    "text": "Already sent 1 ping this session. "
-                    "Use report_updates for additional findings.",
+                    "text": "Already sent 1 ping this session. Use report_updates for additional findings.",
                 }
             ]
         }
@@ -308,9 +305,7 @@ async def ping_user(args: dict[str, Any]) -> dict[str, Any]:
 async def follow_up_chain(args: dict[str, Any]) -> dict[str, Any]:
     ctx = _chain_context_var.get() or _chain_context
     if ctx is None:
-        return {
-            "content": [{"type": "text", "text": "Error: no active reminder context"}]
-        }
+        return {"content": [{"type": "text", "text": "Error: no active reminder context"}]}
     if ctx.chain_depth >= ctx.max_chain:
         return {"content": [{"type": "text", "text": "Error: follow-up limit reached"}]}
 
@@ -348,16 +343,8 @@ async def follow_up_chain(args: dict[str, Any]) -> dict[str, Any]:
         cmd.extend(["--disallowed-tools", *ctx.disallowed_tools])
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
-        return {
-            "content": [
-                {"type": "text", "text": f"Error scheduling follow-up: {result.stderr}"}
-            ]
-        }
-    return {
-        "content": [
-            {"type": "text", "text": f"Follow-up scheduled in {minutes} minutes"}
-        ]
-    }
+        return {"content": [{"type": "text", "text": f"Error scheduling follow-up: {result.stderr}"}]}
+    return {"content": [{"type": "text", "text": f"Follow-up scheduled in {minutes} minutes"}]}
 
 
 @tool(
@@ -376,23 +363,19 @@ async def save_context(args: dict[str, Any]) -> dict[str, Any]:
             "content": [
                 {
                     "type": "text",
-                    "text": "Error: save_context is not available in background forks. "
-                    "Use report_updates instead.",
+                    "text": "Error: save_context is not available in background forks. Use report_updates instead.",
                 }
             ]
         }
     if not in_interactive_fork():
-        return {
-            "content": [{"type": "text", "text": "Error: not in an interactive fork"}]
-        }
+        return {"content": [{"type": "text", "text": "Error: not in an interactive fork"}]}
     set_exit_action(ForkExitAction.SAVE)
     await clear_pending_updates()
     return {
         "content": [
             {
                 "type": "text",
-                "text": "Context saved. Fork will be promoted to main session "
-                "after you finish responding.",
+                "text": "Context saved. Fork will be promoted to main session after you finish responding.",
             }
         ]
     }
@@ -503,8 +486,7 @@ async def enter_fork(args: dict[str, Any]) -> dict[str, Any]:
 
 @tool(
     "exit_fork",
-    "Exit the current interactive fork. The fork is discarded and the main "
-    "session resumes.",
+    "Exit the current interactive fork. The fork is discarded and the main session resumes.",
     {"type": "object", "properties": {}},
 )
 async def exit_fork(args: dict[str, Any]) -> dict[str, Any]:
@@ -519,16 +501,13 @@ async def exit_fork(args: dict[str, Any]) -> dict[str, Any]:
             ]
         }
     if not in_interactive_fork():
-        return {
-            "content": [{"type": "text", "text": "Error: not in an interactive fork"}]
-        }
+        return {"content": [{"type": "text", "text": "Error: not in an interactive fork"}]}
     set_exit_action(ForkExitAction.EXIT)
     return {
         "content": [
             {
                 "type": "text",
-                "text": "Fork will be discarded after you finish responding "
-                "— further tool calls delay the exit.",
+                "text": "Fork will be discarded after you finish responding — further tool calls delay the exit.",
             }
         ]
     }
@@ -548,8 +527,7 @@ async def require_report_hook(
     if mode == "always" and not bg_reported():
         return SyncHookJSONOutput(
             systemMessage=(
-                "You haven't called report_updates yet. Call it now to update "
-                "the main session on what happened."
+                "You haven't called report_updates yet. Call it now to update the main session on what happened."
             ),
         )
     if mode == "on_ping" and bg_output_sent():

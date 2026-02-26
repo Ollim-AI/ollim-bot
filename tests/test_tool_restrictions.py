@@ -22,9 +22,7 @@ def test_no_restrictions_returns_unchanged():
 def test_allowed_tools_overrides_list():
     opts = _opts(["Read", "Write", "Bash", "WebFetch"])
 
-    result = _apply_tool_restrictions(
-        opts, allowed=["Bash(ollim-bot gmail *)"], blocked=None
-    )
+    result = _apply_tool_restrictions(opts, allowed=["Bash(ollim-bot gmail *)"], blocked=None)
 
     assert _HELP_TOOL in result.allowed_tools
     assert "Bash(ollim-bot gmail *)" in result.allowed_tools
@@ -34,9 +32,7 @@ def test_allowed_tools_overrides_list():
 def test_allowed_tools_preserves_help_if_present():
     opts = _opts()
 
-    result = _apply_tool_restrictions(
-        opts, allowed=[_HELP_TOOL, "Bash(ollim-bot tasks *)"], blocked=None
-    )
+    result = _apply_tool_restrictions(opts, allowed=[_HELP_TOOL, "Bash(ollim-bot tasks *)"], blocked=None)
 
     assert result.allowed_tools.count(_HELP_TOOL) == 1
     assert "Bash(ollim-bot tasks *)" in result.allowed_tools
@@ -45,9 +41,7 @@ def test_allowed_tools_preserves_help_if_present():
 def test_disallowed_tools_sets_disallowed():
     opts = _opts()
 
-    result = _apply_tool_restrictions(
-        opts, allowed=None, blocked=["WebFetch", "WebSearch"]
-    )
+    result = _apply_tool_restrictions(opts, allowed=None, blocked=["WebFetch", "WebSearch"])
 
     assert result.disallowed_tools == ["WebFetch", "WebSearch"]
     assert result.allowed_tools == opts.allowed_tools
@@ -66,9 +60,7 @@ def test_allow_ping_false_adds_both_to_disallowed():
 
 
 def test_allow_ping_false_merges_with_existing_disallowed():
-    config = BgForkConfig(
-        allow_ping=False, disallowed_tools=["WebFetch", "mcp__discord__ping_user"]
-    )
+    config = BgForkConfig(allow_ping=False, disallowed_tools=["WebFetch", "mcp__discord__ping_user"])
 
     result = _apply_ping_restrictions(config)
 

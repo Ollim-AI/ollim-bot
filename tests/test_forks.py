@@ -254,9 +254,7 @@ def test_bg_fork_timeout_cancels_and_notifies(monkeypatch, data_dir):
 
     async def fake_create_dm():
         channel = AsyncMock()
-        channel.send = AsyncMock(
-            side_effect=lambda msg, **kw: sent_messages.append(msg)
-        )
+        channel.send = AsyncMock(side_effect=lambda msg, **kw: sent_messages.append(msg))
         return channel
 
     owner = AsyncMock()

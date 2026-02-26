@@ -62,9 +62,7 @@ def test_routine_new_defaults_model_isolated():
 
 
 def test_routine_new_with_model_isolated():
-    routine = Routine.new(
-        message="check", cron="0 9 * * *", model="haiku", isolated=True
-    )
+    routine = Routine.new(message="check", cron="0 9 * * *", model="haiku", isolated=True)
 
     assert routine.model == "haiku"
     assert routine.isolated is True

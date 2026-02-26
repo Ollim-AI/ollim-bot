@@ -26,13 +26,11 @@ def history(tmp_path, monkeypatch):
 
 
 def test_session_event_is_frozen():
-    event = SessionEvent(
-        session_id="abc", event="created", timestamp="2026-01-01T00:00:00"
-    )
+    event = SessionEvent(session_id="abc", event="created", timestamp="2026-01-01T00:00:00")
 
     try:
         event.session_id = "xyz"
-        assert False, "Should have raised FrozenInstanceError"
+        raise AssertionError("Should have raised FrozenInstanceError")
     except AttributeError:
         pass
 

@@ -7,3 +7,8 @@ dist/
 token.json
 credentials.json
 .worktrees/
+.coverage
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/

@@ -125,9 +125,7 @@ def create_bot() -> commands.Bot:
         await channel.typing()
         await stream_to_channel(channel, agent.stream_chat(prompt, images=images))
 
-    async def _send_fork_enter(
-        channel: discord.abc.Messageable, topic: str | None
-    ) -> None:
+    async def _send_fork_enter(channel: discord.abc.Messageable, topic: str | None) -> None:
         await channel.send(embed=fork_enter_embed(topic), view=fork_enter_view())
 
     def _fork_topic_prompt(topic: str) -> str:
@@ -185,9 +183,7 @@ def create_bot() -> commands.Bot:
     @bot.tree.command(name="compact", description="Compress conversation context")
     @discord.app_commands.describe(instructions="Optional focus for the summary")
     @discord.app_commands.check(_owner_check)
-    async def slash_compact(
-        interaction: discord.Interaction, instructions: str | None = None
-    ):
+    async def slash_compact(interaction: discord.Interaction, instructions: str | None = None):
         await interaction.response.send_message("compacting...")
         async with agent.lock():
             result = await agent.compact(instructions)
@@ -206,9 +202,7 @@ def create_bot() -> commands.Bot:
     @discord.app_commands.check(_owner_check)
     async def slash_fork(interaction: discord.Interaction, topic: str | None = None):
         if agent.in_fork:
-            await interaction.response.send_message(
-                "already in a fork.", ephemeral=True
-            )
+            await interaction.response.send_message("already in a fork.", ephemeral=True)
             return
         await interaction.response.defer()
         async with agent.lock():
@@ -235,9 +229,7 @@ def create_bot() -> commands.Bot:
             discord.app_commands.Choice(name="haiku", value="haiku"),
         ]
     )
-    async def slash_model(
-        interaction: discord.Interaction, name: discord.app_commands.Choice[str]
-    ):
+    async def slash_model(interaction: discord.Interaction, name: discord.app_commands.Choice[str]):
         await agent.set_model(name.value)
         await interaction.response.send_message(f"switched to {name.value}.")
 
@@ -250,9 +242,7 @@ def create_bot() -> commands.Bot:
             discord.app_commands.Choice(name="off", value="off"),
         ]
     )
-    async def slash_thinking(
-        interaction: discord.Interaction, enabled: discord.app_commands.Choice[str]
-    ):
+    async def slash_thinking(interaction: discord.Interaction, enabled: discord.app_commands.Choice[str]):
         await agent.set_thinking(enabled.value == "on")
         await interaction.response.send_message(f"thinking: {enabled.value}.")
 
@@ -269,12 +259,8 @@ def create_bot() -> commands.Bot:
         init_views(agent)
         bot.add_dynamic_items(ActionButton)
 
-        bot.tree.allowed_installs = app_commands.AppInstallationType(
-            guild=False, user=True
-        )
-        bot.tree.allowed_contexts = app_commands.AppCommandContext(
-            guild=False, dm_channel=True, private_channel=True
-        )
+        bot.tree.allowed_installs = app_commands.AppInstallationType(guild=False, user=True)
+        bot.tree.allowed_contexts = app_commands.AppCommandContext(guild=False, dm_channel=True, private_channel=True)
 
         synced = await bot.tree.sync()
         print(f"synced {len(synced)} slash commands")
@@ -299,9 +285,7 @@ def create_bot() -> commands.Bot:
         if resumed:
             await dm.send("hey, i'm back online. i remember where we left off.")
         else:
-            await dm.send(
-                f"hey {USER_NAME.lower()}, {BOT_NAME} is online. what's on your plate today?"
-            )
+            await dm.send(f"hey {USER_NAME.lower()}, {BOT_NAME} is online. what's on your plate today?")
 
     @bot.event
     async def on_message(message: discord.Message):
@@ -326,9 +310,7 @@ def create_bot() -> commands.Bot:
                 fork_session_id = None
             if not fork_session_id:
                 try:
-                    replied = ref.resolved or await message.channel.fetch_message(
-                        ref.message_id
-                    )
+                    replied = ref.resolved or await message.channel.fetch_message(ref.message_id)
                     if isinstance(replied, discord.Message):
                         if quoted := _quote_message(replied):
                             content = f"{quoted}\n\n{content}"
@@ -379,14 +361,10 @@ def create_bot() -> commands.Bot:
             discord.app_commands.Choice(name="dontAsk", value="dontAsk"),
             discord.app_commands.Choice(name="default", value="default"),
             discord.app_commands.Choice(name="acceptEdits", value="acceptEdits"),
-            discord.app_commands.Choice(
-                name="bypassPermissions", value="bypassPermissions"
-            ),
+            discord.app_commands.Choice(name="bypassPermissions", value="bypassPermissions"),
         ]
     )
-    async def slash_permissions(
-        interaction: discord.Interaction, mode: discord.app_commands.Choice[str]
-    ):
+    async def slash_permissions(interaction: discord.Interaction, mode: discord.app_commands.Choice[str]):
         if mode.value == "dontAsk":
             permissions.set_dont_ask(True)
             await agent.set_permission_mode("default")
@@ -424,9 +402,7 @@ def create_bot() -> commands.Bot:
     ) -> None:
         if isinstance(error, discord.app_commands.CheckFailure):
             if not interaction.response.is_done():
-                await interaction.response.send_message(
-                    "not authorized", ephemeral=True
-                )
+                await interaction.response.send_message("not authorized", ephemeral=True)
             return
         raise error
 

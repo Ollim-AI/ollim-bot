@@ -84,11 +84,7 @@ def _serialize_md(item: T) -> str:
     data = asdict(item)  # type: ignore[call-overload]
     message = data.pop("message")
     fields = dataclasses.fields(item)  # type: ignore[arg-type]
-    defaults = {
-        f.name: f.default
-        for f in fields
-        if f.default is not dataclasses.MISSING and f.name != "message"
-    }
+    defaults = {f.name: f.default for f in fields if f.default is not dataclasses.MISSING and f.name != "message"}
     defaults.update(
         {
             f.name: f.default_factory()
@@ -108,9 +104,7 @@ def _serialize_md(item: T) -> str:
         elif isinstance(value, list):
             lines.append(f"{key}:")
             for item in value:
-                lines.append(
-                    f'  - "{item}"' if isinstance(item, str) else f"  - {item}"
-                )
+                lines.append(f'  - "{item}"' if isinstance(item, str) else f"  - {item}")
         else:
             lines.append(f"{key}: {value}")
     lines.append("---")
@@ -172,9 +166,7 @@ def write_md(dir_path: Path, item: T, commit_msg: str) -> None:
         if len(parts) >= 3:
             existing_data = yaml.safe_load(parts[1])
             item_id = item.id  # type: ignore[attr-defined]
-            if isinstance(existing_data, dict) and str(existing_data.get("id")) == str(
-                item_id
-            ):
+            if isinstance(existing_data, dict) and str(existing_data.get("id")) == str(item_id):
                 break  # overwriting same item
         target = dir_path / f"{slug}-{counter}.md"
         counter += 1

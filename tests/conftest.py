@@ -27,12 +27,8 @@ def data_dir(tmp_path, monkeypatch):
     monkeypatch.setattr(inquiries_mod, "INQUIRIES_FILE", state_dir / "inquiries.json")
     monkeypatch.setattr(ping_budget_mod, "BUDGET_FILE", state_dir / "ping_budget.json")
     monkeypatch.setattr(sessions_mod, "SESSIONS_FILE", state_dir / "sessions.json")
-    monkeypatch.setattr(
-        sessions_mod, "HISTORY_FILE", state_dir / "session_history.jsonl"
-    )
-    monkeypatch.setattr(
-        sessions_mod, "FORK_MESSAGES_FILE", state_dir / "fork_messages.json"
-    )
+    monkeypatch.setattr(sessions_mod, "HISTORY_FILE", state_dir / "session_history.jsonl")
+    monkeypatch.setattr(sessions_mod, "FORK_MESSAGES_FILE", state_dir / "fork_messages.json")
     monkeypatch.setattr(forks_mod, "_UPDATES_FILE", state_dir / "pending_updates.json")
 
     import ollim_bot.webhook as webhook_mod

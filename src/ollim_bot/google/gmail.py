@@ -22,29 +22,25 @@ def run_gmail_command(argv: list[str]) -> None:
     sub = parser.add_subparsers(dest="action")
 
     unread_p = sub.add_parser("unread", help="List unread emails")
-    unread_p.add_argument(
-        "--max", type=int, default=20, help="Max results (default 20)"
-    )
+    unread_p.add_argument("--max", type=int, default=20, help="Max results (default 20)")
 
     read_p = sub.add_parser("read", help="Read an email by ID")
     read_p.add_argument("id", help="Message ID")
 
     search_p = sub.add_parser("search", help="Search emails")
     search_p.add_argument("query", help="Gmail search query")
-    search_p.add_argument(
-        "--max", type=int, default=20, help="Max results (default 20)"
-    )
+    search_p.add_argument("--max", type=int, default=20, help="Max results (default 20)")
 
     sub.add_parser("labels", help="List labels")
 
     args = parser.parse_args(argv)
 
     if args.action == "unread":
-        _handle_list(query="is:unread", max_results=getattr(args, "max"))
+        _handle_list(query="is:unread", max_results=args.max)
     elif args.action == "read":
         _handle_read(args.id)
     elif args.action == "search":
-        _handle_list(query=args.query, max_results=getattr(args, "max"))
+        _handle_list(query=args.query, max_results=args.max)
     elif args.action == "labels":
         _handle_labels()
     else:
@@ -108,9 +104,7 @@ def _decode_body(payload: dict, mime_type: str) -> str:
     mime = payload.get("mimeType", "")
 
     if mime == mime_type and payload.get("body", {}).get("data"):
-        return base64.urlsafe_b64decode(payload["body"]["data"]).decode(
-            "utf-8", errors="replace"
-        )
+        return base64.urlsafe_b64decode(payload["body"]["data"]).decode("utf-8", errors="replace")
 
     for part in payload.get("parts", []):
         text = _decode_body(part, mime_type)

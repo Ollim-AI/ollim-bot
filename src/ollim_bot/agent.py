@@ -23,7 +23,6 @@ from claude_agent_sdk import (
 from claude_agent_sdk.types import StreamEvent
 
 from ollim_bot.agent_tools import agent_server, require_report_hook
-from ollim_bot.formatting import format_tool_label
 from ollim_bot.forks import (
     ForkExitAction,
     enter_fork_requested,
@@ -33,25 +32,28 @@ from ollim_bot.forks import (
     set_interactive_fork,
     touch_activity,
 )
+from ollim_bot.formatting import format_tool_label
 from ollim_bot.permissions import (
     cancel_pending,
     handle_tool_permission,
+)
+from ollim_bot.permissions import (
     reset as reset_permissions,
 )
 from ollim_bot.prompts import SYSTEM_PROMPT
-from ollim_bot.subagent_prompts import (
-    GMAIL_READER_PROMPT,
-    HISTORY_REVIEWER_PROMPT,
-    RESPONSIVENESS_REVIEWER_PROMPT,
-)
-from ollim_bot.storage import DATA_DIR
 from ollim_bot.sessions import (
     delete_session_id,
     load_session_id,
     log_session_event,
-    session_start_time,
     save_session_id,
+    session_start_time,
     set_swap_in_progress,
+)
+from ollim_bot.storage import DATA_DIR
+from ollim_bot.subagent_prompts import (
+    GMAIL_READER_PROMPT,
+    HISTORY_REVIEWER_PROMPT,
+    RESPONSIVENESS_REVIEWER_PROMPT,
 )
 
 log = logging.getLogger(__name__)
@@ -276,9 +278,7 @@ class Agent:
         with contextlib.suppress(RuntimeError):
             await client.disconnect()
 
-    async def swap_client(
-        self, client: ClaudeSDKClient, session_id: str
-    ) -> None:  # duplicate-ok
+    async def swap_client(self, client: ClaudeSDKClient, session_id: str) -> None:  # duplicate-ok
         """Promote a forked client to the main client, replacing the old one."""
         old = self._client
         old_session_id = load_session_id()
@@ -295,9 +295,7 @@ class Agent:
             with contextlib.suppress(RuntimeError):
                 await old.disconnect()
 
-    async def enter_interactive_fork(
-        self, *, idle_timeout: int = 10, resume_session_id: str | None = None
-    ) -> None:
+    async def enter_interactive_fork(self, *, idle_timeout: int = 10, resume_session_id: str | None = None) -> None:
         """Create an interactive fork client and switch routing to it."""
         self._fork_client = await self.create_forked_client(
             session_id=resume_session_id,
@@ -334,9 +332,7 @@ class Agent:
         if action is ForkExitAction.NONE:
             return None
         updates = peek_pending_updates()
-        summary = (
-            updates[-1].message if action is ForkExitAction.REPORT and updates else None
-        )
+        summary = updates[-1].message if action is ForkExitAction.REPORT and updates else None
         await self.exit_interactive_fork(action)
         return action, summary
 
@@ -387,9 +383,7 @@ class Agent:
         await client.connect()
         return client
 
-    async def run_on_client(
-        self, client: ClaudeSDKClient, message: str, *, prepend_updates: bool = True
-    ) -> str:
+    async def run_on_client(self, client: ClaudeSDKClient, message: str, *, prepend_updates: bool = True) -> str:
         """Send a message on an explicit client, discard output, return session_id."""
         if prepend_updates:
             message = await _prepend_context(message, clear=False)
@@ -440,9 +434,7 @@ class Agent:
 
         return _format_compact_stats(result_msg, pre_tokens)
 
-    async def _run_slash(
-        self, client: ClaudeSDKClient, command: str
-    ) -> tuple[list[str], ResultMessage | None]:
+    async def _run_slash(self, client: ClaudeSDKClient, command: str) -> tuple[list[str], ResultMessage | None]:
         """Send a slash command, return (text parts, ResultMessage)."""
         await client.query(command)
 
@@ -469,9 +461,7 @@ class Agent:
     async def _get_client(self) -> ClaudeSDKClient:
         if self._client is None:
             session_id = load_session_id()
-            opts = (
-                replace(self.options, resume=session_id) if session_id else self.options
-            )
+            opts = replace(self.options, resume=session_id) if session_id else self.options
             client = ClaudeSDKClient(opts)
             await client.connect()
             self._client = client
@@ -548,11 +538,7 @@ class Agent:
                         continue
 
                     # Capture fork session ID from first StreamEvent
-                    if (
-                        self._fork_client is not None
-                        and client is self._fork_client
-                        and self._fork_session_id is None
-                    ):
+                    if self._fork_client is not None and client is self._fork_client and self._fork_session_id is None:
                         self._fork_session_id = msg.session_id
                         log_session_event(
                             msg.session_id,
