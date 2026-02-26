@@ -80,6 +80,7 @@ def _routine_next_fire(routine: Routine, after: datetime) -> datetime | None:
         day=parts[2],
         month=parts[3],
         day_of_week=_convert_dow(parts[4]),
+        timezone=str(TZ),
     )
     return trigger.get_next_fire_time(None, after)
 

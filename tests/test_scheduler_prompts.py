@@ -1,8 +1,8 @@
 """Tests for scheduler.py prompt-building and cron conversion."""
 
 from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
 
+from ollim_bot.config import TZ
 from ollim_bot.forks import BgForkConfig
 from ollim_bot.scheduling.preamble import (
     ScheduleEntry,
@@ -14,8 +14,6 @@ from ollim_bot.scheduling.preamble import (
 )
 from ollim_bot.scheduling.reminders import Reminder
 from ollim_bot.scheduling.routines import Routine
-
-TZ = ZoneInfo("America/Los_Angeles")
 
 
 def test_routine_prompt_foreground():
