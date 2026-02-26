@@ -7,9 +7,9 @@ maintains persistent context across conversations.
 Single-user by design — built to serve one human deeply. Others fork the repo
 and make it their own.
 
-**[Documentation](https://ollim.mintlify.app/)** |
-**[Quickstart](https://ollim.mintlify.app/getting-started/quickstart)** |
-**[Design Philosophy](https://ollim.mintlify.app/getting-started/design-philosophy)**
+**[Documentation](https://docs.ollim.ai/)** |
+**[Quickstart](https://docs.ollim.ai/getting-started/quickstart)** |
+**[Design Philosophy](https://docs.ollim.ai/getting-started/design-philosophy)**
 
 ## Features
 
@@ -55,7 +55,7 @@ Run:
 uv run ollim-bot
 ```
 
-See the [setup guide](https://ollim.mintlify.app/getting-started/setup) for
+See the [setup guide](https://docs.ollim.ai/getting-started/setup) for
 Discord bot creation, Google OAuth, and webhook configuration.
 
 ## Development
@@ -68,8 +68,8 @@ uv run ruff check     # Lint
 uv run ruff format    # Format
 ```
 
-See [development guide](https://ollim.mintlify.app/development/guide) and
-[architecture overview](https://ollim.mintlify.app/architecture/overview).
+See [development guide](https://docs.ollim.ai/development/guide) and
+[architecture overview](https://docs.ollim.ai/architecture/overview).
 
 ## License
 
