@@ -12,3 +12,5 @@ credentials.json
 .mypy_cache/
 .ruff_cache/
 htmlcov/
+.claude/settings.local.json
+.claude/agent-memory/
