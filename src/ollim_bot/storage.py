@@ -10,11 +10,11 @@ import tempfile
 from dataclasses import asdict
 from pathlib import Path
 from typing import TypeVar
-from zoneinfo import ZoneInfo
 
 import yaml
 
-TZ = ZoneInfo("America/Los_Angeles")
+from ollim_bot.config import TZ as TZ
+
 DATA_DIR = Path.home() / ".ollim-bot"
 STATE_DIR = DATA_DIR / "state"
 

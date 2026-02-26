@@ -4,16 +4,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
 
 from apscheduler.triggers.cron import CronTrigger
 
 from ollim_bot import ping_budget
+from ollim_bot.config import TZ
 from ollim_bot.forks import BgForkConfig
 from ollim_bot.scheduling.reminders import Reminder
 from ollim_bot.scheduling.routines import Routine
-
-TZ = ZoneInfo("America/Los_Angeles")
 
 # Standard cron: 0=Sunday. APScheduler CronTrigger: 0=Monday.
 # Convert numeric values to named days to avoid the mismatch.

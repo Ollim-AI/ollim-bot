@@ -7,7 +7,6 @@ from collections.abc import AsyncGenerator
 from dataclasses import replace
 from datetime import datetime
 from typing import Literal
-from zoneinfo import ZoneInfo
 
 from claude_agent_sdk import (
     AgentDefinition,
@@ -23,6 +22,7 @@ from claude_agent_sdk import (
 from claude_agent_sdk.types import StreamEvent
 
 from ollim_bot.agent_tools import agent_server, require_report_hook
+from ollim_bot.config import TZ as _TZ
 from ollim_bot.forks import (
     ForkExitAction,
     enter_fork_requested,
@@ -85,9 +85,6 @@ def _format_compact_stats(result: ResultMessage | None, pre_tokens: int | None) 
         k = pre_tokens / 1000
         parts.append(f"{k:.0f}k tokens compacted")
     return " · ".join(parts)
-
-
-_TZ = ZoneInfo("America/Los_Angeles")
 
 
 def _timestamp() -> str:

@@ -8,8 +8,8 @@ from contextvars import ContextVar
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal, TypedDict
-from zoneinfo import ZoneInfo
 
+from ollim_bot.config import TZ as _TZ
 from ollim_bot.storage import STATE_DIR, append_jsonl
 
 SESSIONS_FILE = STATE_DIR / "sessions.json"
@@ -24,8 +24,6 @@ SessionEventType = Literal[
     "bg_fork",
     "isolated_bg",
 ]
-
-_TZ = ZoneInfo("America/Los_Angeles")
 
 
 @dataclass(frozen=True)

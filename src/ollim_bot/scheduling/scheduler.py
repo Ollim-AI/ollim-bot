@@ -11,7 +11,6 @@ import logging
 from dataclasses import replace
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
-from zoneinfo import ZoneInfo
 
 import discord
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -26,6 +25,7 @@ from ollim_bot.agent_tools import (
     set_channel,
     set_fork_chain_context,
 )
+from ollim_bot.config import TZ as _TZ
 from ollim_bot.config import USER_NAME
 from ollim_bot.embeds import fork_exit_embed
 from ollim_bot.forks import (
@@ -54,7 +54,7 @@ from ollim_bot.streamer import stream_to_channel
 if TYPE_CHECKING:
     from ollim_bot.agent import Agent
 
-TZ = ZoneInfo("America/Los_Angeles")
+TZ = _TZ
 log = logging.getLogger(__name__)
 
 _registered_routines: set[str] = set()
@@ -224,7 +224,7 @@ def _register_reminder(
 
 def setup_scheduler(bot: discord.Client, agent: Agent, owner: discord.User) -> AsyncIOScheduler:
     """Polls routines/reminders every 10s, registering new and pruning stale jobs."""
-    scheduler = AsyncIOScheduler(timezone="America/Los_Angeles")
+    scheduler = AsyncIOScheduler(timezone=str(_TZ))
 
     @scheduler.scheduled_job(IntervalTrigger(seconds=10))
     async def sync_all() -> None:

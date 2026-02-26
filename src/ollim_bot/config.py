@@ -1,7 +1,8 @@
-"""User-configurable names loaded from environment variables."""
+"""User-configurable values loaded from environment variables."""
 
 import os
 import sys
+from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
 
@@ -16,3 +17,4 @@ if _missing:
 
 USER_NAME: str = os.environ["OLLIM_USER_NAME"]
 BOT_NAME: str = os.environ["OLLIM_BOT_NAME"]
+TZ: ZoneInfo = ZoneInfo(os.environ.get("OLLIM_TIMEZONE", "America/Los_Angeles"))
