@@ -7,9 +7,10 @@ from datetime import datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from ollim_bot.config import _detect_local_tz
 from ollim_bot.google.auth import get_service
 
-TZ = ZoneInfo(os.environ.get("OLLIM_TIMEZONE", "America/Los_Angeles"))
+TZ = ZoneInfo(os.environ.get("OLLIM_TIMEZONE") or _detect_local_tz())
 
 
 def _get_calendar_service() -> Any:
