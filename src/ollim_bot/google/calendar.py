@@ -1,6 +1,7 @@
 """CLI handler for `ollim-bot cal` subcommand."""
 
 import argparse
+import os
 import sys
 from datetime import datetime, timedelta
 from typing import Any
@@ -8,7 +9,7 @@ from zoneinfo import ZoneInfo
 
 from ollim_bot.google.auth import get_service
 
-TZ = ZoneInfo("America/Los_Angeles")
+TZ = ZoneInfo(os.environ.get("OLLIM_TIMEZONE", "America/Los_Angeles"))
 
 
 def _get_calendar_service() -> Any:
@@ -142,8 +143,8 @@ def _handle_show(event_id: str) -> None:
 def _handle_add(args: argparse.Namespace) -> None:
     body: dict = {
         "summary": args.summary,
-        "start": {"dateTime": _parse_dt(args.start), "timeZone": "America/Los_Angeles"},
-        "end": {"dateTime": _parse_dt(args.end), "timeZone": "America/Los_Angeles"},
+        "start": {"dateTime": _parse_dt(args.start), "timeZone": str(TZ)},
+        "end": {"dateTime": _parse_dt(args.end), "timeZone": str(TZ)},
     }
     if args.description:
         body["description"] = args.description
@@ -174,12 +175,12 @@ def _handle_update(args: argparse.Namespace) -> None:
     if args.start is not None:
         body["start"] = {
             "dateTime": _parse_dt(args.start),
-            "timeZone": "America/Los_Angeles",
+            "timeZone": str(TZ),
         }
     if args.end is not None:
         body["end"] = {
             "dateTime": _parse_dt(args.end),
-            "timeZone": "America/Los_Angeles",
+            "timeZone": str(TZ),
         }
     if args.description is not None:
         body["description"] = args.description

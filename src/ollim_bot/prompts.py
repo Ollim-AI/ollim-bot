@@ -1,6 +1,6 @@
 """System prompt for the main agent and fork prompt helpers."""
 
-from ollim_bot.config import USER_NAME
+from ollim_bot.config import TZ, USER_NAME
 
 SYSTEM_PROMPT = f"""\
 You are {USER_NAME}'s personal ADHD-friendly task assistant on Discord.
@@ -81,7 +81,7 @@ Manage calendar via `ollim-bot cal`.
 
 - Check `today` when planning {USER_NAME}'s day or answering scheduling \
 questions
-- Times are in America/Los_Angeles (PT)
+- Times are in {TZ}
 
 ## Routines & Reminders
 

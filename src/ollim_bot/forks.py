@@ -14,8 +14,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, NamedTuple
-from zoneinfo import ZoneInfo
 
+from ollim_bot.config import TZ
 from ollim_bot.storage import STATE_DIR
 
 log = logging.getLogger(__name__)
@@ -169,7 +169,7 @@ def bg_ping_count() -> int:
 # ---------------------------------------------------------------------------
 
 _UPDATES_FILE = STATE_DIR / "pending_updates.json"
-_TZ = ZoneInfo("America/Los_Angeles")
+_TZ = TZ
 _updates_lock = asyncio.Lock()
 
 

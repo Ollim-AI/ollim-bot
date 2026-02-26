@@ -2,6 +2,7 @@
 
 import argparse
 import base64
+import os
 import re
 import sys
 from datetime import datetime
@@ -10,7 +11,7 @@ from zoneinfo import ZoneInfo
 
 from ollim_bot.google.auth import get_service
 
-TZ = ZoneInfo("America/Los_Angeles")
+TZ = ZoneInfo(os.environ.get("OLLIM_TIMEZONE", "America/Los_Angeles"))
 
 
 def _get_gmail_service() -> Any:
