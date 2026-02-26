@@ -223,11 +223,17 @@ feature, build it — don't gatekeep with philosophy.
 uv sync                    # Install deps
 uv run ollim-bot           # Run the bot
 uv run pytest              # Run tests
+uv run ruff check          # Lint
+uv run ruff format         # Format
+uv run ty check            # Type check
 ```
+
+Pre-commit hooks (ruff lint, ruff format, ty) run automatically on commit.
 
 Required env vars (set in `.env`): `DISCORD_TOKEN`, `OLLIM_USER_NAME`, `OLLIM_BOT_NAME`
 
 Optional env vars:
+- `OLLIM_TIMEZONE` — IANA timezone (default: auto-detected from system)
 - `WEBHOOK_PORT` — enable webhook server (e.g. `8420`)
 - `WEBHOOK_SECRET` — required if `WEBHOOK_PORT` is set
 
