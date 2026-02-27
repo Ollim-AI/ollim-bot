@@ -57,17 +57,11 @@ Save main session IDs to a JSONL log for claude-history lookup efficiency.
 `dontAsk` is the default permission mode. Non-whitelisted tools silently denied.
 Switch via `/permissions` slash command.
 
-### Persistent Routine Sessions
-Routines can opt into resuming from their own isolated session
-(`session: persistent` in YAML frontmatter). For specialized self-contained
-research/analysis tasks that need their own history preserved across fires.
-
-- Agent ID stored in state file, resumed on next fire
-- Context cap: agent calls `/compact` with custom prompt
-- Bridging via `report_updates` (configurable off)
-- Resume staleness threshold configurable per routine
-- NOT for general assistant routines (sleep, workout, identity) — only for
-  specialized tasks that accumulate useful context over time
+### ~~Persistent Routine Sessions~~ ✓ Implemented
+`session: persistent` in routine YAML frontmatter. Standalone session per
+routine, stored in `~/.ollim-bot/state/routine_sessions/<routine-id>`.
+Agent-driven compaction via `compact_session` MCP tool (deferred execution).
+Skip guard prevents concurrent fires. Session cleanup on routine removal.
 
 ### Persistent Context File
 Agent maintains a living context file (`~/.ollim-bot/context.md`) that

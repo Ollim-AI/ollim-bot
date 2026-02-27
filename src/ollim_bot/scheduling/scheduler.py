@@ -49,6 +49,7 @@ from ollim_bot.scheduling.preamble import (  # noqa: F401 — re-exported
 )
 from ollim_bot.scheduling.reminders import Reminder, list_reminders, remove_reminder
 from ollim_bot.scheduling.routines import Routine, list_routines
+from ollim_bot.sessions import delete_persistent_session, load_persistent_session
 from ollim_bot.streamer import stream_to_channel
 
 if TYPE_CHECKING:
@@ -95,12 +96,19 @@ def _register_routine(
                 disallowed_tools=routine.disallowed_tools,
             )
         )
+        persistent_session_id = None
+        persistent_routine_id = None
+        if routine.session == "persistent":
+            persistent_routine_id = routine.id
+            persistent_session_id = load_persistent_session(routine.id)
+
         prompt = build_routine_prompt(
             routine,
             reminders=list_reminders(),
             routines=list_routines(),
             busy=busy,
             bg_config=bg_config,
+            persistent=routine.session == "persistent",
         )
         try:
             if routine.background:
@@ -112,6 +120,8 @@ def _register_routine(
                     thinking=routine.thinking,
                     isolated=routine.isolated,
                     bg_config=bg_config,
+                    persistent_session_id=persistent_session_id,
+                    persistent_routine_id=persistent_routine_id,
                 )
             else:
                 if routine.model or routine.isolated:
@@ -237,6 +247,7 @@ def setup_scheduler(bot: discord.Client, agent: Agent, owner: discord.User) -> A
             if job:
                 job.remove()
             _registered_routines.discard(stale_id)
+            delete_persistent_session(stale_id)  # no-op if not persistent
 
         current_reminders = list_reminders()
         current_reminder_ids = {r.id for r in current_reminders}

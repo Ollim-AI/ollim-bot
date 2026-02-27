@@ -25,6 +25,7 @@ from ollim_bot.forks import (
     bg_reported,
     clear_pending_updates,
     get_bg_fork_config,
+    get_persistent_routine_id,
     in_bg_fork,
     in_interactive_fork,
     increment_bg_ping_count,
@@ -32,6 +33,7 @@ from ollim_bot.forks import (
     mark_bg_output,
     mark_bg_reported,
     request_enter_fork,
+    set_compact_request,
     set_exit_action,
 )
 from ollim_bot.sessions import track_message
@@ -513,6 +515,45 @@ async def exit_fork(args: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+@tool(
+    "compact_session",
+    "Compact the current persistent session's context. Only available in "
+    "persistent routine sessions. Call when context is getting large, with "
+    "instructions for what to preserve and what to discard. Compaction runs "
+    "after you finish responding.",
+    {
+        "type": "object",
+        "properties": {
+            "instructions": {
+                "type": "string",
+                "description": "What to preserve and what to discard during compaction",
+            },
+        },
+        "required": ["instructions"],
+    },
+)
+async def compact_session(args: dict[str, Any]) -> dict[str, Any]:
+    routine_id = get_persistent_routine_id()
+    if routine_id is None:
+        return {
+            "content": [
+                {
+                    "type": "text",
+                    "text": "Error: compact_session is only available in persistent routine sessions",
+                }
+            ]
+        }
+    set_compact_request(args["instructions"])
+    return {
+        "content": [
+            {
+                "type": "text",
+                "text": "Compaction scheduled — will run after you finish responding.",
+            }
+        ]
+    }
+
+
 async def require_report_hook(
     input_data: HookInput,
     tool_use_id: str | None,
@@ -551,5 +592,6 @@ agent_server = create_sdk_mcp_server(
         report_updates,
         enter_fork,
         exit_fork,
+        compact_session,
     ],
 )

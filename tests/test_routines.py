@@ -219,3 +219,70 @@ def test_routine_no_tools_omitted_from_frontmatter(data_dir):
 
     assert loaded.allowed_tools is None
     assert loaded.disallowed_tools is None
+
+
+# --- Session mode ---
+
+
+def test_routine_new_defaults_session_none():
+    routine = Routine.new(message="test", cron="0 9 * * *")
+
+    assert routine.session is None
+
+
+def test_routine_new_with_session_persistent():
+    routine = Routine.new(
+        message="track",
+        cron="0 9 * * *",
+        background=True,
+        session="persistent",
+    )
+
+    assert routine.session == "persistent"
+
+
+def test_routine_session_requires_background():
+    import pytest
+
+    with pytest.raises(ValueError, match="background"):
+        Routine.new(
+            message="bad",
+            cron="0 9 * * *",
+            session="persistent",
+        )
+
+
+def test_routine_session_mutex_with_isolated():
+    import pytest
+
+    with pytest.raises(ValueError, match="isolated"):
+        Routine.new(
+            message="bad",
+            cron="0 9 * * *",
+            background=True,
+            isolated=True,
+            session="persistent",
+        )
+
+
+def test_routine_session_roundtrip(data_dir):
+    routine = Routine.new(
+        message="track markets",
+        cron="0 9 * * 1-5",
+        background=True,
+        session="persistent",
+    )
+    append_routine(routine)
+
+    loaded = list_routines()[0]
+
+    assert loaded.session == "persistent"
+
+
+def test_routine_session_none_omitted_from_frontmatter(data_dir):
+    routine = Routine.new(message="defaults", cron="0 9 * * *")
+    append_routine(routine)
+
+    loaded = list_routines()[0]
+
+    assert loaded.session is None

@@ -171,6 +171,7 @@ class Agent:
                 "mcp__discord__report_updates",
                 "mcp__discord__enter_fork",
                 "mcp__discord__exit_fork",
+                "mcp__discord__compact_session",
                 "mcp__docs__*",
                 "Task",
             ],
@@ -375,6 +376,33 @@ class Agent:
     ) -> ClaudeSDKClient:
         """Create a standalone client with no conversation history."""
         opts = self.options
+        if model:
+            opts = replace(opts, model=model)
+        thinking_tokens = 10000 if thinking else None
+        opts = replace(opts, max_thinking_tokens=thinking_tokens)
+        opts = _apply_tool_restrictions(opts, allowed_tools, disallowed_tools)
+        client = ClaudeSDKClient(opts)
+        await client.connect()
+        return client
+
+    async def create_persistent_client(
+        self,
+        session_id: str | None = None,
+        *,
+        model: str | None = None,
+        thinking: bool = True,
+        allowed_tools: list[str] | None = None,
+        disallowed_tools: list[str] | None = None,
+    ) -> ClaudeSDKClient:
+        """Create a client for persistent routine sessions.
+
+        Resumes from session_id if provided (continuing the lineage),
+        else starts fresh. No fork_session — persistent sessions are
+        standalone lineages, not branches of the main session.
+        """
+        opts = self.options
+        if session_id:
+            opts = replace(opts, resume=session_id)
         if model:
             opts = replace(opts, model=model)
         thinking_tokens = 10000 if thinking else None

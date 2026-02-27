@@ -521,3 +521,19 @@ def test_schedule_includes_chain_info(monkeypatch):
     entries = build_upcoming_schedule([], reminders, current_id="other")
 
     assert "2/4" in entries[0].label
+
+
+# --- Persistent session preamble ---
+
+
+def test_bg_preamble_persistent_session_section():
+    preamble = build_bg_preamble([], persistent=True)
+
+    assert "persistent" in preamble.lower()
+    assert "compact_session" in preamble
+
+
+def test_bg_preamble_no_persistent_section_by_default():
+    preamble = build_bg_preamble([])
+
+    assert "compact_session" not in preamble
