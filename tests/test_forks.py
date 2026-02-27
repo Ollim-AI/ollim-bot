@@ -15,13 +15,17 @@ from ollim_bot.forks import (
     bg_reported,
     clear_pending_updates,
     get_bg_fork_config,
+    get_persistent_routine_id,
     idle_timeout,
     in_interactive_fork,
     init_bg_reported_flag,
+    init_compact_request,
     is_busy,
     is_idle,
+    is_persistent_active,
     mark_bg_reported,
     peek_pending_updates,
+    pop_compact_request,
     pop_enter_fork,
     pop_exit_action,
     pop_pending_updates,
@@ -30,8 +34,10 @@ from ollim_bot.forks import (
     run_agent_background,
     set_bg_fork_config,
     set_busy,
+    set_compact_request,
     set_exit_action,
     set_interactive_fork,
+    set_persistent_routine_id,
     set_prompted_at,
     should_auto_exit,
     touch_activity,
@@ -544,3 +550,38 @@ def test_bg_reported_flag_set_true():
     mark_bg_reported()
 
     assert bg_reported() is True
+
+
+# --- Persistent session contextvars ---
+
+
+def test_persistent_routine_id_default_none():
+    assert get_persistent_routine_id() is None
+
+
+def test_set_and_get_persistent_routine_id():
+    set_persistent_routine_id("routine-abc")
+
+    assert get_persistent_routine_id() == "routine-abc"
+
+    set_persistent_routine_id(None)
+
+    assert get_persistent_routine_id() is None
+
+
+def test_active_persistent_guard():
+    assert is_persistent_active("routine-abc") is False
+
+
+def test_compact_request_default_none():
+    init_compact_request()
+
+    assert pop_compact_request() is None
+
+
+def test_set_and_pop_compact_request():
+    init_compact_request()
+    set_compact_request("preserve key observations")
+
+    assert pop_compact_request() == "preserve key observations"
+    assert pop_compact_request() is None

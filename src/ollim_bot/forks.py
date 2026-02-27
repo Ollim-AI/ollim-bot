@@ -166,6 +166,62 @@ def bg_ping_count() -> int:
 
 
 # ---------------------------------------------------------------------------
+# Persistent session state — routine ID, compact request, skip guard
+# ---------------------------------------------------------------------------
+
+_persistent_routine_id_var: ContextVar[str | None] = ContextVar("_persistent_routine_id", default=None)
+
+
+def set_persistent_routine_id(routine_id: str | None) -> None:
+    _persistent_routine_id_var.set(routine_id)
+
+
+def get_persistent_routine_id() -> str | None:
+    return _persistent_routine_id_var.get()
+
+
+# Mutable container so mutations propagate across SDK's anyio task group.
+_compact_request_var: ContextVar[list[str | None] | None] = ContextVar("_compact_request", default=None)
+
+
+def init_compact_request() -> None:
+    """Call before client connect() so all child tasks share the mutable ref."""
+    _compact_request_var.set([None])
+
+
+def set_compact_request(instructions: str) -> None:
+    req = _compact_request_var.get()
+    if req is not None:
+        req[0] = instructions
+
+
+def pop_compact_request() -> str | None:
+    req = _compact_request_var.get()
+    if req is not None and req[0] is not None:
+        instructions = req[0]
+        req[0] = None
+        return instructions
+    return None
+
+
+# Skip guard — prevents same persistent routine from running concurrently.
+# Module-level set (not contextvar) because it tracks across tasks.
+_active_persistent: set[str] = set()
+
+
+def is_persistent_active(routine_id: str) -> bool:
+    return routine_id in _active_persistent
+
+
+def mark_persistent_active(routine_id: str) -> None:
+    _active_persistent.add(routine_id)
+
+
+def mark_persistent_inactive(routine_id: str) -> None:
+    _active_persistent.discard(routine_id)
+
+
+# ---------------------------------------------------------------------------
 # Pending updates (fork → main session bridge)
 # ---------------------------------------------------------------------------
 
