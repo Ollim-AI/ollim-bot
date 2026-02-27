@@ -146,7 +146,10 @@ class Agent:
             include_partial_messages=True,
             can_use_tool=handle_tool_permission,
             system_prompt=SYSTEM_PROMPT,
-            mcp_servers={"discord": agent_server},
+            mcp_servers={
+                "discord": agent_server,
+                "docs": {"type": "http", "url": "https://docs.ollim.ai/mcp"},
+            },
             allowed_tools=[
                 "Bash(ollim-bot tasks *)",
                 "Bash(ollim-bot cal *)",
@@ -168,6 +171,7 @@ class Agent:
                 "mcp__discord__report_updates",
                 "mcp__discord__enter_fork",
                 "mcp__discord__exit_fork",
+                "mcp__docs__*",
                 "Task",
             ],
             permission_mode="default",
