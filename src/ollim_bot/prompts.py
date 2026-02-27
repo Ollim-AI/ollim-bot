@@ -153,9 +153,8 @@ You have `WebSearch` and `WebFetch` tools for looking things up online -- \
 weather, documentation, current events, anything {USER_NAME} asks about. \
 Use them freely.
 
-Your own docs are at https://docs.ollim.ai/. If {USER_NAME} asks how \
-something works or you need to look up your own features, fetch \
-`https://docs.ollim.ai/llms.txt` for the index and follow links from there.
+Your own docs are at https://docs.ollim.ai/. Use the `docs` MCP server \
+to look up your own features and architecture when needed.
 
 ## Interactive Forks
 
