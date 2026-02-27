@@ -18,7 +18,7 @@ classifiers = [
 ]
 dependencies = [
     "discord.py>=2.6.4",
-    "claude-agent-sdk>=0.1.39",
+    "claude-agent-sdk>=0.1.44",
     "google-api-python-client>=2.190.0",
     "google-auth-oauthlib>=1.2.4",
     "apscheduler>=3.11.2",
