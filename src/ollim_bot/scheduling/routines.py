@@ -26,10 +26,18 @@ class Routine:
     allow_ping: bool = True
     allowed_tools: list[str] | None = None
     disallowed_tools: list[str] | None = None
+    session: str | None = None
 
     def __post_init__(self) -> None:
         if self.allowed_tools is not None and self.disallowed_tools is not None:
             raise ValueError("Cannot specify both allowed_tools and disallowed_tools")
+        if self.session is not None:
+            if self.session != "persistent":
+                raise ValueError(f"Invalid session mode: {self.session!r} (must be 'persistent')")
+            if not self.background:
+                raise ValueError("session: persistent requires background: true")
+            if self.isolated:
+                raise ValueError("session: persistent and isolated: true are mutually exclusive")
 
     @staticmethod
     def new(
@@ -45,6 +53,7 @@ class Routine:
         allow_ping: bool = True,
         allowed_tools: list[str] | None = None,
         disallowed_tools: list[str] | None = None,
+        session: str | None = None,
     ) -> "Routine":
         return Routine(
             id=uuid4().hex[:8],
@@ -59,6 +68,7 @@ class Routine:
             allow_ping=allow_ping,
             allowed_tools=allowed_tools,
             disallowed_tools=disallowed_tools,
+            session=session,
         )
 
 
