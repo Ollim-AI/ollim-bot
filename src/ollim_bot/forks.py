@@ -24,6 +24,7 @@ BG_FORK_TIMEOUT = 1800  # 30 minutes
 
 if TYPE_CHECKING:
     import discord
+    from claude_agent_sdk import ClaudeSDKClient
 
     from ollim_bot.agent import Agent
 
@@ -408,19 +409,40 @@ async def run_agent_background(
         async with asyncio.timeout(BG_FORK_TIMEOUT):
             allowed = bg_config.allowed_tools if bg_config else None
             blocked = bg_config.disallowed_tools if bg_config else None
-            if isolated:
-                client = await agent.create_isolated_client(
-                    model=model,
-                    thinking=thinking,
-                    allowed_tools=allowed,
-                    disallowed_tools=blocked,
-                )
-            else:
-                client = await agent.create_forked_client(
-                    thinking=thinking,
-                    allowed_tools=allowed,
-                    disallowed_tools=blocked,
-                )
+            client: ClaudeSDKClient | None = None
+            backoffs = (5, 15)
+            for attempt in range(1 + len(backoffs)):
+                try:
+                    if isolated:
+                        client = await agent.create_isolated_client(
+                            model=model,
+                            thinking=thinking,
+                            allowed_tools=allowed,
+                            disallowed_tools=blocked,
+                        )
+                    else:
+                        client = await agent.create_forked_client(
+                            thinking=thinking,
+                            allowed_tools=allowed,
+                            disallowed_tools=blocked,
+                        )
+                    break
+                except Exception as exc:
+                    if "Control request timeout" not in str(exc):
+                        raise
+                    if attempt < len(backoffs):
+                        delay = backoffs[attempt]
+                        log.warning(
+                            "bg fork init timeout (attempt %d/%d), retrying in %ds: %s",
+                            attempt + 1,
+                            1 + len(backoffs),
+                            delay,
+                            tag,
+                        )
+                        await asyncio.sleep(delay)
+                    else:
+                        raise
+            assert client is not None
             try:
                 fork_session_id = await agent.run_on_client(client, prompt, prepend_updates=not isolated)
                 log_session_event(
