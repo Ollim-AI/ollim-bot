@@ -8,6 +8,7 @@ from claude_agent_sdk.types import HookContext, HookInput, StopHookInput
 from ollim_bot import ping_budget
 from ollim_bot.agent_tools import (
     ChainContext,
+    compact_session,
     discord_embed,
     enter_fork,
     exit_fork,
@@ -23,6 +24,8 @@ from ollim_bot.forks import (
     BgForkConfig,
     ForkExitAction,
     init_bg_ping_count,
+    init_compact_request,
+    pop_compact_request,
     pop_enter_fork,
     pop_exit_action,
     pop_pending_updates,
@@ -30,6 +33,7 @@ from ollim_bot.forks import (
     set_busy,
     set_in_fork,
     set_interactive_fork,
+    set_persistent_routine_id,
 )
 
 # @tool decorator wraps the function in SdkMcpTool; .handler is the raw async fn
@@ -40,6 +44,7 @@ _enter = enter_fork.handler
 _exit = exit_fork.handler
 _ping = ping_user.handler
 _embed = discord_embed.handler
+_compact = compact_session.handler
 
 
 class _FakeMessage:
@@ -832,3 +837,26 @@ def test_ping_limit_not_checked_on_main_or_interactive_fork(data_dir):
     assert second["content"][0]["text"] == "Embed sent."
     assert len(ch.messages) == 2
     set_channel(None)
+
+
+# --- compact_session ---
+
+
+def test_compact_session_blocked_outside_persistent():
+    set_persistent_routine_id(None)
+
+    result = _run(_compact({"instructions": "preserve everything"}))
+
+    assert "Error" in result["content"][0]["text"]
+    assert "persistent routine" in result["content"][0]["text"]
+
+
+def test_compact_session_sets_request():
+    set_persistent_routine_id("routine-abc")
+    init_compact_request()
+
+    result = _run(_compact({"instructions": "preserve price levels"}))
+
+    assert "scheduled" in result["content"][0]["text"].lower()
+    assert pop_compact_request() == "preserve price levels"
+    set_persistent_routine_id(None)
