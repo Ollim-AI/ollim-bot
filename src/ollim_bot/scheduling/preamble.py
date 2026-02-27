@@ -198,6 +198,7 @@ def build_bg_preamble(
     *,
     busy: bool = False,
     bg_config: BgForkConfig | None = None,
+    persistent: bool = False,
 ) -> str:
     """Build BG_PREAMBLE with budget status, schedule, and config."""
     now = datetime.now(TZ)
@@ -322,7 +323,14 @@ def build_bg_preamble(
     else:
         tools_section = ""
 
-    return f"{ping_section}{update_section}{busy_line}{budget_section}{tools_section}"
+    persistent_section = (
+        "SESSION: Persistent — your context carries across fires. "
+        "You have a `compact_session` tool to compress context when it grows large.\n\n"
+        if persistent
+        else ""
+    )
+
+    return f"{persistent_section}{ping_section}{update_section}{busy_line}{budget_section}{tools_section}"
 
 
 def build_routine_prompt(
@@ -332,10 +340,11 @@ def build_routine_prompt(
     routines: list[Routine],
     busy: bool = False,
     bg_config: BgForkConfig | None = None,
+    persistent: bool = False,
 ) -> str:
     if routine.background:
         schedule = build_upcoming_schedule(routines, reminders, current_id=routine.id)
-        preamble = build_bg_preamble(schedule, busy=busy, bg_config=bg_config)
+        preamble = build_bg_preamble(schedule, busy=busy, bg_config=bg_config, persistent=persistent)
         return f"[routine-bg:{routine.id}] {preamble}{routine.message}"
     return f"[routine:{routine.id}] {routine.message}"
 
