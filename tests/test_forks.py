@@ -24,6 +24,8 @@ from ollim_bot.forks import (
     is_idle,
     is_persistent_active,
     mark_bg_reported,
+    mark_persistent_active,
+    mark_persistent_inactive,
     peek_pending_updates,
     pop_compact_request,
     pop_enter_fork,
@@ -41,6 +43,10 @@ from ollim_bot.forks import (
     set_prompted_at,
     should_auto_exit,
     touch_activity,
+)
+from ollim_bot.sessions import (
+    load_persistent_session,
+    save_persistent_session,
 )
 
 # --- Pending updates ---
@@ -585,3 +591,139 @@ def test_set_and_pop_compact_request():
 
     assert pop_compact_request() == "preserve key observations"
     assert pop_compact_request() is None
+
+
+# --- Persistent session in run_agent_background ---
+
+
+def test_bg_fork_persistent_saves_session_id(monkeypatch, data_dir):
+    """Persistent mode saves returned session ID to routine session file."""
+    owner = AsyncMock()
+    owner.create_dm = AsyncMock(return_value=AsyncMock())
+
+    agent = AsyncMock()
+    agent.lock = MagicMock(return_value=asyncio.Lock())
+
+    client = AsyncMock()
+    agent.create_persistent_client = AsyncMock(return_value=client)
+    agent.run_on_client = AsyncMock(return_value="persistent-session-123")
+
+    _run(
+        run_agent_background(
+            owner,
+            agent,
+            "[routine-bg:test] do stuff",
+            persistent_routine_id="routine-abc",
+        )
+    )
+
+    assert load_persistent_session("routine-abc") == "persistent-session-123"
+    agent.create_persistent_client.assert_awaited_once()
+    client.disconnect.assert_awaited()
+
+
+def test_bg_fork_persistent_resumes_existing_session(monkeypatch, data_dir):
+    """Persistent mode resumes from stored session ID."""
+    save_persistent_session("routine-abc", "existing-session-456")
+
+    owner = AsyncMock()
+    owner.create_dm = AsyncMock(return_value=AsyncMock())
+
+    agent = AsyncMock()
+    agent.lock = MagicMock(return_value=asyncio.Lock())
+
+    client = AsyncMock()
+    agent.create_persistent_client = AsyncMock(return_value=client)
+    agent.run_on_client = AsyncMock(return_value="new-session-789")
+
+    _run(
+        run_agent_background(
+            owner,
+            agent,
+            "[routine-bg:test] do stuff",
+            persistent_session_id="existing-session-456",
+            persistent_routine_id="routine-abc",
+        )
+    )
+
+    # Should pass existing session to create_persistent_client
+    call_kwargs = agent.create_persistent_client.call_args
+    assert call_kwargs[0][0] == "existing-session-456"
+    # Should save new session ID
+    assert load_persistent_session("routine-abc") == "new-session-789"
+
+
+def test_bg_fork_persistent_skip_guard(monkeypatch, data_dir):
+    """Second fire of same persistent routine is skipped."""
+    mark_persistent_active("routine-abc")
+
+    owner = AsyncMock()
+    owner.create_dm = AsyncMock(return_value=AsyncMock())
+
+    agent = AsyncMock()
+    agent.lock = MagicMock(return_value=asyncio.Lock())
+
+    _run(
+        run_agent_background(
+            owner,
+            agent,
+            "[routine-bg:test] do stuff",
+            persistent_routine_id="routine-abc",
+        )
+    )
+
+    # Should not have created any client
+    agent.create_persistent_client.assert_not_awaited()
+    agent.create_forked_client.assert_not_awaited()
+    agent.create_isolated_client.assert_not_awaited()
+
+    mark_persistent_inactive("routine-abc")
+
+
+def test_bg_fork_persistent_deferred_compact(monkeypatch, data_dir):
+    """When compact_session was called, compaction runs after agent finishes."""
+    from claude_agent_sdk import ResultMessage
+
+    owner = AsyncMock()
+    owner.create_dm = AsyncMock(return_value=AsyncMock())
+
+    agent = AsyncMock()
+    agent.lock = MagicMock(return_value=asyncio.Lock())
+
+    client = AsyncMock()
+    agent.create_persistent_client = AsyncMock(return_value=client)
+
+    async def fake_run(c, prompt, **kwargs):
+        # Simulate agent calling compact_session tool mid-run
+        set_compact_request("preserve price levels")
+        return "pre-compact-session"
+
+    agent.run_on_client = AsyncMock(side_effect=fake_run)
+
+    async def fake_receive():
+        yield ResultMessage(
+            subtype="result",
+            session_id="post-compact-session",
+            result="Compacted.",
+            num_turns=5,
+            duration_ms=1000,
+            duration_api_ms=800,
+            is_error=False,
+            total_cost_usd=0.0,
+        )
+
+    client.receive_response = fake_receive
+
+    _run(
+        run_agent_background(
+            owner,
+            agent,
+            "[routine-bg:test] do stuff",
+            persistent_routine_id="routine-abc",
+        )
+    )
+
+    # Compact should have been called on the client
+    client.query.assert_awaited_with("/compact preserve price levels")
+    # Session ID should be the post-compact one
+    assert load_persistent_session("routine-abc") == "post-compact-session"

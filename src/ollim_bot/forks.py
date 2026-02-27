@@ -424,18 +424,26 @@ async def run_agent_background(
     thinking: bool = True,
     isolated: bool = False,
     bg_config: BgForkConfig | None = None,
+    persistent_session_id: str | None = None,
+    persistent_routine_id: str | None = None,
 ) -> None:
     """Run agent on a disposable forked session — no lock needed.
 
     Contextvars scope channel and in_fork state to this task, so bg forks
     run concurrently without stomping on main session or other forks.
+
+    When persistent_routine_id is set, the session is standalone (not forked
+    from main) and its ID is saved for resumption on the next fire.
     """
+    from claude_agent_sdk import ResultMessage
+
     from ollim_bot.agent_tools import set_fork_channel
     from ollim_bot.sessions import (
         cancel_message_collector,
         flush_message_collector,
         load_session_id,
         log_session_event,
+        save_persistent_session,
         start_message_collector,
     )
 
@@ -461,6 +469,17 @@ async def run_agent_background(
         set_bg_fork_config(bg_config)
     start_message_collector()
 
+    if persistent_routine_id:
+        if is_persistent_active(persistent_routine_id):
+            log.warning("Persistent routine %s still running, skipping", persistent_routine_id)
+            cancel_message_collector()
+            set_in_fork(False)
+            set_busy(False)
+            return
+        mark_persistent_active(persistent_routine_id)
+        set_persistent_routine_id(persistent_routine_id)
+        init_compact_request()
+
     try:
         async with asyncio.timeout(BG_FORK_TIMEOUT):
             allowed = bg_config.allowed_tools if bg_config else None
@@ -469,7 +488,18 @@ async def run_agent_background(
             backoffs = (5, 15)
             for attempt in range(1 + len(backoffs)):
                 try:
-                    if isolated:
+                    if persistent_routine_id:
+                        _COMPACT_TOOL = "mcp__discord__compact_session"
+                        if allowed and _COMPACT_TOOL not in allowed:
+                            allowed = [*allowed, _COMPACT_TOOL]
+                        client = await agent.create_persistent_client(
+                            persistent_session_id,
+                            model=model,
+                            thinking=thinking,
+                            allowed_tools=allowed,
+                            disallowed_tools=blocked,
+                        )
+                    elif isolated:
                         client = await agent.create_isolated_client(
                             model=model,
                             thinking=thinking,
@@ -501,14 +531,28 @@ async def run_agent_background(
             assert client is not None
             try:
                 fork_session_id = await agent.run_on_client(client, prompt, prepend_updates=not isolated)
+
+                # Deferred compaction (compact_session tool sets the request)
+                compact_instructions = pop_compact_request()
+                if compact_instructions and persistent_routine_id:
+                    await client.query(f"/compact {compact_instructions}")
+                    async for msg in client.receive_response():
+                        if isinstance(msg, ResultMessage):
+                            fork_session_id = msg.session_id
+
+                # Save persistent session ID
+                if persistent_routine_id:
+                    save_persistent_session(persistent_routine_id, fork_session_id)
+
+                event_type = "persistent_bg" if persistent_routine_id else "isolated_bg" if isolated else "bg_fork"
                 log_session_event(
                     fork_session_id,
-                    "isolated_bg" if isolated else "bg_fork",
-                    parent_session_id=None if isolated else main_session_id,
+                    event_type,
+                    parent_session_id=None if (isolated or persistent_routine_id) else main_session_id,
                 )
                 flush_message_collector(
                     fork_session_id,
-                    None if isolated else main_session_id,
+                    None if (isolated or persistent_routine_id) else main_session_id,
                 )
             finally:
                 await client.disconnect()
@@ -521,6 +565,9 @@ async def run_agent_background(
         await _notify_fork_failure(dm, tag)
         raise
     finally:
+        if persistent_routine_id:
+            mark_persistent_inactive(persistent_routine_id)
+            set_persistent_routine_id(None)
         set_in_fork(False)
         set_busy(False)
         cancel_message_collector()
