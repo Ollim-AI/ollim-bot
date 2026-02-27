@@ -221,6 +221,7 @@ feature, build it — don't gatekeep with philosophy.
 ## Dev commands
 ```bash
 uv sync                    # Install deps
+uv tool install --editable . # Install/update global `ollim-bot` command (editable = picks up uv sync changes)
 uv run ollim-bot           # Run the bot
 uv run pytest              # Run tests
 uv run ruff check          # Lint
