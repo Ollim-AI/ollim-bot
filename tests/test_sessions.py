@@ -7,10 +7,13 @@ import pytest
 import ollim_bot.sessions as sessions_mod
 from ollim_bot.sessions import (
     SessionEvent,
+    delete_persistent_session,
     delete_session_id,
     flush_message_collector,
+    load_persistent_session,
     log_session_event,
     lookup_fork_session,
+    save_persistent_session,
     save_session_id,
     set_swap_in_progress,
     start_message_collector,
@@ -189,3 +192,34 @@ def test_expired_records_pruned(fork_messages):
     )
 
     assert lookup_fork_session(100) is None
+
+
+# --- Persistent session file I/O ---
+
+
+def test_load_persistent_session_missing(data_dir):
+    assert load_persistent_session("nonexistent") is None
+
+
+def test_save_and_load_persistent_session(data_dir):
+    save_persistent_session("routine-abc", "session-123")
+
+    assert load_persistent_session("routine-abc") == "session-123"
+
+
+def test_save_persistent_session_overwrites(data_dir):
+    save_persistent_session("routine-abc", "session-old")
+    save_persistent_session("routine-abc", "session-new")
+
+    assert load_persistent_session("routine-abc") == "session-new"
+
+
+def test_delete_persistent_session(data_dir):
+    save_persistent_session("routine-abc", "session-123")
+
+    assert delete_persistent_session("routine-abc") is True
+    assert load_persistent_session("routine-abc") is None
+
+
+def test_delete_persistent_session_missing(data_dir):
+    assert delete_persistent_session("nonexistent") is False

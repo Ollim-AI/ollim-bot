@@ -23,6 +23,7 @@ SessionEventType = Literal[
     "interactive_fork",
     "bg_fork",
     "isolated_bg",
+    "persistent_bg",
 ]
 
 
@@ -188,3 +189,36 @@ def _write_fork_messages(records: list[_ForkMessageRecord]) -> None:
     finally:
         os.close(fd)
     os.replace(tmp, FORK_MESSAGES_FILE)
+
+
+# ---------------------------------------------------------------------------
+# Persistent routine sessions — one session ID file per routine
+# ---------------------------------------------------------------------------
+
+ROUTINE_SESSIONS_DIR = STATE_DIR / "routine_sessions"
+
+
+def load_persistent_session(routine_id: str) -> str | None:
+    path = ROUTINE_SESSIONS_DIR / routine_id
+    if not path.exists():
+        return None
+    text = path.read_text().strip()
+    return text or None
+
+
+def save_persistent_session(routine_id: str, session_id: str) -> None:
+    ROUTINE_SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=ROUTINE_SESSIONS_DIR, suffix=".tmp")
+    try:
+        os.write(fd, session_id.encode())
+    finally:
+        os.close(fd)
+    os.replace(tmp, ROUTINE_SESSIONS_DIR / routine_id)
+
+
+def delete_persistent_session(routine_id: str) -> bool:
+    path = ROUTINE_SESSIONS_DIR / routine_id
+    if path.exists():
+        path.unlink()
+        return True
+    return False
