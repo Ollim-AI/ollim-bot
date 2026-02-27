@@ -33,15 +33,14 @@ Requires Python 3.11+ and [uv](https://docs.astral.sh/uv/).
 ```bash
 git clone https://github.com/Ollim-AI/ollim-bot.git
 cd ollim-bot
-uv sync
 uv tool install --editable .
 uv tool install claude-history@git+https://github.com/Ollim-AI/claude-history.git
 ```
 
 The `--editable` install makes `ollim-bot` available as a global command that
-tracks your local source. The last command installs
-[claude-history](https://github.com/Ollim-AI/claude-history) globally — a CLI
-tool the bot's subagents use to review conversation history.
+tracks your local source.
+[claude-history](https://github.com/Ollim-AI/claude-history) is a CLI tool the
+bot's subagents use to review conversation history.
 
 Create a `.env` file:
 
@@ -54,7 +53,7 @@ OLLIM_BOT_NAME=Ollim
 Run:
 
 ```bash
-uv run ollim-bot
+ollim-bot
 ```
 
 See the [setup guide](https://docs.ollim.ai/getting-started/setup) for
@@ -63,8 +62,7 @@ Discord bot creation, Google OAuth, and webhook configuration.
 ## Development
 
 ```bash
-uv sync               # Install dependencies
-uv run ollim-bot      # Run the bot
+uv sync               # Install dev environment
 uv run pytest         # Run tests
 uv run ruff check     # Lint
 uv run ruff format    # Format
