@@ -7,11 +7,13 @@ import contextlib
 import time
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass
-from typing import Literal
+from typing import Any, Literal
 
 import discord
 
 from ollim_bot.forks import enter_fork_requested
+from ollim_bot.formatting import format_tool_label
+from ollim_bot.permissions import pop_denial
 from ollim_bot.sessions import track_message
 
 # Discord allows ~5 edits per 5 seconds per channel.  0.5s gives a
@@ -31,6 +33,70 @@ class StreamStatus:
 
     kind: Literal["thinking_start", "tool_start", "phase_end"]
     label: str = ""
+
+
+class StreamParser:
+    """Stateful parser: Anthropic SSE event dicts → text deltas + StreamStatus signals."""
+
+    def __init__(self) -> None:
+        self._tool_name: str | None = None
+        self._tool_input_buf = ""
+        self._status_active = False
+        self._pending_label: str | None = None
+
+    async def feed(self, event: dict[str, Any]) -> AsyncGenerator[str | StreamStatus, None]:
+        """Process one SSE event dict."""
+        etype = event.get("type")
+
+        if etype == "content_block_start":
+            block = event["content_block"]
+            async for item in self._drain():
+                yield item
+            if block["type"] == "thinking":
+                yield StreamStatus(kind="thinking_start")
+                self._status_active = True
+            elif block["type"] == "tool_use":
+                self._tool_name = block["name"]
+                self._tool_input_buf = ""
+
+        elif etype == "content_block_delta":
+            delta = event["delta"]
+            if delta.get("type") == "input_json_delta":
+                self._tool_input_buf += delta.get("partial_json", "")
+            elif text := delta.get("text", ""):
+                async for item in self._drain():
+                    yield item
+                yield text
+
+        elif etype == "content_block_stop":
+            if self._tool_name is not None:
+                label = format_tool_label(self._tool_name, self._tool_input_buf)
+                yield StreamStatus(kind="tool_start", label=label)
+                self._status_active = True
+                self._pending_label = label
+                self._tool_name = None
+            elif self._status_active:
+                self._status_active = False
+                yield StreamStatus(kind="phase_end")
+
+    async def drain(self) -> AsyncGenerator[str | StreamStatus, None]:
+        """Flush any active status phase. Call after the stream ends."""
+        async for item in self._drain():
+            yield item
+
+    async def _drain(self) -> AsyncGenerator[str | StreamStatus, None]:
+        if not self._status_active:
+            return
+        self._status_active = False
+        denied = pop_denial()
+        yield StreamStatus(kind="phase_end")
+        if self._pending_label is not None:
+            label = self._pending_label
+            self._pending_label = None
+            if denied:
+                yield f"\n-# *~~{label}~~ — denied*\n"
+            else:
+                yield f"\n-# *{label}*\n"
 
 
 async def stream_to_channel(
