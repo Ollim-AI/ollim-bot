@@ -1,12 +1,21 @@
 """Entry point for ollim-bot."""
 
+from __future__ import annotations
+
 import asyncio
 import atexit
+import contextlib
+import logging
 import os
+import signal
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from dotenv import load_dotenv
+
+if TYPE_CHECKING:
+    from discord.ext.commands import Bot
 
 from ollim_bot.storage import DATA_DIR, STATE_DIR
 
@@ -97,6 +106,52 @@ def _dispatch_subcommand() -> bool:
     return False
 
 
+log = logging.getLogger(__name__)
+
+
+async def _notify_exit(bot: Bot, reason: str) -> None:
+    """Best-effort DM to owner before the process exits."""
+    from ollim_bot.bot import get_owner_id
+
+    owner_id = get_owner_id()
+    if not owner_id or bot.is_closed():
+        return
+    with contextlib.suppress(Exception):
+        user = bot.get_user(owner_id) or await bot.fetch_user(owner_id)
+        dm = await user.create_dm()
+        await dm.send(f"shutting down: {reason[:200]}")
+
+
+async def _run(bot: Bot, token: str) -> None:
+    """Run the bot, DM the owner on unexpected exits."""
+    loop = asyncio.get_running_loop()
+    _background_tasks: set[asyncio.Task[None]] = set()
+
+    def _on_signal(sig_name: str) -> None:
+        async def _shutdown() -> None:
+            await _notify_exit(bot, f"received {sig_name}")
+            if not bot.is_closed():
+                await bot.close()
+
+        task = loop.create_task(_shutdown())
+        _background_tasks.add(task)
+        task.add_done_callback(_background_tasks.discard)
+
+    loop.add_signal_handler(signal.SIGTERM, _on_signal, "SIGTERM")
+    loop.add_signal_handler(signal.SIGINT, _on_signal, "SIGINT")
+
+    try:
+        await bot.start(token)
+    except asyncio.CancelledError:
+        pass  # Signal handler already notified and closed
+    except Exception as e:
+        await _notify_exit(bot, f"{type(e).__name__}: {e}")
+        raise
+    finally:
+        if not bot.is_closed():
+            await bot.close()
+
+
 def main() -> None:
     if _dispatch_subcommand():
         return
@@ -114,7 +169,7 @@ def main() -> None:
     from ollim_bot.bot import create_bot
 
     bot = create_bot()
-    asyncio.run(bot.start(token))
+    asyncio.run(_run(bot, token))
 
 
 if __name__ == "__main__":

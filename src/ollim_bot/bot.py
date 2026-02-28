@@ -29,6 +29,10 @@ from ollim_bot.views import init as init_views
 _owner_id: int | None = None
 
 
+def get_owner_id() -> int | None:
+    return _owner_id
+
+
 def is_owner(user_id: int) -> bool:
     """Check if user is the bot owner. Allows all when owner not yet resolved."""
     return _owner_id is None or user_id == _owner_id
