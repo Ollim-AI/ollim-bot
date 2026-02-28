@@ -13,6 +13,8 @@ Core beliefs, in priority order:
    how well it understands you right now. Every design decision should ask: does
    this improve or degrade contextual understanding? Autonomy, features, and
    integrations are secondary — their ceiling is the agent's context quality.
+   Corollary: wrong information is much worse than missing information — it
+   cascades into bad decisions. Prefer asking for clarification over assuming.
 2. **Proactive over reactive** — the bot reaches out, not the other way around.
    ADHD means forgetting to check is the problem, so features that wait to be
    invoked solve nothing. Default to push.
@@ -37,12 +39,27 @@ Feature selection:
 These guide your own design proposals. When the user explicitly requests a
 feature, build it — don't gatekeep with philosophy.
 
+## Directory layout
+
+Two separate trees — never mix them:
+
+| Path | Purpose | Git repo? |
+|------|---------|-----------|
+| This repo | Source code | yes |
+| `~/.ollim-bot/` (`DATA_DIR`) | Agent working data (routines, reminders, webhooks, state) | yes (auto-committed) |
+
+`DATA_DIR` subdivisions:
+- `routines/`, `reminders/`, `webhooks/` — agent-managed markdown files
+- `state/` (`STATE_DIR`) — code-only infrastructure (sessions, ping budget, inquiries, tokens)
+
+Never write working data into the source repo or source code into `~/.ollim-bot/`.
+
 ## Architecture
 - `bot.py` -- Discord interface (DMs, @mentions, slash commands, reaction ack, interrupt-on-new-message)
 - `agent.py` -- Claude Agent SDK brain (persistent sessions, MCP tools, subagents, slash command routing)
 - `main.py` -- CLI entry point and command router (`ollim-bot` dispatches to bot, routines, reminders, tasks, cal, gmail)
 - `prompts.py` -- System prompt for the main agent and fork prompt helpers
-- `subagent_prompts.py` -- System prompts for subagents (gmail-reader, history-reviewer, responsiveness-reviewer)
+- `subagent_prompts.py` -- System prompts for subagents (gmail-reader, history-reviewer, responsiveness-reviewer, user-proxy)
 - `agent_tools.py` -- MCP tools: `discord_embed`, `ping_user`, `follow_up_chain`, `save_context`, `report_updates`, `enter_fork`, `exit_fork`
 - `webhook.py` -- Webhook HTTP server for external triggers (aiohttp, auth, validation, Haiku screening, dispatch)
 - `forks.py` -- Fork state (bg + interactive), pending updates I/O, `run_agent_background`, `send_agent_dm`
@@ -74,7 +91,7 @@ feature, build it — don't gatekeep with philosophy.
 - Single `ClaudeSDKClient` for persistent conversation with auto-compaction (single-user bot)
 - No `setting_sources` -- all config is in code (no CLAUDE.md, skills, or settings.json loaded)
 - `permission_mode="default"` -- SDK default; whitelisted tools auto-approved, others routed through `permissions.py`
-- Subagents defined programmatically via `AgentDefinition`: gmail-reader, history-reviewer, responsiveness-reviewer
+- Subagents defined programmatically via `AgentDefinition`: gmail-reader, history-reviewer, responsiveness-reviewer, user-proxy
 - Tool instructions (tasks, cal, routines, reminders, embeds) inlined in SYSTEM_PROMPT; history delegated to subagent
 - `ResultMessage.result` is a fallback — don't double-count with `AssistantMessage` text blocks
 - `include_partial_messages=True` -- enables `StreamEvent` for real-time streaming
@@ -104,7 +121,7 @@ feature, build it — don't gatekeep with philosophy.
 - `discord_embed` MCP tool via `create_sdk_mcp_server` — Claude controls when to send embeds
 - Channel reference stored in module-level `_channel` (agent_tools.py), set before each stream_chat()
 - Button actions encoded in `custom_id`: `act:<action>:<data>` pattern
-- Direct actions (task_done, task_del, event_del): call google/ API helpers directly, ephemeral response
+- Direct actions (task_done, task_del, event_del, dismiss): call google/ API helpers directly or delete message, ephemeral response
 - Agent inquiry (agent:<uuid>): stored prompts, route back through agent via views.py
 - Fork actions (fork_save, fork_report, fork_exit): exit interactive fork with chosen strategy
 - `DynamicItem[Button]` for persistent buttons across restarts
@@ -129,7 +146,7 @@ feature, build it — don't gatekeep with philosophy.
 - Webhook specs: `~/.ollim-bot/webhooks/<slug>.md` (YAML frontmatter + markdown prompt template)
 - `fields` in YAML: JSON Schema validated with `jsonschema` library
 - Auth: Bearer token from `WEBHOOK_SECRET` env var, constant-time comparison
-- Payload: only declared fields accepted; `additionalProperties: false` enforced
+- Payload: validated against declared `fields` schema via `Draft7Validator` (additional properties accepted unless spec author sets `additionalProperties: false`)
 - 4-layer input security: JSON Schema validation, content fencing in prompt, Haiku screening of strings, operational limits (10KB payload, 500-char default maxLength, 20 properties max)
 - Lifecycle: opt-in via `WEBHOOK_PORT` + `WEBHOOK_SECRET` in `.env`; starts in `on_ready` after scheduler; binds to `127.0.0.1`
 - Dispatch: `asyncio.create_task(run_agent_background(...))` — same bg fork path as scheduler jobs
@@ -138,7 +155,7 @@ feature, build it — don't gatekeep with philosophy.
 
 ## Session history
 - `~/.ollim-bot/state/session_history.jsonl` -- append-only log of session lifecycle events
-- Events: `created`, `compacted`, `swapped`, `cleared`, `interactive_fork`, `bg_fork`
+- Events: `created`, `compacted`, `swapped`, `cleared`, `interactive_fork`, `bg_fork`, `isolated_bg`
 - `save_session_id()` auto-detects `created` (no prior ID) and `compacted` (ID changed)
 - `_swap_in_progress` flag prevents `save_session_id()` from logging `compacted` during `swap_client()`
 - Fork session IDs captured from first `StreamEvent` (interactive) or `ResultMessage` (bg)
