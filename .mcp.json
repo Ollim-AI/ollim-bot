@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "ollim-docs": {
+      "type": "http",
+      "url": "https://docs.ollim.ai/mcp"
+    }
+  }
+}
