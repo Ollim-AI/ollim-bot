@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import time
 from collections.abc import AsyncGenerator
+from dataclasses import dataclass
+from typing import Literal
 
 import discord
 
@@ -18,18 +21,26 @@ EDIT_INTERVAL = 0.5
 # chunk of text instead of showing a single token like "I".
 FIRST_FLUSH_DELAY = 0.2
 MAX_MSG_LEN = 2000
+# Seconds between timer ticks on the status message (e.g. "Thinking... (3s)").
+STATUS_TICK = 3.0
+
+
+@dataclass(frozen=True)
+class StreamStatus:
+    """Phase-transition signal from stream_chat to stream_to_channel."""
+
+    kind: Literal["thinking_start", "tool_start", "phase_end"]
+    label: str = ""
 
 
 async def stream_to_channel(
     channel: discord.abc.Messageable,
-    deltas: AsyncGenerator[str, None],
+    deltas: AsyncGenerator[str | StreamStatus, None],
 ) -> None:
     """Consume text deltas and stream them into a Discord channel.
 
-    A background task edits the message at a fixed interval, so
-    updates appear even during pauses (e.g. tool execution).
-    Overflow (>2000 chars) finalizes the current message and starts
-    a new one.
+    StreamStatus events control an ephemeral status message that shows
+    live timers during thinking and tool execution phases.
     """
     buf = ""
     msg: discord.Message | None = None
@@ -37,7 +48,43 @@ async def stream_to_channel(
     stale = False  # True when buf has unflushed content
     stop = asyncio.Event()
 
-    async def flush():
+    # Status line state -------------------------------------------------------
+    status_msg: discord.Message | None = None
+    status_label: str | None = None  # None = no active status
+    status_start: float = 0.0
+    status_last_edit: float = 0.0
+
+    def _status_text() -> str:
+        secs = int(time.monotonic() - status_start)
+        label = status_label or "Thinking"
+        if secs < STATUS_TICK:
+            return f"-# *{label}...*"
+        return f"-# *{label}... ({secs}s)*"
+
+    async def _set_status(label: str) -> None:
+        nonlocal status_msg, status_label, status_start, status_last_edit
+        status_label = label or "Thinking"
+        now = time.monotonic()
+        status_start = now
+        status_last_edit = now
+        text = _status_text()
+        if status_msg is None:
+            status_msg = await channel.send(text)
+        else:
+            with contextlib.suppress(discord.NotFound, discord.HTTPException):
+                await status_msg.edit(content=text)
+
+    async def _clear_status() -> None:
+        nonlocal status_msg, status_label
+        if status_msg is not None:
+            with contextlib.suppress(discord.NotFound, discord.HTTPException):
+                await status_msg.delete()
+            status_msg = None
+        status_label = None
+
+    # Response message management ----------------------------------------------
+
+    async def flush() -> None:
         nonlocal msg, msg_start, stale
         chunk = buf[msg_start:]
         if not chunk or not stale:
@@ -47,13 +94,9 @@ async def stream_to_channel(
             track_message(msg.id)
         else:
             await msg.edit(content=chunk[:MAX_MSG_LEN])
-        # Only overflow when the snapshot itself exceeded the limit.
-        # If chunk < MAX_MSG_LEN, the message isn't full yet -- new text
-        # that arrived during the await will be picked up by the next flush.
         if len(chunk) <= MAX_MSG_LEN:
             stale = False
             return
-        # Overflow: finalize current message, start new ones
         while len(buf) - msg_start > MAX_MSG_LEN:
             msg_start += MAX_MSG_LEN
             remaining = buf[msg_start:]
@@ -63,11 +106,11 @@ async def stream_to_channel(
         stale = False
 
     async def _wait(seconds: float) -> None:
-        """Sleep that can be interrupted by the stop event."""
         with contextlib.suppress(asyncio.TimeoutError):
             await asyncio.wait_for(stop.wait(), timeout=seconds)
 
-    async def editor():
+    async def editor() -> None:
+        nonlocal status_last_edit
         await _wait(FIRST_FLUSH_DELAY)
         if stop.is_set():
             return
@@ -76,21 +119,36 @@ async def stream_to_channel(
             await _wait(EDIT_INTERVAL)
             if stop.is_set():
                 return
-            if stale:
+            now = time.monotonic()
+            if status_label is not None and status_msg is not None and now - status_last_edit >= STATUS_TICK:
+                status_last_edit = now
+                with contextlib.suppress(discord.NotFound, discord.HTTPException):
+                    await status_msg.edit(content=_status_text())
+            elif stale:
                 await flush()
             elif msg is not None:
-                # No new content but response isn't done -- show typing
-                # during pauses (e.g. tool execution).
                 await channel.typing()
 
     task = asyncio.create_task(editor())
     try:
-        async for text in deltas:
-            buf += text
-            stale = True
+        async for item in deltas:
+            if isinstance(item, StreamStatus):
+                if item.kind == "thinking_start":
+                    await _set_status("")
+                elif item.kind == "tool_start":
+                    await _set_status(item.label)
+                else:  # phase_end
+                    await _clear_status()
+            else:
+                if status_label is not None:
+                    await _clear_status()
+                buf += item
+                stale = True
     finally:
         stop.set()
         await task
+
+    await _clear_status()
 
     stale = True
     await flush()

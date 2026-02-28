@@ -36,6 +36,7 @@ from ollim_bot.formatting import format_tool_label
 from ollim_bot.permissions import (
     cancel_pending,
     handle_tool_permission,
+    pop_denial,
 )
 from ollim_bot.permissions import (
     reset as reset_permissions,
@@ -50,6 +51,7 @@ from ollim_bot.sessions import (
     set_swap_in_progress,
 )
 from ollim_bot.storage import DATA_DIR
+from ollim_bot.streamer import StreamStatus
 from ollim_bot.subagent_prompts import (
     GMAIL_READER_PROMPT,
     HISTORY_REVIEWER_PROMPT,
@@ -485,8 +487,8 @@ class Agent:
         message: str,
         *,
         images: list[dict[str, str]] | None = None,
-    ) -> AsyncGenerator[str, None]:
-        """Yield text deltas, emitting ``-# *Tool(args)*`` markers on tool use.
+    ) -> AsyncGenerator[str | StreamStatus, None]:
+        """Yield text deltas and StreamStatus signals for live progress display.
 
         Falls back to AssistantMessage text blocks if no StreamEvent arrives,
         then to ResultMessage.result. Saves session ID on completion.
@@ -535,6 +537,29 @@ class Agent:
         tool_name: str | None = None
         tool_input_buf = ""
         fork_interrupted = False
+        status_active = False
+        pending_label: str | None = None
+
+        def _drain_status() -> AsyncGenerator[str | StreamStatus, None]:
+            """Yield phase_end + pending tool label if a status phase is active."""
+            # Called at content_block_start and text delta to clear the prior phase.
+            # Returns an async generator for use with ``async for ... in``.
+            return _drain_status_impl()
+
+        async def _drain_status_impl() -> AsyncGenerator[str | StreamStatus, None]:
+            nonlocal status_active, pending_label
+            if not status_active:
+                return
+            status_active = False
+            denied = pop_denial()
+            yield StreamStatus(kind="phase_end")
+            if pending_label is not None:
+                lbl = pending_label
+                pending_label = None
+                if denied:
+                    yield f"\n-# *~~{lbl}~~ — denied*\n"
+                else:
+                    yield f"\n-# *{lbl}*\n"
 
         try:
             async for msg in client.receive_response():
@@ -564,7 +589,14 @@ class Agent:
 
                     if etype == "content_block_start":
                         block = event["content_block"]
-                        if block["type"] == "tool_use":
+                        async for sig in _drain_status():
+                            streamed = True
+                            yield sig
+                        if block["type"] == "thinking":
+                            streamed = True
+                            yield StreamStatus(kind="thinking_start")
+                            status_active = True
+                        elif block["type"] == "tool_use":
                             tool_name = block["name"]
                             tool_input_buf = ""
 
@@ -573,6 +605,9 @@ class Agent:
                         if delta.get("type") == "input_json_delta":
                             tool_input_buf += delta.get("partial_json", "")
                         elif text := delta.get("text", ""):
+                            async for sig in _drain_status():
+                                streamed = True
+                                yield sig
                             streamed = True
                             yield text
 
@@ -580,8 +615,15 @@ class Agent:
                         if tool_name is not None:
                             label = format_tool_label(tool_name, tool_input_buf)
                             streamed = True
-                            yield f"\n-# *{label}*\n"
+                            yield StreamStatus(kind="tool_start", label=label)
+                            status_active = True
+                            pending_label = label
                             tool_name = None
+                        elif status_active:
+                            # Thinking block ended without tool/text following
+                            status_active = False
+                            streamed = True
+                            yield StreamStatus(kind="phase_end")
 
                 elif isinstance(msg, AssistantMessage) and not streamed:
                     for block in msg.content:
@@ -598,6 +640,11 @@ class Agent:
         except CLIConnectionError:
             if not fork_interrupted:
                 raise
+
+        # Drain any active status (e.g. tool as last action in a pure-tool turn)
+        async for sig in _drain_status():
+            streamed = True
+            yield sig
 
         if not streamed:
             if fallback_parts:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import contextvars
 import json
 import logging
 from typing import Any, NamedTuple
@@ -28,6 +29,7 @@ log = logging.getLogger(__name__)
 _channel: discord.abc.Messageable | None = None
 _session_allowed: set[str] = set()
 _dont_ask: bool = True
+_last_denied: contextvars.ContextVar[bool] = contextvars.ContextVar("_last_denied", default=False)
 
 # Emoji constants
 APPROVE = "\N{WHITE HEAVY CHECK MARK}"
@@ -50,6 +52,14 @@ def dont_ask() -> bool:
 def set_dont_ask(value: bool) -> None:
     global _dont_ask
     _dont_ask = value
+
+
+def pop_denial() -> bool:
+    """Return True (once) if the last canUseTool call was a denial."""
+    if _last_denied.get():
+        _last_denied.set(False)
+        return True
+    return False
 
 
 def set_channel(channel: discord.abc.Messageable | None) -> None:
@@ -175,5 +185,9 @@ async def handle_tool_permission(
     if _dont_ask:
         if is_session_allowed(tool_name):
             return PermissionResultAllow()
+        _last_denied.set(True)
         return PermissionResultDeny(message=f"{tool_name} is not allowed")
-    return await request_approval(tool_name, input_data)
+    result = await request_approval(tool_name, input_data)
+    if isinstance(result, PermissionResultDeny):
+        _last_denied.set(True)
+    return result
