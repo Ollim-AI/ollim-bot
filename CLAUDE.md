@@ -92,6 +92,7 @@ Never write working data into the source repo or source code into `~/.ollim-bot/
 - No `setting_sources` -- all config is in code (no CLAUDE.md, skills, or settings.json loaded)
 - `permission_mode="default"` -- SDK default; whitelisted tools auto-approved, others routed through `permissions.py`
 - Subagents defined programmatically via `AgentDefinition`: gmail-reader, history-reviewer, responsiveness-reviewer, user-proxy
+- Two MCP servers: `discord` (agent_tools.py — 7 tools) and `docs` (remote, `docs.ollim.ai/mcp` — self-referencing documentation)
 - Tool instructions (tasks, cal, routines, reminders, embeds) inlined in SYSTEM_PROMPT; history delegated to subagent
 - `ResultMessage.result` is a fallback — don't double-count with `AssistantMessage` text blocks
 - `include_partial_messages=True` -- enables `StreamEvent` for real-time streaming
@@ -239,6 +240,7 @@ Never write working data into the source repo or source code into `~/.ollim-bot/
 ```bash
 uv sync                    # Install deps
 uv tool install --editable . # Install/update global `ollim-bot` command (editable = picks up uv sync changes)
+uv tool install <path-to-claude-history> # Required by history-reviewer subagent (separate repo)
 uv run ollim-bot           # Run the bot
 uv run pytest              # Run tests
 uv run ruff check          # Lint
@@ -280,6 +282,9 @@ When rules conflict, follow this priority:
 
 ## Plan mode
 Before proposing the plan (ExitPlanMode), load the `python-principles` skill and re-review the plan to ensure it introduces no new violations.
+
+## Documentation
+- `SearchOllimBot` MCP tool — search `docs.ollim.ai` for architecture, conventions, and integration patterns. Use for "how does X work" or "how to add Y" questions; use code exploration for implementation details and debugging.
 
 ## Useful skills
 - `/context-engineering-principles` -- LLM context pipelines, prompt design, information flow
