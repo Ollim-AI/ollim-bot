@@ -54,6 +54,7 @@ from ollim_bot.subagent_prompts import (
     GMAIL_READER_PROMPT,
     HISTORY_REVIEWER_PROMPT,
     RESPONSIVENESS_REVIEWER_PROMPT,
+    USER_PROXY_PROMPT,
 )
 
 log = logging.getLogger(__name__)
@@ -198,6 +199,17 @@ class Agent:
                         "Bash(ollim-bot reminder *)",
                     ],
                     model="sonnet",
+                ),
+                "user-proxy": AgentDefinition(
+                    description=(
+                        "User preference proxy. Answers 'what would the user do?' "
+                        "by reading identity/preference files, routines, reminders, "
+                        "and searching conversation history for past corrections. "
+                        "Returns answer + reasoning + confidence (HIGH/MEDIUM/LOW)."
+                    ),
+                    prompt=USER_PROXY_PROMPT,
+                    tools=["Read(**.md)", "Glob(**.md)", "Bash(claude-history *)"],
+                    model="haiku",
                 ),
             },
         )
