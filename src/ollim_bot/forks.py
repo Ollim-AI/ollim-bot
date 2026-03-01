@@ -6,8 +6,6 @@ import asyncio
 import contextlib
 import json
 import logging
-import os
-import tempfile
 import time
 from contextvars import ContextVar
 from dataclasses import dataclass
@@ -17,7 +15,7 @@ from typing import TYPE_CHECKING, NamedTuple
 
 from ollim_bot.channel import get_channel
 from ollim_bot.config import TZ
-from ollim_bot.storage import STATE_DIR
+from ollim_bot.storage import STATE_DIR, atomic_write
 
 log = logging.getLogger(__name__)
 
@@ -187,15 +185,9 @@ async def append_update(message: str) -> None:
     don't lose each other's updates.
     """
     async with _updates_lock:
-        _UPDATES_FILE.parent.mkdir(parents=True, exist_ok=True)
         updates = json.loads(_UPDATES_FILE.read_text()) if _UPDATES_FILE.exists() else []
         updates.append({"ts": datetime.now(_TZ).isoformat(), "message": message})
-        fd, tmp = tempfile.mkstemp(dir=_UPDATES_FILE.parent, suffix=".tmp")
-        try:
-            os.write(fd, json.dumps(updates).encode())
-        finally:
-            os.close(fd)
-        os.replace(tmp, _UPDATES_FILE)
+        atomic_write(_UPDATES_FILE, json.dumps(updates).encode())
         log.info("pending update appended (now %d): %.80s", len(updates), message)
 
 

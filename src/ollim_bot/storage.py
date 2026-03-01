@@ -22,6 +22,17 @@ T = TypeVar("T")
 log = logging.getLogger(__name__)
 
 
+def atomic_write(path: Path, data: bytes) -> None:
+    """Write data to path atomically via tempfile + os.replace."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
+    try:
+        os.write(fd, data)
+    finally:
+        os.close(fd)
+    os.replace(tmp, path)
+
+
 def _find_repo(filepath: Path) -> Path | None:
     """Walk up from filepath to find the nearest git repo root."""
     for parent in filepath.parents:
@@ -172,12 +183,7 @@ def write_md(dir_path: Path, item: T, commit_msg: str) -> None:
         counter += 1
 
     content = _serialize_md(item)
-    fd, tmp = tempfile.mkstemp(dir=dir_path, suffix=".tmp")
-    try:
-        os.write(fd, content.encode())
-    finally:
-        os.close(fd)
-    os.replace(tmp, target)
+    atomic_write(target, content.encode())
     git_commit(target, commit_msg)
 
 
@@ -226,11 +232,6 @@ def remove_jsonl(filepath: Path, item_id: str, cls: type[T], commit_msg: str) ->
     if len(filtered) == len(items):
         return False
     content = "".join(json.dumps(asdict(i)) + "\n" for i in filtered)  # type: ignore[call-overload]
-    fd, tmp = tempfile.mkstemp(dir=filepath.parent, suffix=".tmp")
-    try:
-        os.write(fd, content.encode())
-    finally:
-        os.close(fd)
-    os.replace(tmp, filepath)
+    atomic_write(filepath, content.encode())
     git_commit(filepath, commit_msg)
     return True
