@@ -17,6 +17,7 @@ from claude_agent_sdk.types import (
     ToolPermissionContext,
 )
 
+from ollim_bot.channel import get_channel
 from ollim_bot.forks import in_bg_fork
 from ollim_bot.formatting import format_tool_label
 
@@ -26,7 +27,6 @@ log = logging.getLogger(__name__)
 # State
 # ---------------------------------------------------------------------------
 
-_channel: Any = None
 _session_allowed: set[str] = set()
 _dont_ask: bool = True
 _last_denied: contextvars.ContextVar[bool] = contextvars.ContextVar("_last_denied", default=False)
@@ -60,12 +60,6 @@ def pop_denial() -> bool:
         _last_denied.set(False)
         return True
     return False
-
-
-def set_channel(channel: object) -> None:
-    """Set channel global — called internally by agent_tools.set_channel."""
-    global _channel
-    _channel = channel
 
 
 # ---------------------------------------------------------------------------
@@ -125,8 +119,8 @@ async def request_approval(tool_name: str, input_data: dict[str, Any]) -> Permis
     if is_session_allowed(tool_name):
         return PermissionResultAllow()
 
-    channel = _channel
-    assert channel is not None, "permissions.set_channel() not called before approval"
+    channel = get_channel()
+    assert channel is not None, "channel.init_channel() not called before approval"
 
     label = format_tool_label(tool_name, json.dumps(input_data))
 

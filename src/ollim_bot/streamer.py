@@ -105,13 +105,9 @@ async def stream_to_channel(
 ) -> None:
     """Consume text deltas and stream them into a Discord channel.
 
-    Sets the channel for agent_tools and permissions before streaming,
-    so callers can never forget. StreamStatus events control an ephemeral
-    status message that shows live timers during thinking and tool execution.
+    StreamStatus events control an ephemeral status message that shows
+    live timers during thinking and tool execution.
     """
-    from ollim_bot.agent_tools import set_channel
-
-    set_channel(channel)
     buf = ""
     msg: discord.Message | None = None
     msg_start = 0  # index into buf where the current message begins

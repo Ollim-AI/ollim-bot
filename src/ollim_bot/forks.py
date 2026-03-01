@@ -374,7 +374,6 @@ async def run_agent_background(
     Contextvars scope channel and in_fork state to this task, so bg forks
     run concurrently without stomping on main session or other forks.
     """
-    from ollim_bot.agent_tools import set_fork_channel
     from ollim_bot.sessions import (
         cancel_message_collector,
         flush_message_collector,
@@ -391,7 +390,6 @@ async def run_agent_background(
     log.info("bg fork started: %s", tag)
 
     dm = await owner.create_dm()
-    set_fork_channel(dm)
     main_session_id = load_session_id()
     # CRITICAL: set_in_fork(True) and set_busy() must precede
     # create_forked_client() so the contextvars propagate through the SDK's
