@@ -21,7 +21,7 @@ from ollim_bot.channel import init_channel
 from ollim_bot.forks import (
     BgForkConfig,
     ForkExitAction,
-    init_bg_ping_count,
+    init_bg_tracking,
     pop_enter_fork,
     pop_exit_action,
     pop_pending_updates,
@@ -315,6 +315,7 @@ def test_ping_user_prefixed_in_bg_fork(data_dir):
     ch = InMemoryChannel()
     init_channel(ch)
     set_in_fork(True)
+    init_bg_tracking()
 
     result = _run(_ping({"message": "check your tasks"}))
 
@@ -342,6 +343,7 @@ def test_embed_footer_bg_fork(data_dir):
     ch = InMemoryChannel()
     init_channel(ch)
     set_in_fork(True)
+    init_bg_tracking()
 
     _run(_embed({"title": "Tasks"}))
 
@@ -365,50 +367,56 @@ def test_embed_footer_interactive_fork(data_dir):
 
 
 def test_bg_output_flag_set_on_ping(data_dir):
-    from ollim_bot.forks import bg_output_sent, init_bg_output_flag
+    from ollim_bot.forks import get_bg_tracking
 
     ch = InMemoryChannel()
     init_channel(ch)
     set_in_fork(True)
-    init_bg_output_flag()
+    init_bg_tracking()
 
     async def _check():
         await _ping({"message": "test"})
-        return bg_output_sent()
+        t = get_bg_tracking()
+        assert t is not None
+        return t.output_sent
 
     assert _run(_check()) is True
     set_in_fork(False)
 
 
 def test_bg_output_flag_set_on_embed(data_dir):
-    from ollim_bot.forks import bg_output_sent, init_bg_output_flag
+    from ollim_bot.forks import get_bg_tracking
 
     ch = InMemoryChannel()
     init_channel(ch)
     set_in_fork(True)
-    init_bg_output_flag()
+    init_bg_tracking()
 
     async def _check():
         await _embed({"title": "Test"})
-        return bg_output_sent()
+        t = get_bg_tracking()
+        assert t is not None
+        return t.output_sent
 
     assert _run(_check()) is True
     set_in_fork(False)
 
 
 def test_bg_output_flag_cleared_on_report(data_dir):
-    from ollim_bot.forks import bg_output_sent, init_bg_output_flag
+    from ollim_bot.forks import get_bg_tracking
 
     ch = InMemoryChannel()
     init_channel(ch)
     _run(pop_pending_updates())
     set_in_fork(True)
-    init_bg_output_flag()
+    init_bg_tracking()
 
     async def _check():
         await _ping({"message": "test"})
         await _report({"message": "summary"})
-        return bg_output_sent()
+        t = get_bg_tracking()
+        assert t is not None
+        return t.output_sent
 
     assert _run(_check()) is False
     set_in_fork(False)
@@ -426,10 +434,9 @@ def test_stop_hook_allows_normal_stop():
 
 def test_stop_hook_allows_bg_stop_without_output():
     from ollim_bot.agent_tools import require_report_hook
-    from ollim_bot.forks import init_bg_output_flag
 
     set_in_fork(True)
-    init_bg_output_flag()
+    init_bg_tracking()
 
     result = _run(require_report_hook(_STOP_INPUT, None, _STOP_CTX))
 
@@ -439,12 +446,11 @@ def test_stop_hook_allows_bg_stop_without_output():
 
 def test_stop_hook_blocks_bg_stop_with_unreported_output(data_dir):
     from ollim_bot.agent_tools import require_report_hook
-    from ollim_bot.forks import init_bg_output_flag
 
     ch = InMemoryChannel()
     init_channel(ch)
     set_in_fork(True)
-    init_bg_output_flag()
+    init_bg_tracking()
 
     async def _check():
         await _ping({"message": "test"})
@@ -679,11 +685,9 @@ def test_report_updates_blocked_when_update_blocked(data_dir):
 
 def test_stop_hook_blocks_on_always_without_report():
     from ollim_bot.agent_tools import require_report_hook
-    from ollim_bot.forks import init_bg_output_flag, init_bg_reported_flag
 
     set_in_fork(True)
-    init_bg_output_flag()
-    init_bg_reported_flag()
+    init_bg_tracking()
     set_bg_fork_config(BgForkConfig(update_main_session="always"))
 
     result = _run(require_report_hook(_STOP_INPUT, None, _STOP_CTX))
@@ -695,16 +699,13 @@ def test_stop_hook_blocks_on_always_without_report():
 
 def test_stop_hook_allows_on_always_with_report():
     from ollim_bot.agent_tools import require_report_hook
-    from ollim_bot.forks import (
-        init_bg_output_flag,
-        init_bg_reported_flag,
-        mark_bg_reported,
-    )
+    from ollim_bot.forks import get_bg_tracking
 
     set_in_fork(True)
-    init_bg_output_flag()
-    init_bg_reported_flag()
-    mark_bg_reported()
+    init_bg_tracking()
+    t = get_bg_tracking()
+    assert t is not None
+    t.reported = True
     set_bg_fork_config(BgForkConfig(update_main_session="always"))
 
     result = _run(require_report_hook(_STOP_INPUT, None, _STOP_CTX))
@@ -716,12 +717,11 @@ def test_stop_hook_allows_on_always_with_report():
 
 def test_stop_hook_allows_on_freely_with_unreported_output(data_dir):
     from ollim_bot.agent_tools import require_report_hook
-    from ollim_bot.forks import init_bg_output_flag
 
     ch = InMemoryChannel()
     init_channel(ch)
     set_in_fork(True)
-    init_bg_output_flag()
+    init_bg_tracking()
     set_bg_fork_config(BgForkConfig(update_main_session="freely"))
 
     async def _check():
@@ -737,10 +737,9 @@ def test_stop_hook_allows_on_freely_with_unreported_output(data_dir):
 
 def test_stop_hook_allows_on_blocked():
     from ollim_bot.agent_tools import require_report_hook
-    from ollim_bot.forks import init_bg_output_flag
 
     set_in_fork(True)
-    init_bg_output_flag()
+    init_bg_tracking()
     set_bg_fork_config(BgForkConfig(update_main_session="blocked"))
 
     result = _run(require_report_hook(_STOP_INPUT, None, _STOP_CTX))
@@ -757,7 +756,7 @@ def test_second_ping_user_blocked_in_bg_fork(data_dir):
     ch = InMemoryChannel()
     init_channel(ch)
     set_in_fork(True)
-    init_bg_ping_count()
+    init_bg_tracking()
 
     async def _check():
         first = await _ping({"message": "first"})
@@ -776,7 +775,7 @@ def test_second_embed_blocked_in_bg_fork(data_dir):
     ch = InMemoryChannel()
     init_channel(ch)
     set_in_fork(True)
-    init_bg_ping_count()
+    init_bg_tracking()
 
     async def _check():
         first = await _embed({"title": "First"})
@@ -795,7 +794,7 @@ def test_critical_bypasses_ping_limit_in_bg_fork(data_dir):
     ch = InMemoryChannel()
     init_channel(ch)
     set_in_fork(True)
-    init_bg_ping_count()
+    init_bg_tracking()
 
     async def _check():
         first = await _ping({"message": "first"})

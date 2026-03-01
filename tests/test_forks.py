@@ -12,15 +12,14 @@ from ollim_bot.forks import (
     BgForkConfig,
     ForkExitAction,
     append_update,
-    bg_reported,
     clear_pending_updates,
     get_bg_fork_config,
+    get_bg_tracking,
     idle_timeout,
     in_interactive_fork,
-    init_bg_reported_flag,
+    init_bg_tracking,
     is_busy,
     is_idle,
-    mark_bg_reported,
     peek_pending_updates,
     pop_enter_fork,
     pop_exit_action,
@@ -527,17 +526,29 @@ def test_bg_fork_config_both_tools_raises():
         )
 
 
-# --- Reported flag ---
+# --- BgForkTracking ---
 
 
-def test_bg_reported_flag_default_false():
-    init_bg_reported_flag()
+def test_bg_tracking_defaults():
+    init_bg_tracking()
+    t = get_bg_tracking()
+    assert t is not None
 
-    assert bg_reported() is False
+    assert t.output_sent is False
+    assert t.reported is False
+    assert t.ping_count == 0
 
 
-def test_bg_reported_flag_set_true():
-    init_bg_reported_flag()
-    mark_bg_reported()
+def test_bg_tracking_mutations():
+    init_bg_tracking()
+    t = get_bg_tracking()
+    assert t is not None
+    t.reported = True
+    t.output_sent = True
+    t.ping_count += 1
 
-    assert bg_reported() is True
+    t2 = get_bg_tracking()
+    assert t2 is not None
+    assert t2.reported is True
+    assert t2.output_sent is True
+    assert t2.ping_count == 1
