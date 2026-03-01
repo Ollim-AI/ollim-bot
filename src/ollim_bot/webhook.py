@@ -198,7 +198,6 @@ async def _default_process(
         allow_ping=spec.allow_ping,
     )
     await run_agent_background(
-        owner,
         agent,
         prompt,
         model=spec.model,

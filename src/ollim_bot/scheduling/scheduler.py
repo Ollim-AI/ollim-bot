@@ -103,7 +103,6 @@ def _register_routine(
         try:
             if routine.background:
                 await run_agent_background(
-                    owner,
                     agent,
                     prompt,
                     model=routine.model,
@@ -187,7 +186,6 @@ def _register_reminder(
                 if chain_ctx:
                     set_fork_chain_context(chain_ctx)
                 await run_agent_background(
-                    owner,
                     agent,
                     prompt,
                     model=reminder.model,
