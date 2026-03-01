@@ -480,6 +480,33 @@ class Agent:
             self._client = client
         return self._client
 
+    async def _resolve_client(self, message: str) -> tuple[ClaudeSDKClient, str]:
+        """Pick the active client (fork or main) and prepend context."""
+        if self._fork_client is not None:
+            message = await _prepend_context(message, clear=False)
+            return self._fork_client, message
+        message = await _prepend_context(message)
+        client = await self._get_client()
+        return client, message
+
+    def _save_result_session(self, client: ClaudeSDKClient, msg: ResultMessage, *, log_fork_event: bool) -> None:
+        """Save session ID from a ResultMessage.
+
+        log_fork_event=True logs the interactive_fork event here (used by
+        non-streaming paths where no StreamEvent captures it first).
+        """
+        if self._fork_client is not None and client is self._fork_client:
+            if self._fork_session_id is None:
+                self._fork_session_id = msg.session_id
+                if log_fork_event:
+                    log_session_event(
+                        msg.session_id,
+                        "interactive_fork",
+                        parent_session_id=load_session_id(),
+                    )
+        elif self._client is client:
+            save_session_id(msg.session_id)
+
     async def stream_chat(
         self,
         message: str,
@@ -491,12 +518,7 @@ class Agent:
         Falls back to AssistantMessage text blocks if no StreamEvent arrives,
         then to ResultMessage.result. Saves session ID on completion.
         """
-        if self._fork_client is not None:
-            client = self._fork_client
-            message = await _prepend_context(message, clear=False)
-        else:
-            message = await _prepend_context(message)
-            client = await self._get_client()
+        client, message = await self._resolve_client(message)
 
         if images:
             # SDK has no ImageBlock type -- images go through the raw
@@ -569,11 +591,7 @@ class Agent:
                 elif isinstance(msg, ResultMessage):
                     if msg.result:
                         result_text = msg.result
-                    if self._fork_client is not None and client is self._fork_client:
-                        if self._fork_session_id is None:
-                            self._fork_session_id = msg.session_id
-                    elif self._client is client:
-                        save_session_id(msg.session_id)
+                    self._save_result_session(client, msg, log_fork_event=False)
         except CLIConnectionError:
             if not fork_interrupted:
                 raise
@@ -588,44 +606,3 @@ class Agent:
                 yield "\n".join(fallback_parts)
             elif result_text:
                 yield result_text
-
-    async def chat(self, message: str) -> str:
-        """Non-streaming counterpart of stream_chat; accumulates full response.
-
-        Falls back to ResultMessage.result when no AssistantMessage text blocks
-        are found.
-        """
-        if self._fork_client is not None:
-            client = self._fork_client
-            message = await _prepend_context(message, clear=False)
-        else:
-            message = await _prepend_context(message)
-            client = await self._get_client()
-        await client.query(message)
-
-        parts: list[str] = []
-        result_text: str | None = None
-        async for msg in client.receive_response():
-            if isinstance(msg, AssistantMessage):
-                for block in msg.content:
-                    if isinstance(block, TextBlock):
-                        parts.append(block.text)
-            elif isinstance(msg, ResultMessage):
-                if msg.result:
-                    result_text = msg.result
-                if self._fork_client is not None and client is self._fork_client:
-                    if self._fork_session_id is None:
-                        self._fork_session_id = msg.session_id
-                        log_session_event(
-                            msg.session_id,
-                            "interactive_fork",
-                            parent_session_id=load_session_id(),
-                        )
-                elif self._client is client:
-                    save_session_id(msg.session_id)
-
-        # result is a summary Claude writes when it has no assistant turn (e.g. pure tool runs)
-        if not parts and result_text:
-            parts.append(result_text)
-
-        return "\n".join(parts) or "hmm, I didn't have a response for that."
