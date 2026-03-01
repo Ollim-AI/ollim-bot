@@ -15,6 +15,7 @@ from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, NamedTuple
 
+from ollim_bot.channel import get_channel
 from ollim_bot.config import TZ
 from ollim_bot.storage import STATE_DIR
 
@@ -371,8 +372,8 @@ async def run_agent_background(
 ) -> None:
     """Run agent on a disposable forked session — no lock needed.
 
-    Contextvars scope channel and in_fork state to this task, so bg forks
-    run concurrently without stomping on main session or other forks.
+    Contextvars scope in_fork state to this task, so bg forks run
+    concurrently without stomping on main session or other forks.
     """
     from ollim_bot.sessions import (
         cancel_message_collector,
@@ -389,7 +390,7 @@ async def run_agent_background(
 
     log.info("bg fork started: %s", tag)
 
-    dm = await owner.create_dm()
+    dm = get_channel()
     main_session_id = load_session_id()
     # CRITICAL: set_in_fork(True) and set_busy() must precede
     # create_forked_client() so the contextvars propagate through the SDK's
@@ -476,7 +477,7 @@ async def send_agent_dm(
     """Inject a prompt into the agent session and stream the response as a DM."""
     from ollim_bot.streamer import stream_to_channel
 
-    dm = await owner.create_dm()
+    dm = get_channel()
     async with agent.lock():
         await dm.typing()
         await stream_to_channel(dm, agent.stream_chat(prompt))

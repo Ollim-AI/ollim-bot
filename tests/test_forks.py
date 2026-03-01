@@ -250,15 +250,14 @@ def test_bg_fork_timeout_constant():
 
 def test_bg_fork_timeout_cancels_and_notifies(monkeypatch, data_dir):
     """A bg fork that exceeds the timeout is cancelled and sends a DM alert."""
-    sent_messages: list[str] = []
+    from ollim_bot.channel import init_channel
 
-    async def fake_create_dm():
-        channel = AsyncMock()
-        channel.send = AsyncMock(side_effect=lambda msg, **kw: sent_messages.append(msg))
-        return channel
+    sent_messages: list[str] = []
+    channel = AsyncMock()
+    channel.send = AsyncMock(side_effect=lambda msg, **kw: sent_messages.append(msg))
+    init_channel(channel)
 
     owner = AsyncMock()
-    owner.create_dm = fake_create_dm
 
     agent = AsyncMock()
     agent.lock = MagicMock(return_value=asyncio.Lock())
@@ -422,10 +421,12 @@ def test_busy_contextvar_set_and_read():
 
 def test_bg_fork_sets_busy_when_lock_held(monkeypatch, data_dir):
     """When agent lock is held, the _busy contextvar is set during fork execution."""
+    from ollim_bot.channel import init_channel
+
+    init_channel(AsyncMock())
     observed_busy: list[bool] = []
 
     owner = AsyncMock()
-    owner.create_dm = AsyncMock(return_value=AsyncMock())
 
     agent = AsyncMock()
     lock = asyncio.Lock()
@@ -450,10 +451,12 @@ def test_bg_fork_sets_busy_when_lock_held(monkeypatch, data_dir):
 
 def test_bg_fork_not_busy_when_lock_free(monkeypatch, data_dir):
     """When agent lock is free, the _busy contextvar stays False."""
+    from ollim_bot.channel import init_channel
+
+    init_channel(AsyncMock())
     observed_busy: list[bool] = []
 
     owner = AsyncMock()
-    owner.create_dm = AsyncMock(return_value=AsyncMock())
 
     agent = AsyncMock()
     agent.lock = MagicMock(return_value=asyncio.Lock())
