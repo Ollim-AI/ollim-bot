@@ -66,11 +66,8 @@ Any in-flight stream sees `client is not self._client` at its next `await` and s
 
 New operations must choose a tier. The test: does this operation send a *conversation turn* through the client and stream the response (`stream_chat`, `slash`, `query` + `receive_response`)? If yes, it needs the lock. Does it tear down, reconfigure, or send a control command (model switch, permission change)? No lock — teardowns use the null-first protocol, and control commands are fire-and-forget settings the SDK handles safely mid-stream. Does it only read module-level state without touching the client (e.g., checking fork status, reading budget)? No lock needed — synchronous reads are atomic by the no-await rule.
 
-**Every interaction path sets channel before streaming.** *(hard rule)*
-`stream_to_channel` calls `agent_tools.set_channel` internally, which sets channel for both `agent_tools` and `permissions` — callers can't forget. If adding a new streaming path that bypasses `stream_to_channel`, ensure it calls `set_channel` first.
-
 **ContextVar before fork, global under lock.** *(hard rule)*
-Background forks use `ContextVar` for per-task isolation (channel, chain context, output tracking, message collection, in-fork flag). The main session uses module globals protected by `agent.lock()`. Where both regimes need access to the same logical state, the dual pattern applies: a module global for the main session and a ContextVar for bg forks, with the reader checking the contextvar first, falling back to the module global.
+Background forks use `ContextVar` for per-task isolation (chain context, output tracking, message collection, in-fork flag). The main session uses module globals protected by `agent.lock()`. Where both regimes need access to the same logical state, the dual pattern applies: a module global for the main session and a ContextVar for bg forks, with the reader checking the contextvar first, falling back to the module global. Note: channel is an exception — it's set once at startup via `channel.init_channel()` (single-user, DM-only bot), so it doesn't need the dual pattern.
 
 Set every contextvar *before* creating the forked client. The SDK spawns internal tasks that inherit the caller's context. If you set the contextvar after connecting, SDK callbacks won't see the fork's state. The background fork entry point in `forks.py` has a `CRITICAL` comment explaining this ordering — it is not optional.
 

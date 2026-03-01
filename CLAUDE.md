@@ -61,6 +61,7 @@ Never write working data into the source repo or source code into `~/.ollim-bot/
 - `prompts.py` -- System prompt for the main agent and fork prompt helpers
 - `subagent_prompts.py` -- System prompts for subagents (gmail-reader, history-reviewer, responsiveness-reviewer, user-proxy)
 - `agent_tools.py` -- MCP tools: `discord_embed`, `ping_user`, `follow_up_chain`, `save_context`, `report_updates`, `enter_fork`, `exit_fork`
+- `channel.py` -- DM channel reference, set once at startup (`init_channel`/`get_channel`)
 - `webhook.py` -- Webhook HTTP server for external triggers (aiohttp, auth, validation, Haiku screening, dispatch)
 - `forks.py` -- Fork state (bg + interactive), pending updates I/O, `run_agent_background`, `send_agent_dm`
 - `views.py` -- Persistent button handlers via `DynamicItem` (delegates to google/, forks, and streamer)
@@ -120,7 +121,7 @@ Never write working data into the source repo or source code into `~/.ollim-bot/
 
 ## Discord embeds & buttons
 - `discord_embed` MCP tool via `create_sdk_mcp_server` — Claude controls when to send embeds
-- Channel reference stored in module-level `_channel` (agent_tools.py), set before each stream_chat()
+- Channel set once at startup via `channel.init_channel()` in `on_ready`; MCP tools read via `channel.get_channel()`
 - Button actions encoded in `custom_id`: `act:<action>:<data>` pattern
 - Direct actions (task_done, task_del, event_del, dismiss): call google/ API helpers directly or delete message, ephemeral response
 - Agent inquiry (agent:<uuid>): stored prompts, route back through agent via views.py
