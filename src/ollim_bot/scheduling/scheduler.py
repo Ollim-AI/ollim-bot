@@ -37,13 +37,10 @@ from ollim_bot.forks import (
     should_auto_exit,
     touch_activity,
 )
-from ollim_bot.scheduling.preamble import (  # noqa: F401 — re-exported
-    ScheduleEntry,
+from ollim_bot.scheduling.preamble import (
     _convert_dow,
-    build_bg_preamble,
     build_reminder_prompt,
     build_routine_prompt,
-    build_upcoming_schedule,
 )
 from ollim_bot.scheduling.reminders import Reminder, list_reminders, remove_reminder
 from ollim_bot.scheduling.routines import Routine, list_routines
