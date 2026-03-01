@@ -45,9 +45,16 @@ _channel_var: ContextVar[Any] = ContextVar("_channel", default=None)
 
 
 def set_channel(channel: object) -> None:
-    """Set channel global — used by main session (protected by agent lock)."""
+    """Set channel for both agent_tools and permissions in one call.
+
+    Every interaction path must set channel before streaming — this function
+    makes that a single call so callers can't forget one module.
+    """
+    from ollim_bot import permissions
+
     global _channel
     _channel = channel
+    permissions.set_channel(channel)
 
 
 def set_fork_channel(channel: object) -> None:
