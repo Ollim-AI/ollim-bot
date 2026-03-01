@@ -117,7 +117,7 @@ def _register_routine(
                         "Routine %s: model/isolated only apply to background routines",
                         routine.id,
                     )
-                await send_agent_dm(owner, agent, prompt)
+                await send_agent_dm(agent, prompt)
         except Exception:
             log.exception("Routine %s failed", routine.id)
             raise
@@ -203,7 +203,7 @@ def _register_reminder(
                     )
                 if chain_ctx:
                     set_chain_context(chain_ctx)
-                await send_agent_dm(owner, agent, prompt)
+                await send_agent_dm(agent, prompt)
         except Exception:
             log.exception("Reminder %s failed", reminder.id)
             raise

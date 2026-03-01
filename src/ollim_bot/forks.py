@@ -470,7 +470,6 @@ async def run_agent_background(
 
 
 async def send_agent_dm(
-    owner: discord.User,
     agent: Agent,
     prompt: str,
 ) -> None:
