@@ -9,6 +9,7 @@ from claude_agent_sdk import create_sdk_mcp_server, tool
 from claude_agent_sdk.types import HookContext, HookInput, SyncHookJSONOutput
 
 from ollim_bot import ping_budget
+from ollim_bot.channel import get_channel
 from ollim_bot.config import USER_NAME
 from ollim_bot.embeds import (
     ButtonConfig,
@@ -37,34 +38,7 @@ from ollim_bot.forks import (
 from ollim_bot.sessions import track_message
 
 # ---------------------------------------------------------------------------
-# Channel reference — globals for main session, contextvars for bg forks
-# ---------------------------------------------------------------------------
-
-_channel: Any = None
-_channel_var: ContextVar[Any] = ContextVar("_channel", default=None)
-
-
-def set_channel(channel: object) -> None:
-    """Set channel for both agent_tools and permissions in one call.
-
-    Called by stream_to_channel — don't call directly from other modules.
-    Adding direct callers reintroduces the scattered-global problem this
-    consolidation was designed to prevent.
-    """
-    from ollim_bot import permissions
-
-    global _channel
-    _channel = channel
-    permissions.set_channel(channel)
-
-
-def set_fork_channel(channel: object) -> None:
-    """Set channel via contextvar — used by bg forks (no lock needed)."""
-    _channel_var.set(channel)
-
-
-# ---------------------------------------------------------------------------
-# Chain context — same dual pattern
+# Chain context — dual pattern (global for main session, contextvar for bg)
 # ---------------------------------------------------------------------------
 
 
@@ -206,7 +180,7 @@ def _check_bg_budget(args: dict[str, Any]) -> dict[str, Any] | None:
     },
 )
 async def discord_embed(args: dict[str, Any]) -> dict[str, Any]:
-    channel = _channel_var.get() or _channel
+    channel = get_channel()
     if channel is None:
         return {"content": [{"type": "text", "text": "Error: no active channel"}]}
 
@@ -283,7 +257,7 @@ async def ping_user(args: dict[str, Any]) -> dict[str, Any]:
         }
     if budget_error := _check_bg_budget(args):
         return budget_error
-    channel = _channel_var.get() or _channel
+    channel = get_channel()
     if channel is None:
         return {"content": [{"type": "text", "text": "Error: no active channel"}]}
 

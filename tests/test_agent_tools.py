@@ -16,9 +16,8 @@ from ollim_bot.agent_tools import (
     report_updates,
     save_context,
     set_chain_context,
-    set_channel,
-    set_fork_channel,
 )
+from ollim_bot.channel import init_channel
 from ollim_bot.forks import (
     BgForkConfig,
     ForkExitAction,
@@ -314,7 +313,7 @@ def test_ping_user_blocked_on_interactive_fork():
 
 def test_ping_user_prefixed_in_bg_fork(data_dir):
     ch = InMemoryChannel()
-    set_fork_channel(ch)
+    init_channel(ch)
     set_in_fork(True)
 
     result = _run(_ping({"message": "check your tasks"}))
@@ -329,20 +328,19 @@ def test_ping_user_prefixed_in_bg_fork(data_dir):
 
 def test_embed_no_footer_on_main():
     ch = InMemoryChannel()
-    set_fork_channel(None)  # clear contextvar from prior bg fork test
-    set_channel(ch)
+    init_channel(ch)
     set_in_fork(False)
     set_interactive_fork(False)
 
     _run(_embed({"title": "Tasks"}))
 
     assert ch.messages[0]["embed"].footer.text is None
-    set_channel(None)
+    init_channel(None)
 
 
 def test_embed_footer_bg_fork(data_dir):
     ch = InMemoryChannel()
-    set_fork_channel(ch)
+    init_channel(ch)
     set_in_fork(True)
 
     _run(_embed({"title": "Tasks"}))
@@ -353,15 +351,14 @@ def test_embed_footer_bg_fork(data_dir):
 
 def test_embed_footer_interactive_fork(data_dir):
     ch = InMemoryChannel()
-    set_fork_channel(None)  # clear contextvar from prior bg fork test
-    set_channel(ch)
+    init_channel(ch)
     set_interactive_fork(True, idle_timeout=10)
 
     _run(_embed({"title": "Tasks"}))
 
     assert ch.messages[0]["embed"].footer.text == "fork"
     set_interactive_fork(False)
-    set_channel(None)
+    init_channel(None)
 
 
 # --- bg output tracking + stop hook ---  # duplicate-ok (implementing from plan)
@@ -371,7 +368,7 @@ def test_bg_output_flag_set_on_ping(data_dir):
     from ollim_bot.forks import bg_output_sent, init_bg_output_flag
 
     ch = InMemoryChannel()
-    set_fork_channel(ch)
+    init_channel(ch)
     set_in_fork(True)
     init_bg_output_flag()
 
@@ -387,7 +384,7 @@ def test_bg_output_flag_set_on_embed(data_dir):
     from ollim_bot.forks import bg_output_sent, init_bg_output_flag
 
     ch = InMemoryChannel()
-    set_fork_channel(ch)
+    init_channel(ch)
     set_in_fork(True)
     init_bg_output_flag()
 
@@ -403,7 +400,7 @@ def test_bg_output_flag_cleared_on_report(data_dir):
     from ollim_bot.forks import bg_output_sent, init_bg_output_flag
 
     ch = InMemoryChannel()
-    set_fork_channel(ch)
+    init_channel(ch)
     _run(pop_pending_updates())
     set_in_fork(True)
     init_bg_output_flag()
@@ -445,7 +442,7 @@ def test_stop_hook_blocks_bg_stop_with_unreported_output(data_dir):
     from ollim_bot.forks import init_bg_output_flag
 
     ch = InMemoryChannel()
-    set_fork_channel(ch)
+    init_channel(ch)
     set_in_fork(True)
     init_bg_output_flag()
 
@@ -481,7 +478,7 @@ def _exhausted_budget() -> ping_budget.BudgetState:
 
 def test_ping_user_blocked_when_budget_exhausted(data_dir):
     ch = InMemoryChannel()
-    set_fork_channel(ch)
+    init_channel(ch)
     set_in_fork(True)
     ping_budget.save(_exhausted_budget())
 
@@ -494,7 +491,7 @@ def test_ping_user_blocked_when_budget_exhausted(data_dir):
 
 def test_ping_user_critical_bypasses_budget(data_dir):
     ch = InMemoryChannel()
-    set_fork_channel(ch)
+    init_channel(ch)
     set_in_fork(True)
     ping_budget.save(_exhausted_budget())
 
@@ -507,7 +504,7 @@ def test_ping_user_critical_bypasses_budget(data_dir):
 
 def test_embed_blocked_when_budget_exhausted_in_bg(data_dir):
     ch = InMemoryChannel()
-    set_fork_channel(ch)
+    init_channel(ch)
     set_in_fork(True)
     ping_budget.save(_exhausted_budget())
 
@@ -520,8 +517,8 @@ def test_embed_blocked_when_budget_exhausted_in_bg(data_dir):
 
 def test_embed_not_blocked_on_main_session(data_dir):
     ch = InMemoryChannel()
-    set_fork_channel(None)
-    set_channel(ch)
+    init_channel(None)
+    init_channel(ch)
     set_in_fork(False)
     set_interactive_fork(False)
     ping_budget.save(_exhausted_budget())
@@ -530,12 +527,12 @@ def test_embed_not_blocked_on_main_session(data_dir):
 
     assert result["content"][0]["text"] == "Embed sent."
     assert len(ch.messages) == 1
-    set_channel(None)
+    init_channel(None)
 
 
 def test_embed_critical_bypasses_budget_in_bg(data_dir):
     ch = InMemoryChannel()
-    set_fork_channel(ch)
+    init_channel(ch)
     set_in_fork(True)
     ping_budget.save(_exhausted_budget())
 
@@ -549,7 +546,7 @@ def test_embed_critical_bypasses_budget_in_bg(data_dir):
 
 def test_ping_user_decrements_budget(data_dir):
     ch = InMemoryChannel()
-    set_fork_channel(ch)
+    init_channel(ch)
     set_in_fork(True)
     ping_budget.load()  # ensure defaults (5 available)
 
@@ -564,7 +561,7 @@ def test_ping_user_decrements_budget(data_dir):
 
 def test_ping_user_blocked_when_busy():
     ch = InMemoryChannel()
-    set_fork_channel(ch)
+    init_channel(ch)
     set_in_fork(True)
     set_busy(True)
 
@@ -578,7 +575,7 @@ def test_ping_user_blocked_when_busy():
 
 def test_ping_user_critical_bypasses_busy(data_dir):
     ch = InMemoryChannel()
-    set_fork_channel(ch)
+    init_channel(ch)
     set_in_fork(True)
     set_busy(True)
 
@@ -592,7 +589,7 @@ def test_ping_user_critical_bypasses_busy(data_dir):
 
 def test_embed_blocked_when_busy():
     ch = InMemoryChannel()
-    set_fork_channel(ch)
+    init_channel(ch)
     set_in_fork(True)
     set_busy(True)
 
@@ -606,7 +603,7 @@ def test_embed_blocked_when_busy():
 
 def test_embed_critical_bypasses_busy(data_dir):
     ch = InMemoryChannel()
-    set_fork_channel(ch)
+    init_channel(ch)
     set_in_fork(True)
     set_busy(True)
 
@@ -623,7 +620,7 @@ def test_embed_critical_bypasses_busy(data_dir):
 
 def test_ping_user_blocked_when_allow_ping_false(data_dir):
     ch = InMemoryChannel()
-    set_fork_channel(ch)
+    init_channel(ch)
     set_in_fork(True)
     set_bg_fork_config(BgForkConfig(allow_ping=False))
 
@@ -637,7 +634,7 @@ def test_ping_user_blocked_when_allow_ping_false(data_dir):
 
 def test_embed_blocked_when_allow_ping_false(data_dir):
     ch = InMemoryChannel()
-    set_fork_channel(ch)
+    init_channel(ch)
     set_in_fork(True)
     set_bg_fork_config(BgForkConfig(allow_ping=False))
 
@@ -651,7 +648,7 @@ def test_embed_blocked_when_allow_ping_false(data_dir):
 
 def test_ping_user_critical_still_blocked_when_allow_ping_false(data_dir):
     ch = InMemoryChannel()
-    set_fork_channel(ch)
+    init_channel(ch)
     set_in_fork(True)
     set_bg_fork_config(BgForkConfig(allow_ping=False))
 
@@ -722,7 +719,7 @@ def test_stop_hook_allows_on_freely_with_unreported_output(data_dir):
     from ollim_bot.forks import init_bg_output_flag
 
     ch = InMemoryChannel()
-    set_fork_channel(ch)
+    init_channel(ch)
     set_in_fork(True)
     init_bg_output_flag()
     set_bg_fork_config(BgForkConfig(update_main_session="freely"))
@@ -758,7 +755,7 @@ def test_stop_hook_allows_on_blocked():
 
 def test_second_ping_user_blocked_in_bg_fork(data_dir):
     ch = InMemoryChannel()
-    set_fork_channel(ch)
+    init_channel(ch)
     set_in_fork(True)
     init_bg_ping_count()
 
@@ -777,7 +774,7 @@ def test_second_ping_user_blocked_in_bg_fork(data_dir):
 
 def test_second_embed_blocked_in_bg_fork(data_dir):
     ch = InMemoryChannel()
-    set_fork_channel(ch)
+    init_channel(ch)
     set_in_fork(True)
     init_bg_ping_count()
 
@@ -796,7 +793,7 @@ def test_second_embed_blocked_in_bg_fork(data_dir):
 
 def test_critical_bypasses_ping_limit_in_bg_fork(data_dir):
     ch = InMemoryChannel()
-    set_fork_channel(ch)
+    init_channel(ch)
     set_in_fork(True)
     init_bg_ping_count()
 
@@ -816,8 +813,8 @@ def test_critical_bypasses_ping_limit_in_bg_fork(data_dir):
 def test_ping_limit_not_checked_on_main_or_interactive_fork(data_dir):
     """Counter not initialized outside bg forks, so limit never triggers."""
     ch = InMemoryChannel()
-    set_fork_channel(None)
-    set_channel(ch)
+    init_channel(None)
+    init_channel(ch)
     set_in_fork(False)
     set_interactive_fork(False)
 
@@ -831,4 +828,4 @@ def test_ping_limit_not_checked_on_main_or_interactive_fork(data_dir):
     assert first["content"][0]["text"] == "Embed sent."
     assert second["content"][0]["text"] == "Embed sent."
     assert len(ch.messages) == 2
-    set_channel(None)
+    init_channel(None)

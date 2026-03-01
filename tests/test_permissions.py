@@ -181,11 +181,11 @@ def test_dont_ask_off_reaches_approval_flow():
     """When dontAsk is off and no channel set, hits the assertion (approval flow entered)."""
     reset()
     set_dont_ask(False)
-    from ollim_bot.permissions import set_channel
+    from ollim_bot.channel import init_channel
 
-    set_channel(None)
+    init_channel(None)
     try:
-        with pytest.raises(AssertionError, match="set_channel"):
+        with pytest.raises(AssertionError, match="init_channel"):
             _run(handle_tool_permission("Bash", {"command": "ls"}, ToolPermissionContext()))
     finally:
         set_dont_ask(True)
