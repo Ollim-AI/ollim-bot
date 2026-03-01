@@ -217,6 +217,7 @@ class Agent:
         self._fork_client: ClaudeSDKClient | None = None
         self._fork_session_id: str | None = None
         self._lock = asyncio.Lock()
+        self._bg_tasks: set[asyncio.Task[None]] = set()
 
     @property
     def in_fork(self) -> bool:
@@ -227,8 +228,19 @@ class Agent:
 
     async def interrupt(self) -> None:
         cancel_pending()
-        if self._client:
-            await self._client.interrupt()
+        client = self._fork_client or self._client
+        if client:
+            # Fire-and-forget: the lock already gates the next message, so we
+            # don't need to block on the subprocess acknowledging the interrupt.
+            # Awaiting it delays the new message when the subprocess is slow to
+            # respond (mid-tool, mid-API-call).
+            async def _interrupt():
+                with contextlib.suppress(CLIConnectionError):
+                    await client.interrupt()
+
+            task = asyncio.create_task(_interrupt())
+            self._bg_tasks.add(task)
+            task.add_done_callback(self._bg_tasks.discard)
 
     async def clear(self) -> None:
         reset_permissions()
