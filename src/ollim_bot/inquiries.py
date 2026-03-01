@@ -1,13 +1,11 @@
 """Persist button inquiry prompts so agent buttons survive bot restarts."""
 
 import json
-import os
-import tempfile
 import time
 from typing import TypedDict
 from uuid import uuid4
 
-from ollim_bot.storage import STATE_DIR
+from ollim_bot.storage import STATE_DIR, atomic_write
 
 
 class _InquiryEntry(TypedDict):
@@ -47,10 +45,4 @@ def _read() -> dict[str, _InquiryEntry]:
 
 
 def _write(data: dict[str, _InquiryEntry]) -> None:
-    INQUIRIES_FILE.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=INQUIRIES_FILE.parent, suffix=".tmp")
-    try:
-        os.write(fd, json.dumps(data).encode())
-    finally:
-        os.close(fd)
-    os.replace(tmp, INQUIRIES_FILE)
+    atomic_write(INQUIRIES_FILE, json.dumps(data).encode())

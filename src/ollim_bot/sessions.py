@@ -1,8 +1,6 @@
 """Persist Agent SDK session ID so conversations survive bot restarts."""
 
 import json
-import os
-import tempfile
 import time
 from contextvars import ContextVar
 from dataclasses import dataclass
@@ -10,7 +8,7 @@ from datetime import datetime
 from typing import Literal, TypedDict
 
 from ollim_bot.config import TZ as _TZ
-from ollim_bot.storage import STATE_DIR, append_jsonl
+from ollim_bot.storage import STATE_DIR, append_jsonl, atomic_write
 
 SESSIONS_FILE = STATE_DIR / "sessions.json"
 HISTORY_FILE = STATE_DIR / "session_history.jsonl"
@@ -97,13 +95,7 @@ def save_session_id(session_id: str) -> None:
         elif current != session_id:
             log_session_event(session_id, "compacted", parent_session_id=current)
 
-    SESSIONS_FILE.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=SESSIONS_FILE.parent, suffix=".tmp")
-    try:
-        os.write(fd, session_id.encode())
-    finally:
-        os.close(fd)
-    os.replace(tmp, SESSIONS_FILE)
+    atomic_write(SESSIONS_FILE, session_id.encode())
 
 
 def delete_session_id() -> None:
@@ -181,10 +173,4 @@ def _read_fork_messages() -> list[_ForkMessageRecord]:
 
 
 def _write_fork_messages(records: list[_ForkMessageRecord]) -> None:
-    FORK_MESSAGES_FILE.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=FORK_MESSAGES_FILE.parent, suffix=".tmp")
-    try:
-        os.write(fd, json.dumps(records).encode())
-    finally:
-        os.close(fd)
-    os.replace(tmp, FORK_MESSAGES_FILE)
+    atomic_write(FORK_MESSAGES_FILE, json.dumps(records).encode())

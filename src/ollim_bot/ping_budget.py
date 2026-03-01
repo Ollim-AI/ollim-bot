@@ -4,13 +4,11 @@ from __future__ import annotations
 
 import json
 import math
-import os
-import tempfile
 from dataclasses import asdict, dataclass, replace
 from datetime import date, datetime
 from pathlib import Path
 
-from ollim_bot.storage import STATE_DIR, TZ
+from ollim_bot.storage import STATE_DIR, TZ, atomic_write
 
 BUDGET_FILE: Path = STATE_DIR / "ping_budget.json"
 _DEFAULT_CAPACITY = 5
@@ -78,14 +76,8 @@ def load() -> BudgetState:
 
 
 def save(state: BudgetState) -> None:
-    """Atomic write via tempfile + os.replace. No git commit — ephemeral state."""
-    BUDGET_FILE.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=BUDGET_FILE.parent, suffix=".tmp")
-    try:
-        os.write(fd, json.dumps(asdict(state)).encode())
-    finally:
-        os.close(fd)
-    os.replace(tmp, BUDGET_FILE)
+    """Atomic write. No git commit — ephemeral state."""
+    atomic_write(BUDGET_FILE, json.dumps(asdict(state)).encode())
 
 
 def try_use() -> bool:
