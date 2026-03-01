@@ -8,6 +8,14 @@ os.environ.setdefault("OLLIM_BOT_NAME", "test-bot")
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def _reset_bg_tracking():
+    """Reset bg fork tracking between tests (production gets per-task ContextVar scope)."""
+    import ollim_bot.forks as forks_mod
+
+    forks_mod._bg_tracking.set(None)
+
+
 @pytest.fixture()
 def data_dir(tmp_path, monkeypatch):
     """Redirect all data file paths to a temp directory."""

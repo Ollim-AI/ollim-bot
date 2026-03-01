@@ -21,17 +21,12 @@ from ollim_bot.embeds import (
 from ollim_bot.forks import (
     ForkExitAction,
     append_update,
-    bg_output_sent,
-    bg_ping_count,
-    bg_reported,
     clear_pending_updates,
     get_bg_fork_config,
+    get_bg_tracking,
     in_bg_fork,
     in_interactive_fork,
-    increment_bg_ping_count,
     is_busy,
-    mark_bg_output,
-    mark_bg_reported,
     request_enter_fork,
     set_exit_action,
 )
@@ -93,7 +88,8 @@ def _check_bg_budget(args: dict[str, Any]) -> dict[str, Any] | None:
     Critical pings bypass all three checks.
     """
     critical = args.get("critical", False)
-    if not critical and bg_ping_count() >= 1:
+    tracking = get_bg_tracking()
+    if not critical and tracking and tracking.ping_count >= 1:
         return {
             "content": [
                 {
@@ -211,9 +207,9 @@ async def discord_embed(args: dict[str, Any]) -> dict[str, Any]:
     view = build_view(config.buttons)
     msg = await channel.send(embed=embed, view=view)
     track_message(msg.id)
-    if source == "bg":
-        mark_bg_output(True)
-        increment_bg_ping_count()
+    if source == "bg" and (tracking := get_bg_tracking()):
+        tracking.output_sent = True
+        tracking.ping_count += 1
     return {"content": [{"type": "text", "text": "Embed sent."}]}
 
 
@@ -263,8 +259,9 @@ async def ping_user(args: dict[str, Any]) -> dict[str, Any]:
 
     msg = await channel.send(f"[bg] {args['message']}")
     track_message(msg.id)
-    mark_bg_output(True)
-    increment_bg_ping_count()
+    if tracking := get_bg_tracking():
+        tracking.output_sent = True
+        tracking.ping_count += 1
     return {"content": [{"type": "text", "text": "Message sent."}]}
 
 
@@ -391,8 +388,9 @@ async def report_updates(args: dict[str, Any]) -> dict[str, Any]:
                 ]
             }
         await append_update(args["message"])
-        mark_bg_reported()
-        mark_bg_output(False)
+        if tracking := get_bg_tracking():
+            tracking.reported = True
+            tracking.output_sent = False
         return {
             "content": [
                 {
@@ -506,13 +504,14 @@ async def require_report_hook(
     mode = get_bg_fork_config().update_main_session
     if mode in ("freely", "blocked"):
         return {}
-    if mode == "always" and not bg_reported():
+    tracking = get_bg_tracking()
+    if mode == "always" and (not tracking or not tracking.reported):
         return SyncHookJSONOutput(
             systemMessage=(
                 "You haven't called report_updates yet. Call it now to update the main session on what happened."
             ),
         )
-    if mode == "on_ping" and bg_output_sent():
+    if mode == "on_ping" and tracking and tracking.output_sent:
         return SyncHookJSONOutput(
             systemMessage=(
                 "You sent visible output (ping/embed) but haven't called "

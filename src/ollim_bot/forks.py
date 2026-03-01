@@ -60,28 +60,31 @@ def is_busy() -> bool:
 
 
 # ---------------------------------------------------------------------------
-# Bg output tracking — mutable container so mutations propagate across
+# Bg fork tracking — single mutable container so mutations propagate across
 # sibling tasks in the SDK's anyio task group (ContextVar with immutable
-# bool does NOT propagate between start_soon tasks).
+# values does NOT propagate between start_soon tasks).
 # ---------------------------------------------------------------------------
 
-_bg_output_flag: ContextVar[list[bool] | None] = ContextVar("_bg_output_flag", default=None)
+
+@dataclass(slots=True)
+class BgForkTracking:
+    """Mutable state shared across anyio task group siblings in a bg fork."""
+
+    output_sent: bool = False
+    reported: bool = False
+    ping_count: int = 0
 
 
-def init_bg_output_flag() -> None:
+_bg_tracking: ContextVar[BgForkTracking | None] = ContextVar("_bg_tracking", default=None)
+
+
+def init_bg_tracking() -> None:
     """Call before client connect() so all child tasks share the mutable ref."""
-    _bg_output_flag.set([False])
+    _bg_tracking.set(BgForkTracking())
 
 
-def mark_bg_output(sent: bool) -> None:
-    flag = _bg_output_flag.get()
-    if flag is not None:
-        flag[0] = sent
-
-
-def bg_output_sent() -> bool:
-    flag = _bg_output_flag.get()
-    return bool(flag and flag[0])
+def get_bg_tracking() -> BgForkTracking | None:
+    return _bg_tracking.get()
 
 
 # ---------------------------------------------------------------------------
@@ -113,55 +116,6 @@ def set_bg_fork_config(config: BgForkConfig) -> None:
 
 def get_bg_fork_config() -> BgForkConfig:
     return _bg_fork_config_var.get()
-
-
-# ---------------------------------------------------------------------------
-# Bg reported flag — tracks whether report_updates was called (for "always" mode).
-# Mutable container, same pattern as _bg_output_flag.
-# ---------------------------------------------------------------------------
-
-_bg_reported_flag: ContextVar[list[bool] | None] = ContextVar("_bg_reported_flag", default=None)
-
-
-def init_bg_reported_flag() -> None:
-    """Call before client connect() so all child tasks share the mutable ref."""
-    _bg_reported_flag.set([False])
-
-
-def mark_bg_reported() -> None:
-    flag = _bg_reported_flag.get()
-    if flag is not None:
-        flag[0] = True
-
-
-def bg_reported() -> bool:
-    flag = _bg_reported_flag.get()
-    return bool(flag and flag[0])
-
-
-# ---------------------------------------------------------------------------
-# Bg ping counter — mutable container so mutations propagate across
-# sibling tasks in the SDK's anyio task group (same pattern as _bg_output_flag).
-# Enforces 1-ping-per-session limit for bg forks.
-# ---------------------------------------------------------------------------
-
-_bg_ping_count: ContextVar[list[int] | None] = ContextVar("_bg_ping_count", default=None)
-
-
-def init_bg_ping_count() -> None:
-    """Call before client connect() so all child tasks share the mutable ref."""
-    _bg_ping_count.set([0])
-
-
-def increment_bg_ping_count() -> None:
-    counter = _bg_ping_count.get()
-    if counter is not None:
-        counter[0] += 1
-
-
-def bg_ping_count() -> int:
-    counter = _bg_ping_count.get()
-    return counter[0] if counter is not None else 0
 
 
 # ---------------------------------------------------------------------------
@@ -388,9 +342,7 @@ async def run_agent_background(
     # task-group spawn chain to reach the can_use_tool callback.
     set_in_fork(True)
     set_busy(busy)
-    init_bg_output_flag()
-    init_bg_reported_flag()
-    init_bg_ping_count()
+    init_bg_tracking()
     if bg_config:
         set_bg_fork_config(bg_config)
     start_message_collector()
