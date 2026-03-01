@@ -69,6 +69,11 @@ def set_fork_chain_context(ctx: ChainContext | None) -> None:
     _chain_context_var.set(ctx)
 
 
+def _resp(text: str) -> dict[str, Any]:
+    """Build an MCP tool response dict."""
+    return {"content": [{"type": "text", "text": text}]}
+
+
 def _source() -> Literal["main", "bg", "fork"]:  # duplicate-ok
     """Return the execution context: main session, bg fork, or interactive fork."""
     if in_bg_fork():
@@ -90,34 +95,13 @@ def _check_bg_budget(args: dict[str, Any]) -> dict[str, Any] | None:
     critical = args.get("critical", False)
     tracking = get_bg_tracking()
     if not critical and tracking and tracking.ping_count >= 1:
-        return {
-            "content": [
-                {
-                    "type": "text",
-                    "text": "Already sent 1 ping this session. Use report_updates for additional findings.",
-                }
-            ]
-        }
+        return _resp("Already sent 1 ping this session. Use report_updates for additional findings.")
     if not critical and is_busy():
-        return {
-            "content": [
-                {
-                    "type": "text",
-                    "text": "User is mid-conversation. Use `report_updates` instead, "
-                    "or set `critical=True` for time-sensitive alerts.",
-                }
-            ]
-        }
+        return _resp(
+            "User is mid-conversation. Use `report_updates` instead, or set `critical=True` for time-sensitive alerts."
+        )
     if not critical and not ping_budget.try_use():
-        return {
-            "content": [
-                {
-                    "type": "text",
-                    "text": "Budget exhausted (0 remaining). "
-                    "Use report_updates to pass findings to the main session instead.",
-                }
-            ]
-        }
+        return _resp("Budget exhausted (0 remaining). Use report_updates to pass findings to the main session instead.")
     if critical:
         ping_budget.record_critical()
     return None
@@ -178,18 +162,11 @@ def _check_bg_budget(args: dict[str, Any]) -> dict[str, Any] | None:
 async def discord_embed(args: dict[str, Any]) -> dict[str, Any]:
     channel = get_channel()
     if channel is None:
-        return {"content": [{"type": "text", "text": "Error: no active channel"}]}
+        return _resp("Error: no active channel")
 
     if _source() == "bg":
         if not get_bg_fork_config().allow_ping:
-            return {
-                "content": [
-                    {
-                        "type": "text",
-                        "text": "Pinging is disabled for this background task.",
-                    }
-                ]
-            }
+            return _resp("Pinging is disabled for this background task.")
         if budget_error := _check_bg_budget(args):
             return budget_error
 
@@ -210,7 +187,7 @@ async def discord_embed(args: dict[str, Any]) -> dict[str, Any]:
     if source == "bg" and (tracking := get_bg_tracking()):
         tracking.output_sent = True
         tracking.ping_count += 1
-    return {"content": [{"type": "text", "text": "Embed sent."}]}
+    return _resp("Embed sent.")
 
 
 @tool(
@@ -234,35 +211,21 @@ async def discord_embed(args: dict[str, Any]) -> dict[str, Any]:
 )
 async def ping_user(args: dict[str, Any]) -> dict[str, Any]:
     if _source() != "bg":
-        return {
-            "content": [
-                {
-                    "type": "text",
-                    "text": "Error: ping_user is only available in background forks",
-                }
-            ]
-        }
+        return _resp("Error: ping_user is only available in background forks")
     if not get_bg_fork_config().allow_ping:
-        return {
-            "content": [
-                {
-                    "type": "text",
-                    "text": "Pinging is disabled for this background task.",
-                }
-            ]
-        }
+        return _resp("Pinging is disabled for this background task.")
     if budget_error := _check_bg_budget(args):
         return budget_error
     channel = get_channel()
     if channel is None:
-        return {"content": [{"type": "text", "text": "Error: no active channel"}]}
+        return _resp("Error: no active channel")
 
     msg = await channel.send(f"[bg] {args['message']}")
     track_message(msg.id)
     if tracking := get_bg_tracking():
         tracking.output_sent = True
         tracking.ping_count += 1
-    return {"content": [{"type": "text", "text": "Message sent."}]}
+    return _resp("Message sent.")
 
 
 @tool(
@@ -284,9 +247,9 @@ async def ping_user(args: dict[str, Any]) -> dict[str, Any]:
 async def follow_up_chain(args: dict[str, Any]) -> dict[str, Any]:
     ctx = _chain_context_var.get() or _chain_context
     if ctx is None:
-        return {"content": [{"type": "text", "text": "Error: no active reminder context"}]}
+        return _resp("Error: no active reminder context")
     if ctx.chain_depth >= ctx.max_chain:
-        return {"content": [{"type": "text", "text": "Error: follow-up limit reached"}]}
+        return _resp("Error: follow-up limit reached")
 
     minutes = args["minutes_from_now"]
     cmd = [
@@ -322,8 +285,8 @@ async def follow_up_chain(args: dict[str, Any]) -> dict[str, Any]:
         cmd.extend(["--disallowed-tools", *ctx.disallowed_tools])
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
-        return {"content": [{"type": "text", "text": f"Error scheduling follow-up: {result.stderr}"}]}
-    return {"content": [{"type": "text", "text": f"Follow-up scheduled in {minutes} minutes"}]}
+        return _resp(f"Error scheduling follow-up: {result.stderr}")
+    return _resp(f"Follow-up scheduled in {minutes} minutes")
 
 
 @tool(
@@ -338,26 +301,12 @@ async def follow_up_chain(args: dict[str, Any]) -> dict[str, Any]:
 )
 async def save_context(args: dict[str, Any]) -> dict[str, Any]:
     if in_bg_fork():
-        return {
-            "content": [
-                {
-                    "type": "text",
-                    "text": "Error: save_context is not available in background forks. Use report_updates instead.",
-                }
-            ]
-        }
+        return _resp("Error: save_context is not available in background forks. Use report_updates instead.")
     if not in_interactive_fork():
-        return {"content": [{"type": "text", "text": "Error: not in an interactive fork"}]}
+        return _resp("Error: not in an interactive fork")
     set_exit_action(ForkExitAction.SAVE)
     await clear_pending_updates()
-    return {
-        "content": [
-            {
-                "type": "text",
-                "text": "Context saved. Fork will be promoted to main session after you finish responding.",
-            }
-        ]
-    }
+    return _resp("Context saved. Fork will be promoted to main session after you finish responding.")
 
 
 @tool(
@@ -379,39 +328,19 @@ async def save_context(args: dict[str, Any]) -> dict[str, Any]:
 async def report_updates(args: dict[str, Any]) -> dict[str, Any]:
     if in_bg_fork():
         if get_bg_fork_config().update_main_session == "blocked":
-            return {
-                "content": [
-                    {
-                        "type": "text",
-                        "text": "Reporting to main session is disabled for this background task.",
-                    }
-                ]
-            }
+            return _resp("Reporting to main session is disabled for this background task.")
         await append_update(args["message"])
         if tracking := get_bg_tracking():
             tracking.reported = True
             tracking.output_sent = False
-        return {
-            "content": [
-                {
-                    "type": "text",
-                    "text": "Update reported -- summary will appear in main session.",
-                }
-            ]
-        }
+        return _resp("Update reported -- summary will appear in main session.")
     if in_interactive_fork():
         set_exit_action(ForkExitAction.REPORT)
         await append_update(args["message"])
-        return {
-            "content": [
-                {
-                    "type": "text",
-                    "text": "Update reported. Fork will be discarded after you "
-                    "finish responding — further tool calls delay the exit.",
-                }
-            ]
-        }
-    return {"content": [{"type": "text", "text": "Error: not in a forked session"}]}
+        return _resp(
+            "Update reported. Fork will be discarded after you finish responding — further tool calls delay the exit."
+        )
+    return _resp("Error: not in a forked session")
 
 
 @tool(
@@ -435,33 +364,13 @@ async def report_updates(args: dict[str, Any]) -> dict[str, Any]:
 )
 async def enter_fork(args: dict[str, Any]) -> dict[str, Any]:
     if in_bg_fork():
-        return {
-            "content": [
-                {
-                    "type": "text",
-                    "text": "Error: enter_fork is not available in background forks.",
-                }
-            ]
-        }
+        return _resp("Error: enter_fork is not available in background forks.")
     if in_interactive_fork():
-        return {
-            "content": [
-                {
-                    "type": "text",
-                    "text": "Error: already in an interactive fork. "
-                    "Use exit_fork, save_context, or report_updates to end it first.",
-                }
-            ]
-        }
+        return _resp(
+            "Error: already in an interactive fork. Use exit_fork, save_context, or report_updates to end it first."
+        )
     request_enter_fork(args.get("topic"), idle_timeout=args.get("idle_timeout", 10))
-    return {
-        "content": [
-            {
-                "type": "text",
-                "text": "Entering fork — interrupting current turn.",
-            }
-        ]
-    }
+    return _resp("Entering fork — interrupting current turn.")
 
 
 @tool(
@@ -471,26 +380,13 @@ async def enter_fork(args: dict[str, Any]) -> dict[str, Any]:
 )
 async def exit_fork(args: dict[str, Any]) -> dict[str, Any]:
     if in_bg_fork():
-        return {
-            "content": [
-                {
-                    "type": "text",
-                    "text": "Error: background forks end automatically. "
-                    "Use report_updates to pass findings to the main session.",
-                }
-            ]
-        }
+        return _resp(
+            "Error: background forks end automatically. Use report_updates to pass findings to the main session."
+        )
     if not in_interactive_fork():
-        return {"content": [{"type": "text", "text": "Error: not in an interactive fork"}]}
+        return _resp("Error: not in an interactive fork")
     set_exit_action(ForkExitAction.EXIT)
-    return {
-        "content": [
-            {
-                "type": "text",
-                "text": "Fork will be discarded after you finish responding — further tool calls delay the exit.",
-            }
-        ]
-    }
+    return _resp("Fork will be discarded after you finish responding — further tool calls delay the exit.")
 
 
 async def require_report_hook(
