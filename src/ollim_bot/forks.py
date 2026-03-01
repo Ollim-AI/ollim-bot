@@ -11,7 +11,7 @@ from contextvars import ContextVar
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 from ollim_bot.channel import get_channel
 from ollim_bot.config import TZ
@@ -102,6 +102,16 @@ class BgForkConfig:
     def __post_init__(self) -> None:
         if self.allowed_tools is not None and self.disallowed_tools is not None:
             raise ValueError("Cannot specify both allowed_tools and disallowed_tools")
+
+    @classmethod
+    def from_item(cls, item: Any) -> BgForkConfig:
+        """Build from a Routine, Reminder, or WebhookSpec."""
+        return cls(
+            update_main_session=item.update_main_session,
+            allow_ping=item.allow_ping,
+            allowed_tools=getattr(item, "allowed_tools", None),
+            disallowed_tools=getattr(item, "disallowed_tools", None),
+        )
 
 
 _bg_fork_config_var: ContextVar[BgForkConfig] = ContextVar(

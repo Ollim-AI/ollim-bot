@@ -85,14 +85,7 @@ def _register_routine(
 
     async def _fire() -> None:
         busy = agent.lock().locked()
-        bg_config = _apply_ping_restrictions(
-            BgForkConfig(
-                update_main_session=routine.update_main_session,
-                allow_ping=routine.allow_ping,
-                allowed_tools=routine.allowed_tools,
-                disallowed_tools=routine.disallowed_tools,
-            )
-        )
+        bg_config = _apply_ping_restrictions(BgForkConfig.from_item(routine))
         prompt = build_routine_prompt(
             routine,
             reminders=list_reminders(),
@@ -147,14 +140,7 @@ def _register_reminder(
 
     async def fire_oneshot() -> None:
         busy = agent.lock().locked()
-        bg_config = _apply_ping_restrictions(
-            BgForkConfig(
-                update_main_session=reminder.update_main_session,
-                allow_ping=reminder.allow_ping,
-                allowed_tools=reminder.allowed_tools,
-                disallowed_tools=reminder.disallowed_tools,
-            )
-        )
+        bg_config = _apply_ping_restrictions(BgForkConfig.from_item(reminder))
         prompt = build_reminder_prompt(
             reminder,
             reminders=list_reminders(),
