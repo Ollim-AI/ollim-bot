@@ -10,6 +10,7 @@ from discord.ext import commands
 
 from ollim_bot import permissions, ping_budget, webhook
 from ollim_bot.agent import Agent, ModelName
+from ollim_bot.channel import init_channel
 from ollim_bot.config import BOT_NAME, USER_NAME
 from ollim_bot.embeds import fork_enter_embed, fork_enter_view, fork_exit_embed
 from ollim_bot.forks import (
@@ -278,6 +279,7 @@ def create_bot() -> commands.Bot:
         await webhook.start(agent, owner)
 
         dm = await owner.create_dm()
+        init_channel(dm)
         resumed = load_session_id() is not None
         if resumed:
             await dm.send("hey, i'm back online. i remember where we left off.")
