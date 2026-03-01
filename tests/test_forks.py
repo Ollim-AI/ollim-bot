@@ -257,8 +257,6 @@ def test_bg_fork_timeout_cancels_and_notifies(monkeypatch, data_dir):
     channel.send = AsyncMock(side_effect=lambda msg, **kw: sent_messages.append(msg))
     init_channel(channel)
 
-    owner = AsyncMock()
-
     agent = AsyncMock()
     agent.lock = MagicMock(return_value=asyncio.Lock())
 
@@ -272,7 +270,7 @@ def test_bg_fork_timeout_cancels_and_notifies(monkeypatch, data_dir):
     # Shrink timeout to 0.1s so the test runs fast
     monkeypatch.setattr(forks_mod, "BG_FORK_TIMEOUT", 0.1)
 
-    _run(run_agent_background(owner, agent, "[routine-bg:test] do stuff"))
+    _run(run_agent_background(agent, "[routine-bg:test] do stuff"))
 
     # Client should have been disconnected
     client.disconnect.assert_awaited()
@@ -426,8 +424,6 @@ def test_bg_fork_sets_busy_when_lock_held(monkeypatch, data_dir):
     init_channel(AsyncMock())
     observed_busy: list[bool] = []
 
-    owner = AsyncMock()
-
     agent = AsyncMock()
     lock = asyncio.Lock()
     agent.lock = MagicMock(return_value=lock)
@@ -442,7 +438,7 @@ def test_bg_fork_sets_busy_when_lock_held(monkeypatch, data_dir):
 
     _run(lock.acquire())
     try:
-        _run(run_agent_background(owner, agent, "[routine-bg:test] do stuff"))
+        _run(run_agent_background(agent, "[routine-bg:test] do stuff"))
     finally:
         lock.release()
 
@@ -456,8 +452,6 @@ def test_bg_fork_not_busy_when_lock_free(monkeypatch, data_dir):
     init_channel(AsyncMock())
     observed_busy: list[bool] = []
 
-    owner = AsyncMock()
-
     agent = AsyncMock()
     agent.lock = MagicMock(return_value=asyncio.Lock())
 
@@ -469,7 +463,7 @@ def test_bg_fork_not_busy_when_lock_free(monkeypatch, data_dir):
     agent.create_forked_client = AsyncMock(return_value=client)
     agent.run_on_client = AsyncMock(side_effect=capture_busy)
 
-    _run(run_agent_background(owner, agent, "[routine-bg:test] do stuff"))
+    _run(run_agent_background(agent, "[routine-bg:test] do stuff"))
 
     assert observed_busy == [False]
 

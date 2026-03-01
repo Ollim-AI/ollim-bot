@@ -361,7 +361,6 @@ async def _notify_fork_failure(channel: discord.abc.Messageable, tag: str, *, ti
 
 
 async def run_agent_background(
-    owner: discord.User,
     agent: Agent,
     prompt: str,
     *,
