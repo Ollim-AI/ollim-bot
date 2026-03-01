@@ -18,11 +18,9 @@ from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
-from ollim_bot import permissions
 from ollim_bot.agent_tools import (
     ChainContext,
     set_chain_context,
-    set_channel,
     set_fork_chain_context,
 )
 from ollim_bot.config import TZ as _TZ
@@ -289,8 +287,6 @@ def setup_scheduler(bot: discord.Client, agent: Agent, owner: discord.User) -> A
             )
 
         async with agent.lock():
-            set_channel(dm)
-            permissions.set_channel(dm)
             await dm.typing()
             await stream_to_channel(dm, agent.stream_chat(prompt))
             result = await agent.pop_fork_exit()

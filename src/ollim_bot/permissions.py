@@ -26,7 +26,7 @@ log = logging.getLogger(__name__)
 # State
 # ---------------------------------------------------------------------------
 
-_channel: discord.abc.Messageable | None = None
+_channel: Any = None
 _session_allowed: set[str] = set()
 _dont_ask: bool = True
 _last_denied: contextvars.ContextVar[bool] = contextvars.ContextVar("_last_denied", default=False)
@@ -62,8 +62,8 @@ def pop_denial() -> bool:
     return False
 
 
-def set_channel(channel: discord.abc.Messageable | None) -> None:
-    """Set channel global — called alongside agent_tools.set_channel."""
+def set_channel(channel: object) -> None:
+    """Set channel global — called internally by agent_tools.set_channel."""
     global _channel
     _channel = channel
 

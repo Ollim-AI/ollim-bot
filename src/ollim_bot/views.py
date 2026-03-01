@@ -10,8 +10,7 @@ import discord
 from discord.ui import Button, DynamicItem, Item
 from googleapiclient.errors import HttpError
 
-from ollim_bot import inquiries, permissions
-from ollim_bot.agent_tools import set_channel
+from ollim_bot import inquiries
 from ollim_bot.config import USER_NAME
 from ollim_bot.embeds import fork_enter_embed, fork_enter_view, fork_exit_embed
 from ollim_bot.forks import (
@@ -133,8 +132,6 @@ async def _handle_agent_inquiry(interaction: discord.Interaction, inquiry_id: st
         if fork_session_id:
             await _agent.enter_interactive_fork(resume_session_id=fork_session_id)
             await channel.send(embed=fork_enter_embed(), view=fork_enter_view())
-        set_channel(channel)
-        permissions.set_channel(channel)
         await channel.typing()
         message = fork_bg_resume_prompt(prompt) if fork_session_id else f"[button] {prompt}"
         await stream_to_channel(channel, _agent.stream_chat(message))
@@ -189,8 +186,6 @@ async def _handle_fork_report(interaction: discord.Interaction, _data: str) -> N
             await interaction.followup.send("fork already ended.", ephemeral=True)
             return
         updates_before = len(peek_pending_updates())
-        set_channel(channel)
-        permissions.set_channel(channel)
         await channel.typing()
         await stream_to_channel(
             channel,

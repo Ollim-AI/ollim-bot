@@ -10,7 +10,6 @@ from discord.ext import commands
 
 from ollim_bot import permissions, ping_budget, webhook
 from ollim_bot.agent import Agent, ModelName
-from ollim_bot.agent_tools import set_channel
 from ollim_bot.config import BOT_NAME, USER_NAME
 from ollim_bot.embeds import fork_enter_embed, fork_enter_view, fork_exit_embed
 from ollim_bot.forks import (
@@ -123,9 +122,7 @@ def create_bot() -> commands.Bot:
         *,
         images: list[dict[str, str]] | None = None,
     ) -> None:
-        """set_channel -> typing -> stream. Caller must hold agent.lock()."""
-        set_channel(channel)
-        permissions.set_channel(channel)
+        """typing -> stream (stream_to_channel sets channel). Caller must hold agent.lock()."""
         await channel.typing()
         await stream_to_channel(channel, agent.stream_chat(prompt, images=images))
 
@@ -165,8 +162,6 @@ def create_bot() -> commands.Bot:
             await agent.enter_interactive_fork(idle_timeout=timeout)
             await _send_fork_enter(channel, topic)
             prompt = _fork_topic_prompt(topic) if topic else _FORK_NO_TOPIC_PROMPT
-            set_channel(channel)
-            permissions.set_channel(channel)
             await channel.typing()
             await stream_to_channel(channel, agent.stream_chat(prompt))
             touch_activity()
@@ -216,8 +211,6 @@ def create_bot() -> commands.Bot:
             await _send_fork_enter(channel, topic)
             await interaction.delete_original_response()
             prompt = _fork_topic_prompt(topic) if topic else _FORK_NO_TOPIC_PROMPT
-            set_channel(channel)
-            permissions.set_channel(channel)
             await channel.typing()
             await stream_to_channel(channel, agent.stream_chat(prompt))
             touch_activity()
