@@ -261,6 +261,7 @@ Optional env vars:
 
 Read the `python-principles` skill when writing, reviewing, or refactoring Python code.
 Read the `ux-principles` skill when designing user-facing features, notifications, or bot responses.
+Read the `design-principles` skill when planning architecture or reviewing design decisions.
 
 When rules conflict, follow this priority:
 1. User's explicit request (they asked for it — build it)
@@ -281,12 +282,15 @@ When rules conflict, follow this priority:
 - **One logging system** — `logging.getLogger(__name__)` for library code, `print()` only in CLI commands (`main.py`, `*_cmd.py`), because mixed systems make centralized log routing impossible and `print()` in library code pollutes test output.
 
 ## Plan mode
-Before proposing the plan (ExitPlanMode), load the `python-principles` skill and re-review the plan to ensure it introduces no new violations.
+Before proposing the plan (ExitPlanMode), load the `python-principles` skill and re-review the plan to ensure it introduces no new violations. For feature plans, consider loading `feature-development` for the phased approach.
 
 ## Documentation
 - `SearchOllimBot` MCP tool — search `docs.ollim.ai` for architecture, conventions, and integration patterns. Use for "how does X work" or "how to add Y" questions; use code exploration for implementation details and debugging.
 
 ## Useful skills
+- `/feature-development` -- guided feature dev: explore, clarify, architect, implement, review
+- `/systematic-debugging` -- root-cause debugging: investigate, analyze, hypothesize, fix
+- `/code-review` -- two-stage review: project compliance + code quality (confidence >= 80)
 - `/context-engineering-principles` -- LLM context pipelines, prompt design, information flow
 - `/design-principles` -- architecture decisions, boundary design, coupling analysis
 - `/python-principles` -- Python code quality (also loaded in plan mode)
