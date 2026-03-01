@@ -18,23 +18,7 @@ Two-stage review: first check project-specific rules, then general code quality.
 
 ## Stage 1: Project Compliance
 
-Check changes against the project's own rules in CLAUDE.md. Violations here are bugs or tech debt by definition.
-
-### Hard Invariants (CLAUDE.md — violation = runtime bugs)
-
-Check every applicable item:
-- **Channel-sync**: does any new `stream_chat` entry point call BOTH `agent_tools.set_channel` AND `permissions.set_channel`?
-- **No circular imports**: does the change introduce a new import cycle?
-- **Atomic file writes**: do new file writes use `tempfile.mkstemp(dir=target.parent)` + `os.replace`?
-- **Client teardown**: does new teardown code follow the null-first protocol?
-
-### Code Health Rules (CLAUDE.md — violation = tech debt)
-
-- **No utils/helpers/common files** — every function in a domain module
-- **No catch-all directories** — name for what it does, not what it is
-- **Modified files under ~400 lines** — check with `wc -l`, don't guess
-- **No duplicate logic introduced** — if 3+ modules now implement the same pattern, extract
-- **Correct logging** — `logging.getLogger(__name__)` for library code, `print()` only in CLI commands
+Check changes against CLAUDE.md's **Code health rules** section — violations are tech debt by definition.
 
 ### Async Correctness (when concurrent code is touched)
 

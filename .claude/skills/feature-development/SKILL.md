@@ -62,7 +62,7 @@ If the user says "whatever you think is best," provide your recommendation and g
 2. If the feature involves concurrency: load `/async-principles`
 3. If the feature is user-facing: load `/ux-principles`
 4. If the feature involves architectural decisions: load `/design-principles`
-5. Follow CLAUDE.md code health rules — check hard invariants and design rules
+5. Follow CLAUDE.md code health rules
 6. Implement following chosen architecture and codebase conventions
 
 ## Phase 5: Review
@@ -80,7 +80,7 @@ Did I build what was asked? Check independently — don't trust your own memory 
 ### Stage 2: Code Quality
 
 Load `/code-review` and run it against the changes. This checks:
-- Project compliance (CLAUDE.md hard invariants and code health rules)
+- Project compliance (CLAUDE.md code health rules)
 - Code quality (python-principles, design-principles)
 - Confidence ≥80 filter (only report issues that truly matter)
 

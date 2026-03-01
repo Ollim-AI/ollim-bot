@@ -265,16 +265,10 @@ Read the `design-principles` skill when planning architecture or reviewing desig
 
 When rules conflict, follow this priority:
 1. User's explicit request (they asked for it — build it)
-2. Hard invariants (channel-sync, no circular deps — violation = runtime bug)
-3. Code health rules below (violation = tech debt)
-4. Product philosophy (guides your own proposals, not veto power over the user)
+2. Code health rules below (violation = tech debt)
+3. Product philosophy (guides your own proposals, not veto power over the user)
 
 ## Code health rules
-
-**Hard invariants** (violation = bugs):
-- **Channel-sync invariant** — every path into `stream_chat` must call BOTH `agent_tools.set_channel` AND `permissions.set_channel`. Check `_dispatch`, `_check_fork_transitions`, `slash_fork`, `send_agent_dm`, button handlers in views.py, and `check_fork_timeout` in scheduler.py. Adding a new entry point without both calls is a runtime bug.
-
-**Design rules** (violation = tech debt):
 - **No utils/helpers/common files** — every function belongs in a domain module. If it belongs nowhere, you're missing a domain concept.
 - **No catch-all directories** — name for what it does (`google/`, `scheduling/`), not what it is (`infra/`, `shared/`).
 - **Max ~400 lines per file** — when approaching this, split by responsibility, because large files accumulate unrelated concerns that make changes risky. Check `wc -l` rather than relying on memorized counts.
@@ -286,6 +280,10 @@ Before proposing the plan (ExitPlanMode), load the `python-principles` skill and
 
 ## Documentation
 - `SearchOllimBot` MCP tool — search `docs.ollim.ai` for architecture, conventions, and integration patterns. Use for "how does X work" or "how to add Y" questions; use code exploration for implementation details and debugging.
+
+## Custom agents
+- `ollim-bot-guide` -- interactive reference guide: setup, configuration, conventions, "how do I..." questions. Searches docs.ollim.ai and verifies against code. Shows full docs text, doesn't paraphrase.
+- `bot-debugger` -- deep runtime debugger: missed pings, blocked routines, budget exhaustion, fork behavior. Reads session transcripts for post-mortem investigation.
 
 ## Useful skills
 - `/feature-development` -- guided feature dev: explore, clarify, architect, implement, review
