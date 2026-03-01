@@ -47,8 +47,9 @@ _channel_var: ContextVar[Any] = ContextVar("_channel", default=None)
 def set_channel(channel: object) -> None:
     """Set channel for both agent_tools and permissions in one call.
 
-    Every interaction path must set channel before streaming — this function
-    makes that a single call so callers can't forget one module.
+    Called by stream_to_channel — don't call directly from other modules.
+    Adding direct callers reintroduces the scattered-global problem this
+    consolidation was designed to prevent.
     """
     from ollim_bot import permissions
 
