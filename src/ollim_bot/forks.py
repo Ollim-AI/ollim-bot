@@ -203,12 +203,8 @@ def set_interactive_fork(active: bool, *, idle_timeout: int = 10) -> None:
     global _in_interactive_fork, _fork_exit_action, _fork_idle_timeout, _fork_prompted_at
     _in_interactive_fork = active
     _fork_idle_timeout = idle_timeout
-    if active:
-        _fork_exit_action = ForkExitAction.NONE
-        _fork_prompted_at = None
-    else:
-        _fork_exit_action = ForkExitAction.NONE
-        _fork_prompted_at = None
+    _fork_exit_action = ForkExitAction.NONE
+    _fork_prompted_at = None
 
 
 def set_exit_action(action: ForkExitAction) -> None:
