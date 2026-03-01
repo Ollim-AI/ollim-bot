@@ -92,10 +92,7 @@ def build_webhook_prompt(
     from ollim_bot.scheduling.reminders import list_reminders
     from ollim_bot.scheduling.routines import list_routines
 
-    bg_config = BgForkConfig(
-        update_main_session=spec.update_main_session,
-        allow_ping=spec.allow_ping,
-    )
+    bg_config = BgForkConfig.from_item(spec)
     schedule = build_upcoming_schedule(list_routines(), list_reminders(), current_id=spec.id)
     preamble = build_bg_preamble(schedule, busy=busy, bg_config=bg_config)
 
@@ -193,10 +190,7 @@ async def _default_process(
             log.warning("Webhook %s: flagged fields %s, skipping dispatch", spec.id, flagged)
             return
 
-    bg_config = BgForkConfig(
-        update_main_session=spec.update_main_session,
-        allow_ping=spec.allow_ping,
-    )
+    bg_config = BgForkConfig.from_item(spec)
     await run_agent_background(
         agent,
         prompt,
