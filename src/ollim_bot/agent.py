@@ -126,9 +126,14 @@ def _apply_tool_restrictions(
     opts: ClaudeAgentOptions,
     allowed: list[str] | None,
 ) -> ClaudeAgentOptions:
-    """Apply per-job tool restrictions to agent options."""
+    """Apply per-job tool restrictions to agent options.
+
+    Strips Write/Edit patterns that could reach the protected ``state/`` directory.
+    """
     if allowed is not None:
-        tools = allowed if _HELP_TOOL in allowed else [_HELP_TOOL, *allowed]
+        tools = tool_policy.strip_state_dir_writes(allowed)
+        if _HELP_TOOL not in tools:
+            tools = [_HELP_TOOL, *tools]
         return replace(opts, allowed_tools=tools)
     return opts
 
