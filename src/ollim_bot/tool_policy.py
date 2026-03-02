@@ -44,7 +44,7 @@ _BASH_CHAIN_RE = re.compile(r"[;&|]")
 _TOOL_WITH_ARGS_RE = re.compile(r"^(\w+)\((.+)\)$")
 
 # Tools that modify files on disk
-_FILE_WRITE_TOOLS = frozenset(("Write", "Edit"))
+FILE_WRITE_TOOLS = frozenset(("Write", "Edit"))
 
 
 # ---------------------------------------------------------------------------
@@ -119,7 +119,7 @@ def validate_pattern(pattern: str) -> list[str]:
         elif args == "*":
             errors.append(f"{tool_name}(*) is overly broad — add a path restriction")
 
-        if tool_name in _FILE_WRITE_TOOLS and _could_match_state_dir(args):
+        if tool_name in FILE_WRITE_TOOLS and _could_match_state_dir(args):
             errors.append(f"{tool_name} pattern could match protected state/ directory")
 
     return errors
@@ -264,7 +264,7 @@ def strip_state_dir_writes(tools: list[str]) -> list[str]:
         match = _TOOL_WITH_ARGS_RE.match(tool.strip())
         if match:
             name, args = match.groups()
-            if name in _FILE_WRITE_TOOLS and _could_match_state_dir(args):
+            if name in FILE_WRITE_TOOLS and _could_match_state_dir(args):
                 log.warning("Stripped %s: matches protected state/", tool)
                 continue
         result.append(tool)
