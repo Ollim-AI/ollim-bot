@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
+import yaml
 from claude_agent_sdk import AgentDefinition
 
 from ollim_bot.config import BOT_NAME, USER_NAME
@@ -48,7 +49,7 @@ def _load_spec(path: Path) -> SubagentSpec | None:
     """Parse a single spec file. Returns None on error."""
     try:
         return parse_md(path.read_text(), SubagentSpec)
-    except (ValueError, OSError) as exc:  # parse failure or file I/O
+    except (ValueError, OSError, TypeError, yaml.YAMLError) as exc:
         log.warning("Skipping corrupt subagent spec %s: %s", path.name, exc)
         return None
 

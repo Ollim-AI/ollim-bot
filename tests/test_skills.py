@@ -8,6 +8,7 @@ from ollim_bot.skills import (
     build_skills_section,
     collect_skill_tools,
     list_skills,
+    load_skills,
     read_skill,
 )
 
@@ -211,8 +212,7 @@ def test_build_skill_index_with_skills(data_dir):
 # --- collect_skill_tools ---
 
 
-def test_collect_skill_tools_empty_names():
-    assert collect_skill_tools(None) == []
+def test_collect_skill_tools_empty():
     assert collect_skill_tools([]) == []
 
 
@@ -224,7 +224,7 @@ def test_collect_skill_tools_from_skills(data_dir):
         '---\nname: gmail\ndescription: Email.\nallowed-tools:\n  - "Bash(ollim-bot gmail *)"\n  - "Read(**.md)"\n---\nbody'
     )
 
-    tools = collect_skill_tools(["gmail"])
+    tools = collect_skill_tools(load_skills(["gmail"]))
 
     assert tools == ["Bash(ollim-bot gmail *)", "Read(**.md)"]
 
@@ -238,7 +238,7 @@ def test_collect_skill_tools_deduplicates(data_dir):
             f'---\nname: {name}\ndescription: desc\nallowed-tools:\n  - "Read(**.md)"\n  - "Bash(ollim-bot help)"\n---\nbody'
         )
 
-    tools = collect_skill_tools(["a", "b"])
+    tools = collect_skill_tools(load_skills(["a", "b"]))
 
     assert tools == ["Read(**.md)", "Bash(ollim-bot help)"]
 
@@ -246,7 +246,7 @@ def test_collect_skill_tools_deduplicates(data_dir):
 def test_collect_skill_tools_skips_missing(data_dir):
     (data_dir / "skills").mkdir(parents=True)
 
-    tools = collect_skill_tools(["nonexistent"])
+    tools = collect_skill_tools(load_skills(["nonexistent"]))
 
     assert tools == []
 
@@ -257,7 +257,7 @@ def test_collect_skill_tools_skips_skills_without_tools(data_dir):
     d.mkdir(parents=True)
     (d / "SKILL.md").write_text("---\nname: no-tools\ndescription: desc\n---\nbody")
 
-    tools = collect_skill_tools(["no-tools"])
+    tools = collect_skill_tools(load_skills(["no-tools"]))
 
     assert tools == []
 
@@ -369,7 +369,7 @@ def test_build_skills_section_expands_commands(data_dir):
     d.mkdir(parents=True)
     (d / "SKILL.md").write_text("---\nname: status\ndescription: Current status.\n---\nTasks: !`echo 5 pending`")
 
-    result = build_skills_section(["status"])
+    result = build_skills_section(load_skills(["status"]))
 
     assert "SKILL INSTRUCTIONS:" in result
     assert "5 pending" in result

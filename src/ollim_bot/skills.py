@@ -53,10 +53,11 @@ def list_skills() -> list[Skill]:
     for skill_dir in sorted(SKILLS_DIR.iterdir()):
         if not skill_dir.is_dir():
             continue
-        skill_md = skill_dir / "SKILL.md"
-        if not skill_md.exists():
+        try:
+            text = (skill_dir / "SKILL.md").read_text()
+        except OSError:
             continue
-        skill = _parse_skill(skill_md.read_text())
+        skill = _parse_skill(text)
         if skill is None:
             log.warning("Skipping corrupt skill: %s", skill_dir.name)
             continue
@@ -70,9 +71,11 @@ def read_skill(name: str) -> Skill | None:
     if not skill_md.resolve().is_relative_to(SKILLS_DIR.resolve()):
         log.warning("Skill name contains path traversal: %s", name)
         return None
-    if not skill_md.exists():
+    try:
+        text = skill_md.read_text()
+    except OSError:
         return None
-    skill = _parse_skill(skill_md.read_text())
+    skill = _parse_skill(text)
     if skill is None:
         log.warning("Corrupt skill: %s", name)
     return skill
@@ -143,40 +146,22 @@ def load_skills(skill_names: list[str] | None) -> list[Skill]:
     return loaded
 
 
-def build_skills_section(
-    skill_names: list[str] | None = None,
-    *,
-    skills: list[Skill] | None = None,
-) -> str:
-    """Expand commands and format as a SKILL INSTRUCTIONS block.
-
-    Pass pre-loaded ``skills`` to avoid redundant disk reads, or ``skill_names``
-    to load on the fly.
-    """
-    loaded = skills if skills is not None else load_skills(skill_names)
-    if not loaded:
+def build_skills_section(skills: list[Skill]) -> str:
+    """Expand commands and format as a SKILL INSTRUCTIONS block."""
+    if not skills:
         return ""
     lines = ["SKILL INSTRUCTIONS:\n"]
-    for skill in loaded:
+    for skill in skills:
         expanded = _expand_commands(skill.message)
         lines.append(f"### {skill.name}\n{expanded}\n")
     return "\n".join(lines) + "\n"
 
 
-def collect_skill_tools(
-    skill_names: list[str] | None = None,
-    *,
-    skills: list[Skill] | None = None,
-) -> list[str]:
-    """Collect tool dependencies from referenced skills. Deduplicated.
-
-    Pass pre-loaded ``skills`` to avoid redundant disk reads, or ``skill_names``
-    to load on the fly.
-    """
-    loaded = skills if skills is not None else load_skills(skill_names)
+def collect_skill_tools(skills: list[Skill]) -> list[str]:
+    """Collect tool dependencies from referenced skills. Deduplicated."""
     tools: list[str] = []
     seen: set[str] = set()
-    for skill in loaded:
+    for skill in skills:
         if skill.allowed_tools:
             for tool in skill.allowed_tools:
                 if tool not in seen:
@@ -185,12 +170,13 @@ def collect_skill_tools(
     return tools
 
 
-def build_skill_index() -> str:
+def build_skill_index(skills: list[Skill] | None = None) -> str:
     """Build the dynamic skill index for the system prompt.
 
     Returns an empty string when no skills exist.
     """
-    skills = list_skills()
+    if skills is None:
+        skills = list_skills()
     if not skills:
         return ""
     lines = ["Available skills:"]
