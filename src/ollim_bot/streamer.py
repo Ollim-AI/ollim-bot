@@ -34,8 +34,9 @@ STATUS_TICK = 3.0
 class StreamStatus:
     """Phase-transition signal from stream_chat to stream_to_channel."""
 
-    kind: Literal["thinking_start", "tool_start", "phase_end"]
+    kind: Literal["thinking_start", "tool_start", "phase_end", "compact_start"]
     label: str = ""
+    compact_tokens: int | None = None
 
 
 class StreamParser:
@@ -150,6 +151,30 @@ async def stream_to_channel(
             status_msg = None
         status_label = None
 
+    # Auto-compaction state ----------------------------------------------------
+    in_compact = False
+    _compact_tokens: int | None = None
+
+    async def _finalize_compact() -> None:
+        """Edit compaction timer to permanent annotation, force new message."""
+        nonlocal status_msg, status_label, in_compact, msg, msg_start
+        if status_msg is not None:
+            secs = int(time.monotonic() - status_start)
+            parts: list[str] = ["auto-compacted"]
+            if _compact_tokens is not None:
+                parts.append(f"{_compact_tokens / 1000:.0f}k tokens")
+            if secs > 0:
+                parts.append(f"{secs}s")
+            note = " · ".join(parts)
+            with contextlib.suppress(discord.NotFound, discord.HTTPException):
+                await status_msg.edit(content=f"-# *{note}*")
+            status_msg = None
+        status_label = None
+        in_compact = False
+        # Force new message for post-compaction content
+        msg = None
+        msg_start = len(buf)
+
     # Response message management ----------------------------------------------
 
     async def flush() -> None:
@@ -201,14 +226,23 @@ async def stream_to_channel(
     try:
         async for item in deltas:
             if isinstance(item, StreamStatus):
-                if item.kind == "thinking_start":
+                if in_compact and item.kind != "compact_start":
+                    await _finalize_compact()
+                if item.kind == "compact_start":
+                    await flush()  # commit pre-compaction content to its own msg
+                    await _set_status(item.label)
+                    _compact_tokens = item.compact_tokens
+                    in_compact = True
+                elif item.kind == "thinking_start":
                     await _set_status("")
                 elif item.kind == "tool_start":
                     await _set_status(item.label)
                 else:  # phase_end
                     await _clear_status()
             else:
-                if status_label is not None:
+                if in_compact:
+                    await _finalize_compact()
+                elif status_label is not None:
                     await _clear_status()
                 buf += item
                 stale = True
@@ -216,7 +250,10 @@ async def stream_to_channel(
         stop.set()
         await task
 
-    await _clear_status()
+    if in_compact:
+        await _finalize_compact()
+    else:
+        await _clear_status()
 
     stale = True
     await flush()
