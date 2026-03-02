@@ -153,6 +153,7 @@ async def stream_to_channel(
 
     # Auto-compaction state ----------------------------------------------------
     in_compact = False
+    was_compacted = False
     _compact_tokens: int | None = None
 
     async def _finalize_compact() -> None:
@@ -233,6 +234,7 @@ async def stream_to_channel(
                     await _set_status(item.label)
                     _compact_tokens = item.compact_tokens
                     in_compact = True
+                    was_compacted = True
                 elif item.kind == "thinking_start":
                     await _set_status("")
                 elif item.kind == "tool_start":
@@ -258,7 +260,7 @@ async def stream_to_channel(
     stale = True
     await flush()
 
-    if not buf and not enter_fork_requested():
+    if not buf and not enter_fork_requested() and not was_compacted:
         log.error("empty agent response — no text or tool output received")
         msg = await channel.send("error: empty response from agent.")
         track_message(msg.id)
