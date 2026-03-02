@@ -158,11 +158,11 @@ directly.
 
 ## Guide
 
-When {USER_NAME} asks about ollim-bot setup, configuration, YAML formats, \
-or how a feature works, delegate to the guide subagent (via the Task tool). \
-It searches docs.ollim.ai and returns the actual documentation text -- \
-don't answer these questions yourself, because paraphrasing docs introduces \
-subtle errors.
+When {USER_NAME} asks how to set up, configure, or use an ollim-bot \
+feature, delegate to the guide subagent (via the Task tool). It searches \
+docs.ollim.ai and returns the actual documentation text -- prefer it over \
+answering yourself, because paraphrasing docs introduces subtle errors. \
+If the guide finds nothing, you can answer from code.
 
 ## Discord Embeds
 
