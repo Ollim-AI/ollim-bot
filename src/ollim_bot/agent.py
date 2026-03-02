@@ -9,7 +9,6 @@ from datetime import datetime
 from typing import Literal
 
 from claude_agent_sdk import (
-    AgentDefinition,
     AssistantMessage,
     ClaudeAgentOptions,
     ClaudeSDKClient,
@@ -21,7 +20,7 @@ from claude_agent_sdk import (
 )
 from claude_agent_sdk.types import StreamEvent
 
-from ollim_bot import runtime_config
+from ollim_bot import runtime_config, tool_policy
 from ollim_bot.agent_tools import agent_server, require_report_hook
 from ollim_bot.config import TZ as _TZ
 from ollim_bot.forks import (
@@ -52,13 +51,7 @@ from ollim_bot.sessions import (
 from ollim_bot.skills import build_skill_index
 from ollim_bot.storage import DATA_DIR
 from ollim_bot.streamer import StreamParser, StreamStatus
-from ollim_bot.subagent_prompts import (
-    GMAIL_READER_PROMPT,
-    GUIDE_PROMPT,
-    HISTORY_REVIEWER_PROMPT,
-    RESPONSIVENESS_REVIEWER_PROMPT,
-    USER_PROXY_PROMPT,
-)
+from ollim_bot.subagents import build_agent_definitions, load_subagent_specs
 
 log = logging.getLogger(__name__)
 
@@ -132,14 +125,11 @@ _HELP_TOOL = "Bash(ollim-bot help)"
 def _apply_tool_restrictions(
     opts: ClaudeAgentOptions,
     allowed: list[str] | None,
-    blocked: list[str] | None,
 ) -> ClaudeAgentOptions:
     """Apply per-job tool restrictions to agent options."""
     if allowed is not None:
         tools = allowed if _HELP_TOOL in allowed else [_HELP_TOOL, *allowed]
         return replace(opts, allowed_tools=tools)
-    if blocked is not None:
-        return replace(opts, disallowed_tools=blocked)
     return opts
 
 
@@ -156,86 +146,13 @@ class Agent:
                 "discord": agent_server,
                 "docs": {"type": "http", "url": "https://docs.ollim.ai/mcp"},
             },
-            allowed_tools=[
-                "Bash(ollim-bot tasks *)",
-                "Bash(ollim-bot cal *)",
-                "Bash(ollim-bot reminder *)",
-                "Bash(ollim-bot gmail *)",
-                "Bash(ollim-bot help)",
-                "Bash(claude-history *)",
-                "Read(**.md)",
-                "Write(**.md)",
-                "Edit(**.md)",
-                "Glob(**.md)",
-                "Grep(**.md)",
-                "WebFetch",
-                "WebSearch",
-                "mcp__discord__discord_embed",
-                "mcp__discord__ping_user",
-                "mcp__discord__follow_up_chain",
-                "mcp__discord__save_context",
-                "mcp__discord__report_updates",
-                "mcp__discord__enter_fork",
-                "mcp__discord__exit_fork",
-                "mcp__docs__*",
-                "Task",
-            ],
+            allowed_tools=tool_policy.build_superset(tool_policy.collect_all_tool_sets()),
             permission_mode="default",
             hooks={"Stop": [HookMatcher(hooks=[require_report_hook])]},
-            agents={
-                "guide": AgentDefinition(
-                    description=(
-                        "ollim-bot setup and usage guide. Searches docs.ollim.ai "
-                        "and checks configuration files to answer 'how do I...', "
-                        "'what's the format for...', and 'is my config correct?' "
-                        "questions. Shows full docs text verbatim."
-                    ),
-                    prompt=GUIDE_PROMPT,
-                    tools=[
-                        "mcp__docs__*",
-                        "Read(**.md)",
-                        "Glob(**.md)",
-                        "Bash(ollim-bot help)",
-                        "Bash(ollim-bot routine list)",
-                        "Bash(ollim-bot reminder list)",
-                    ],
-                    model="haiku",
-                ),
-                "gmail-reader": AgentDefinition(
-                    description="Email triage specialist. Reads Gmail, sorts through noise, surfaces important emails with suggested follow-up tasks.",
-                    prompt=GMAIL_READER_PROMPT,
-                    tools=["Bash(ollim-bot gmail *)"],
-                    model="sonnet",
-                ),
-                "history-reviewer": AgentDefinition(
-                    description="Session history reviewer. Scans recent Claude Code sessions for unfinished work, untracked tasks, and loose threads that need follow-up.",
-                    prompt=HISTORY_REVIEWER_PROMPT,
-                    tools=["Bash(claude-history *)"],
-                    model="sonnet",
-                ),
-                "responsiveness-reviewer": AgentDefinition(
-                    description="Reminder responsiveness analyst. Correlates reminder firings with user responses to measure engagement and suggest schedule optimizations.",
-                    prompt=RESPONSIVENESS_REVIEWER_PROMPT,
-                    tools=[
-                        "Bash(claude-history *)",
-                        "Bash(ollim-bot routine *)",
-                        "Bash(ollim-bot reminder *)",
-                    ],
-                    model="sonnet",
-                ),
-                "user-proxy": AgentDefinition(
-                    description=(
-                        "User preference proxy. Answers 'what would the user do?' "
-                        "by reading identity/preference files, routines, reminders, "
-                        "and searching conversation history for past corrections. "
-                        "Returns answer + reasoning + confidence (HIGH/MEDIUM/LOW)."
-                    ),
-                    prompt=USER_PROXY_PROMPT,
-                    tools=["Read(**.md)", "Glob(**.md)", "Bash(claude-history *)"],
-                    model="haiku",
-                ),
-            },
+            agents=build_agent_definitions(load_subagent_specs()),
         )
+        tool_policy.scan_all()
+
         cfg = runtime_config.load()
         if cfg.model_main:
             self.options = replace(self.options, model=cfg.model_main)
@@ -431,7 +348,6 @@ class Agent:
         thinking: bool | None = None,
         model: str | None = None,
         allowed_tools: list[str] | None = None,
-        disallowed_tools: list[str] | None = None,
     ) -> ClaudeSDKClient:
         """Create a disposable client that forks from a given or current session.
 
@@ -450,7 +366,7 @@ class Agent:
         if thinking is not None:
             tokens = runtime_config.load().max_thinking_tokens if thinking else None
             opts = replace(opts, max_thinking_tokens=tokens)
-        opts = _apply_tool_restrictions(opts, allowed_tools, disallowed_tools)
+        opts = _apply_tool_restrictions(opts, allowed_tools)
         client = ClaudeSDKClient(opts)
         await client.connect()
         return client
@@ -461,7 +377,6 @@ class Agent:
         model: str | None = None,
         thinking: bool = True,
         allowed_tools: list[str] | None = None,
-        disallowed_tools: list[str] | None = None,
     ) -> ClaudeSDKClient:
         """Create a standalone client with no conversation history."""
         opts = self.options
@@ -469,7 +384,7 @@ class Agent:
             opts = replace(opts, model=model)
         thinking_tokens = runtime_config.load().max_thinking_tokens if thinking else None
         opts = replace(opts, max_thinking_tokens=thinking_tokens)
-        opts = _apply_tool_restrictions(opts, allowed_tools, disallowed_tools)
+        opts = _apply_tool_restrictions(opts, allowed_tools)
         client = ClaudeSDKClient(opts)
         await client.connect()
         return client

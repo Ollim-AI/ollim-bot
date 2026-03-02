@@ -200,7 +200,6 @@ def test_reminder_new_defaults_tool_restrictions():
     reminder = Reminder.new(message="test", delay_minutes=30)
 
     assert reminder.allowed_tools is None
-    assert reminder.disallowed_tools is None
 
 
 def test_reminder_new_with_allowed_tools():
@@ -211,16 +210,6 @@ def test_reminder_new_with_allowed_tools():
     )
 
     assert reminder.allowed_tools == ["Bash(ollim-bot gmail *)"]
-
-
-def test_reminder_new_both_tools_raises():
-    with pytest.raises(ValueError, match="Cannot specify both"):
-        Reminder.new(
-            message="bad",
-            delay_minutes=10,
-            allowed_tools=["Read(**.md)"],
-            disallowed_tools=["WebFetch"],
-        )
 
 
 def test_reminder_allowed_tools_roundtrip(data_dir):
@@ -236,20 +225,3 @@ def test_reminder_allowed_tools_roundtrip(data_dir):
     loaded = list_reminders()[0]
 
     assert loaded.allowed_tools == tools
-    assert loaded.disallowed_tools is None
-
-
-def test_reminder_disallowed_tools_roundtrip(data_dir):
-    tools = ["WebFetch", "WebSearch"]
-    reminder = Reminder.new(
-        message="no web",
-        delay_minutes=30,
-        background=True,
-        disallowed_tools=tools,
-    )
-    append_reminder(reminder)
-
-    loaded = list_reminders()[0]
-
-    assert loaded.disallowed_tools == tools
-    assert loaded.allowed_tools is None

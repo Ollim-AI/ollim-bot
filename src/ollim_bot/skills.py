@@ -22,6 +22,7 @@ class Skill:
     name: str  # lowercase, hyphens — must match directory name
     description: str  # what the skill does and when to use it
     message: str  # the markdown body (instructions)
+    tools: list[str] | None = None  # tool dependencies (merged into host job)
 
 
 def _parse_skill(text: str) -> Skill | None:
@@ -80,6 +81,22 @@ def build_skills_section(skill_names: list[str] | None) -> str:
     for skill in loaded:
         lines.append(f"### {skill.name}\n{skill.message}\n")
     return "\n".join(lines) + "\n"
+
+
+def collect_skill_tools(skill_names: list[str] | None) -> list[str]:
+    """Collect tool dependencies from referenced skills. Deduplicated."""
+    if not skill_names:
+        return []
+    tools: list[str] = []
+    seen: set[str] = set()
+    for name in skill_names:
+        skill = read_skill(name)
+        if skill is not None and skill.tools:
+            for tool in skill.tools:
+                if tool not in seen:
+                    seen.add(tool)
+                    tools.append(tool)
+    return tools
 
 
 def build_skill_index() -> str:

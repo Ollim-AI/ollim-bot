@@ -1,6 +1,12 @@
 """Tests for skills.py — skill parsing, listing, and index building."""
 
-from ollim_bot.skills import Skill, _parse_skill, build_skill_index, list_skills, read_skill
+from ollim_bot.skills import (
+    _parse_skill,
+    build_skill_index,
+    collect_skill_tools,
+    list_skills,
+    read_skill,
+)
 
 # --- _parse_skill ---
 
@@ -10,11 +16,20 @@ def test_parse_skill_valid():
 
     skill = _parse_skill(text)
 
-    assert skill == Skill(
-        name="email-triage",
-        description="Process emails by priority.",
-        message="## Steps\n1. Read emails",
-    )
+    assert skill is not None
+    assert skill.name == "email-triage"
+    assert skill.description == "Process emails by priority."
+    assert skill.message == "## Steps\n1. Read emails"
+    assert skill.tools is None
+
+
+def test_parse_skill_with_tools():
+    text = '---\nname: gmail\ndescription: Email tools.\ntools:\n  - "Bash(ollim-bot gmail *)"\n  - "Read(**.md)"\n---\nDo email stuff'
+
+    skill = _parse_skill(text)
+
+    assert skill is not None
+    assert skill.tools == ["Bash(ollim-bot gmail *)", "Read(**.md)"]
 
 
 def test_parse_skill_missing_delimiters():
@@ -188,3 +203,57 @@ def test_build_skill_index_with_skills(data_dir):
     assert "Available skills:" in index
     assert "**alpha**: Does alpha things" in index
     assert "**beta**: Does beta things" in index
+
+
+# --- collect_skill_tools ---
+
+
+def test_collect_skill_tools_empty_names():
+    assert collect_skill_tools(None) == []
+    assert collect_skill_tools([]) == []
+
+
+def test_collect_skill_tools_from_skills(data_dir):
+    skills_dir = data_dir / "skills"
+    d = skills_dir / "gmail"
+    d.mkdir(parents=True)
+    (d / "SKILL.md").write_text(
+        '---\nname: gmail\ndescription: Email.\ntools:\n  - "Bash(ollim-bot gmail *)"\n  - "Read(**.md)"\n---\nbody'
+    )
+
+    tools = collect_skill_tools(["gmail"])
+
+    assert tools == ["Bash(ollim-bot gmail *)", "Read(**.md)"]
+
+
+def test_collect_skill_tools_deduplicates(data_dir):
+    skills_dir = data_dir / "skills"
+    for name in ["a", "b"]:
+        d = skills_dir / name
+        d.mkdir(parents=True)
+        (d / "SKILL.md").write_text(
+            f'---\nname: {name}\ndescription: desc\ntools:\n  - "Read(**.md)"\n  - "Bash(ollim-bot help)"\n---\nbody'
+        )
+
+    tools = collect_skill_tools(["a", "b"])
+
+    assert tools == ["Read(**.md)", "Bash(ollim-bot help)"]
+
+
+def test_collect_skill_tools_skips_missing(data_dir):
+    (data_dir / "skills").mkdir(parents=True)
+
+    tools = collect_skill_tools(["nonexistent"])
+
+    assert tools == []
+
+
+def test_collect_skill_tools_skips_skills_without_tools(data_dir):
+    skills_dir = data_dir / "skills"
+    d = skills_dir / "no-tools"
+    d.mkdir(parents=True)
+    (d / "SKILL.md").write_text("---\nname: no-tools\ndescription: desc\n---\nbody")
+
+    tools = collect_skill_tools(["no-tools"])
+
+    assert tools == []

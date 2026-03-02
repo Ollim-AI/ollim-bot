@@ -4,8 +4,6 @@ import asyncio
 import time
 from unittest.mock import AsyncMock, MagicMock
 
-import pytest
-
 from ollim_bot.forks import (
     BgForkConfig,
     ForkExitAction,
@@ -512,22 +510,34 @@ def test_bg_fork_config_with_allowed_tools():
     config = BgForkConfig(allowed_tools=["Bash(ollim-bot gmail *)"])
 
     assert config.allowed_tools == ["Bash(ollim-bot gmail *)"]
-    assert config.disallowed_tools is None
 
 
-def test_bg_fork_config_with_disallowed_tools():
-    config = BgForkConfig(disallowed_tools=["WebFetch"])
+def test_bg_fork_config_from_item_applies_minimal_default():
+    """No allowed_tools → MINIMAL_BG_TOOLS applied."""
+    from ollim_bot.tool_policy import MINIMAL_BG_TOOLS
 
-    assert config.disallowed_tools == ["WebFetch"]
-    assert config.allowed_tools is None
+    class FakeItem:
+        update_main_session = "on_ping"
+        allow_ping = True
+        allowed_tools = None
+
+    config = BgForkConfig.from_item(FakeItem())
+
+    assert config.allowed_tools == MINIMAL_BG_TOOLS
 
 
-def test_bg_fork_config_both_tools_raises():
-    with pytest.raises(ValueError, match="Cannot specify both"):
-        BgForkConfig(
-            allowed_tools=["Read(**.md)"],
-            disallowed_tools=["WebFetch"],
-        )
+def test_bg_fork_config_from_item_explicit_tools_preserved():
+    """Explicit allowed_tools in item → not overridden by minimal default."""
+    from typing import ClassVar
+
+    class FakeItem:
+        update_main_session = "on_ping"
+        allow_ping = True
+        allowed_tools: ClassVar[list[str]] = ["Bash(ollim-bot tasks *)", "Read(**.md)"]
+
+    config = BgForkConfig.from_item(FakeItem())
+
+    assert config.allowed_tools == ["Bash(ollim-bot tasks *)", "Read(**.md)"]
 
 
 # --- BgForkTracking ---

@@ -38,6 +38,7 @@ class WebhookSpec:
     thinking: bool = True
     allow_ping: bool = True
     update_main_session: str = "on_ping"
+    allowed_tools: list[str] | None = None
 
 
 def list_webhooks() -> list[WebhookSpec]:

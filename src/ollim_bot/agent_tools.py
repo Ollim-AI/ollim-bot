@@ -51,7 +51,6 @@ class ChainContext:
     update_main_session: str = "on_ping"
     allow_ping: bool = True
     allowed_tools: list[str] | None = None
-    disallowed_tools: list[str] | None = None
     skills: list[str] | None = None
 
 
@@ -282,8 +281,6 @@ async def follow_up_chain(args: dict[str, Any]) -> dict[str, Any]:
         cmd.append("--no-ping")
     if ctx.allowed_tools:
         cmd.extend(["--allowed-tools", *ctx.allowed_tools])
-    if ctx.disallowed_tools:
-        cmd.extend(["--disallowed-tools", *ctx.disallowed_tools])
     if ctx.skills:
         cmd.extend(["--skills", *ctx.skills])
     result = subprocess.run(cmd, capture_output=True, text=True)

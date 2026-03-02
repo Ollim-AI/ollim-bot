@@ -95,20 +95,23 @@ class BgForkConfig:
     update_main_session: str = "on_ping"  # always | on_ping | freely | blocked
     allow_ping: bool = True
     allowed_tools: list[str] | None = None
-    disallowed_tools: list[str] | None = None
-
-    def __post_init__(self) -> None:
-        if self.allowed_tools is not None and self.disallowed_tools is not None:
-            raise ValueError("Cannot specify both allowed_tools and disallowed_tools")
 
     @classmethod
     def from_item(cls, item: Any) -> BgForkConfig:
-        """Build from a Routine, Reminder, or WebhookSpec."""
+        """Build from a Routine, Reminder, or WebhookSpec.
+
+        When allowed_tools is not declared, applies MINIMAL_BG_TOOLS as the
+        default (principle of least privilege).
+        """
+        from ollim_bot.tool_policy import MINIMAL_BG_TOOLS
+
+        allowed = getattr(item, "allowed_tools", None)
+        if allowed is None:
+            allowed = list(MINIMAL_BG_TOOLS)
         return cls(
             update_main_session=item.update_main_session,
             allow_ping=item.allow_ping,
-            allowed_tools=getattr(item, "allowed_tools", None),
-            disallowed_tools=getattr(item, "disallowed_tools", None),
+            allowed_tools=allowed,
         )
 
 
@@ -362,7 +365,6 @@ async def run_agent_background(
     try:
         async with asyncio.timeout(bg_timeout):
             allowed = bg_config.allowed_tools if bg_config else None
-            blocked = bg_config.disallowed_tools if bg_config else None
             client: ClaudeSDKClient | None = None
             backoffs = (5, 15)
             for attempt in range(1 + len(backoffs)):
@@ -372,13 +374,11 @@ async def run_agent_background(
                             model=model,
                             thinking=thinking,
                             allowed_tools=allowed,
-                            disallowed_tools=blocked,
                         )
                     else:
                         client = await agent.create_forked_client(
                             thinking=thinking,
                             allowed_tools=allowed,
-                            disallowed_tools=blocked,
                         )
                     break
                 except Exception as exc:
