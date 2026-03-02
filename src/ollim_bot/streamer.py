@@ -26,8 +26,8 @@ EDIT_INTERVAL = 0.5
 # chunk of text instead of showing a single token like "I".
 FIRST_FLUSH_DELAY = 0.2
 MAX_MSG_LEN = 2000
-# Seconds between timer ticks on the status message (e.g. "Thinking... (3s)").
-STATUS_TICK = 3.0
+# Seconds between timer ticks on the status message (e.g. "Thinking... (1s)").
+STATUS_TICK = 1.0
 
 
 @dataclass(frozen=True)
@@ -132,9 +132,14 @@ async def stream_to_channel(
 
     async def _set_status(label: str) -> None:
         nonlocal status_msg, status_label, status_start, status_last_edit
-        status_label = label or "Thinking"
+        new_label = label or "Thinking"
         now = time.monotonic()
-        status_start = now
+        # Only reset timer when the label changes (e.g. Thinking → tool).
+        # When the same label is re-set (initial status → real thinking_start),
+        # the timer keeps counting from the original start.
+        if status_label != new_label:
+            status_start = now
+        status_label = new_label
         status_last_edit = now
         text = _status_text()
         if status_msg is None:
@@ -224,6 +229,13 @@ async def stream_to_channel(
                 await channel.typing()
 
     task = asyncio.create_task(editor())
+    # Immediate feedback: show "Thinking..." before the API sends its first
+    # event.  Eliminates the dead zone between client.query() and the first
+    # SSE event where only the typing indicator was visible.  When the real
+    # thinking_start arrives, _set_status sees the same label and keeps the
+    # timer running (no reset).  If text arrives first (no thinking), the
+    # text-delta handler clears it automatically.
+    await _set_status("")
     try:
         async for item in deltas:
             if isinstance(item, StreamStatus):

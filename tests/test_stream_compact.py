@@ -128,18 +128,23 @@ async def test_mid_response_compaction_produces_three_messages():
         ),
     )
 
-    assert len(ch.messages) == 3
+    # 4 messages: initial status (deleted by first text), pre-compact text,
+    # compaction annotation, post-compact text.
+    assert len(ch.messages) == 4
 
-    pre = ch.messages[0]
+    initial = ch.messages[0]
+    assert initial.deleted  # initial "Thinking..." cleared by text arrival
+
+    pre = ch.messages[1]
     assert pre.content == "before compaction"
     assert not pre.deleted
 
-    annotation = ch.messages[1]
+    annotation = ch.messages[2]
     assert "auto-compacted" in annotation.content
     assert "30k tokens" in annotation.content
     assert not annotation.deleted
 
-    post = ch.messages[2]
+    post = ch.messages[3]
     assert post.content == "after compaction"
 
 
