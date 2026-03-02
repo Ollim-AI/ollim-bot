@@ -8,7 +8,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from ollim_bot import permissions, ping_budget, webhook
+from ollim_bot import permissions, ping_budget, runtime_config, webhook
 from ollim_bot.agent import Agent, ModelName
 from ollim_bot.channel import init_channel
 from ollim_bot.config import BOT_NAME, USER_NAME
@@ -249,6 +249,9 @@ def create_bot() -> commands.Bot:
             return
         _ready_fired = True
 
+        cfg = runtime_config.load()
+        permissions.set_dont_ask(cfg.permission_mode == "dontAsk")
+
         init_views(agent)
         bot.add_dynamic_items(ActionButton)
 
@@ -389,6 +392,43 @@ def create_bot() -> commands.Bot:
         else:
             status = ping_budget.get_full_status()
             await interaction.response.send_message(f"ping budget: {status}.")
+
+    @bot.tree.command(name="config", description="View or set runtime configuration")
+    @discord.app_commands.describe(
+        key="Config key to view or set",
+        value="New value (omit to view current)",
+    )
+    @discord.app_commands.choices(
+        key=[
+            discord.app_commands.Choice(name="model.main", value="model_main"),
+            discord.app_commands.Choice(name="model.fork", value="model_fork"),
+            discord.app_commands.Choice(name="thinking.main", value="thinking_main"),
+            discord.app_commands.Choice(name="thinking.fork", value="thinking_fork"),
+            discord.app_commands.Choice(name="max_thinking_tokens", value="max_thinking_tokens"),
+            discord.app_commands.Choice(name="bg_fork_timeout", value="bg_fork_timeout"),
+            discord.app_commands.Choice(name="fork_idle_timeout", value="fork_idle_timeout"),
+            discord.app_commands.Choice(name="permission_mode", value="permission_mode"),
+        ]
+    )
+    @discord.app_commands.check(_owner_check)
+    async def slash_config(
+        interaction: discord.Interaction,
+        key: discord.app_commands.Choice[str] | None = None,
+        value: str | None = None,
+    ):
+        if key is None:
+            await interaction.response.send_message(runtime_config.format_all())
+            return
+        if value is None:
+            await interaction.response.send_message(runtime_config.format_one(key.value))
+            return
+        try:
+            runtime_config.set_value(key.value, value)
+        except ValueError as exc:
+            await interaction.response.send_message(f"{key.name}: {exc}", ephemeral=True)
+            return
+        await agent.apply_config(key.value)
+        await interaction.response.send_message(runtime_config.format_one(key.value))
 
     @bot.tree.error
     async def on_app_command_error(

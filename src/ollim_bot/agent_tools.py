@@ -368,7 +368,10 @@ async def enter_fork(args: dict[str, Any]) -> dict[str, Any]:
         return _resp(
             "Error: already in an interactive fork. Use report_updates, exit_fork, or save_context to end it first."
         )
-    request_enter_fork(args.get("topic"), idle_timeout=args.get("idle_timeout", 10))
+    from ollim_bot import runtime_config
+
+    default_timeout = runtime_config.load().fork_idle_timeout
+    request_enter_fork(args.get("topic"), idle_timeout=args.get("idle_timeout", default_timeout))
     return _resp("Entering fork — interrupting current turn.")
 
 

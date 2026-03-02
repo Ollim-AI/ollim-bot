@@ -21,6 +21,7 @@ from claude_agent_sdk import (
 )
 from claude_agent_sdk.types import StreamEvent
 
+from ollim_bot import runtime_config
 from ollim_bot.agent_tools import agent_server, require_report_hook
 from ollim_bot.config import TZ as _TZ
 from ollim_bot.forks import (
@@ -213,6 +214,12 @@ class Agent:
                 ),
             },
         )
+        cfg = runtime_config.load()
+        if cfg.model_main:
+            self.options = replace(self.options, model=cfg.model_main)
+        if cfg.thinking_main:
+            self.options = replace(self.options, max_thinking_tokens=cfg.max_thinking_tokens)
+
         self._client: ClaudeSDKClient | None = None
         self._fork_client: ClaudeSDKClient | None = None
         self._fork_session_id: str | None = None
@@ -262,7 +269,7 @@ class Agent:
 
     async def set_thinking(self, enabled: bool) -> None:
         """Toggle extended thinking. Drops clients to apply (no live setter)."""
-        tokens = 10000 if enabled else None
+        tokens = runtime_config.load().max_thinking_tokens if enabled else None
         self.options = replace(self.options, max_thinking_tokens=tokens)
         await self._drop_client()
         if self._fork_client:
@@ -285,6 +292,32 @@ class Agent:
             self.options = replace(self.options, permission_mode=mode)
         else:
             self.options = replace(self.options, permission_mode=mode)
+
+    async def apply_config(self, key: str) -> None:
+        """Apply a config change to live clients where possible."""
+        from ollim_bot import permissions
+
+        cfg = runtime_config.load()
+        if key == "model_main":
+            self.options = replace(self.options, model=cfg.model_main)
+            if self._client and cfg.model_main:
+                await self._client.set_model(cfg.model_main)
+        elif key == "model_fork":
+            model = cfg.model_fork or cfg.model_main
+            if self._fork_client and model:
+                await self._fork_client.set_model(model)
+        elif key == "thinking_main":
+            tokens = cfg.max_thinking_tokens if cfg.thinking_main else None
+            self.options = replace(self.options, max_thinking_tokens=tokens)
+        elif key in ("thinking_fork", "bg_fork_timeout", "fork_idle_timeout"):
+            pass  # takes effect on next fork
+        elif key == "max_thinking_tokens":
+            if self.options.max_thinking_tokens is not None:
+                self.options = replace(self.options, max_thinking_tokens=cfg.max_thinking_tokens)
+        elif key == "permission_mode":
+            permissions.set_dont_ask(cfg.permission_mode == "dontAsk")
+            mode = "default" if cfg.permission_mode == "dontAsk" else cfg.permission_mode
+            await self.set_permission_mode(mode)
 
     async def _drop_client(self) -> None:
         """Teardown: interrupt + disconnect.
@@ -320,12 +353,19 @@ class Agent:
             with contextlib.suppress(RuntimeError):
                 await old.disconnect()
 
-    async def enter_interactive_fork(self, *, idle_timeout: int = 10, resume_session_id: str | None = None) -> None:
+    async def enter_interactive_fork(
+        self, *, idle_timeout: int | None = None, resume_session_id: str | None = None
+    ) -> None:
         """Create an interactive fork client and switch routing to it."""
+        cfg = runtime_config.load()
+        if idle_timeout is None:
+            idle_timeout = cfg.fork_idle_timeout
+        model = cfg.model_fork or cfg.model_main
         self._fork_client = await self.create_forked_client(
             session_id=resume_session_id,
             fork=resume_session_id is None,
-            thinking=True,
+            thinking=cfg.thinking_fork,
+            model=model,
         )
         self._fork_session_id = None
         set_interactive_fork(True, idle_timeout=idle_timeout)
@@ -367,6 +407,7 @@ class Agent:
         *,
         fork: bool = True,
         thinking: bool | None = None,
+        model: str | None = None,
         allowed_tools: list[str] | None = None,
         disallowed_tools: list[str] | None = None,
     ) -> ClaudeSDKClient:
@@ -375,14 +416,17 @@ class Agent:
         fork=False resumes the session directly without branching. Use when the
         target is a completed bg fork session that may not support re-forking.
         thinking=None inherits from main session; True/False overrides.
+        model=None inherits from main session options.
         """
         sid = session_id or load_session_id()
         if sid:
             opts = replace(self.options, resume=sid, fork_session=fork)
         else:
             opts = self.options
+        if model:
+            opts = replace(opts, model=model)
         if thinking is not None:
-            tokens = 10000 if thinking else None
+            tokens = runtime_config.load().max_thinking_tokens if thinking else None
             opts = replace(opts, max_thinking_tokens=tokens)
         opts = _apply_tool_restrictions(opts, allowed_tools, disallowed_tools)
         client = ClaudeSDKClient(opts)
@@ -401,7 +445,7 @@ class Agent:
         opts = self.options
         if model:
             opts = replace(opts, model=model)
-        thinking_tokens = 10000 if thinking else None
+        thinking_tokens = runtime_config.load().max_thinking_tokens if thinking else None
         opts = replace(opts, max_thinking_tokens=thinking_tokens)
         opts = _apply_tool_restrictions(opts, allowed_tools, disallowed_tools)
         client = ClaudeSDKClient(opts)

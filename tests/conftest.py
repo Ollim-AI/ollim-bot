@@ -22,6 +22,7 @@ def data_dir(tmp_path, monkeypatch):
     import ollim_bot.forks as forks_mod
     import ollim_bot.inquiries as inquiries_mod
     import ollim_bot.ping_budget as ping_budget_mod
+    import ollim_bot.runtime_config as runtime_config_mod
     import ollim_bot.scheduling.reminders as reminders_mod
     import ollim_bot.scheduling.routines as routines_mod
     import ollim_bot.sessions as sessions_mod
@@ -34,6 +35,7 @@ def data_dir(tmp_path, monkeypatch):
     monkeypatch.setattr(reminders_mod, "REMINDERS_DIR", tmp_path / "reminders")
     monkeypatch.setattr(inquiries_mod, "INQUIRIES_FILE", state_dir / "inquiries.json")
     monkeypatch.setattr(ping_budget_mod, "BUDGET_FILE", state_dir / "ping_budget.json")
+    monkeypatch.setattr(runtime_config_mod, "CONFIG_FILE", state_dir / "config.json")
     monkeypatch.setattr(sessions_mod, "SESSIONS_FILE", state_dir / "sessions.json")
     monkeypatch.setattr(sessions_mod, "HISTORY_FILE", state_dir / "session_history.jsonl")
     monkeypatch.setattr(sessions_mod, "FORK_MESSAGES_FILE", state_dir / "fork_messages.json")
