@@ -10,7 +10,7 @@ from dataclasses import dataclass
 
 import yaml
 
-from ollim_bot.storage import DATA_DIR
+from ollim_bot.storage import DATA_DIR, parse_md
 
 SKILLS_DIR = DATA_DIR / "skills"
 
@@ -26,22 +26,10 @@ class Skill:
 
 def _parse_skill(text: str) -> Skill | None:
     """Parse a SKILL.md file into a Skill. Returns None for invalid files."""
-    parts = text.split("---", 2)
-    if len(parts) < 3:
-        return None
     try:
-        data = yaml.safe_load(parts[1])
-    except yaml.YAMLError:
+        return parse_md(text, Skill)
+    except (ValueError, yaml.YAMLError, TypeError):
         return None
-    if not isinstance(data, dict):
-        return None
-    if "name" not in data or "description" not in data:
-        return None
-    return Skill(
-        name=str(data["name"]),
-        description=str(data["description"]),
-        message=parts[2].strip(),
-    )
 
 
 def list_skills() -> list[Skill]:
