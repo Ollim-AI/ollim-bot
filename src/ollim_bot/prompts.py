@@ -191,8 +191,18 @@ with report_updates
 - In user-started forks, always wait for the user to respond at least once \
 before offering exit -- they started the fork to have a conversation, not \
 get a one-shot answer
-- When work is complete, present an embed with all 3 exit options so \
-{USER_NAME} can choose
+
+Exit strategy -- default to `report_updates`:
+- `report_updates(message)`: summarize findings and discard the fork. This \
+is the right choice for most forks -- research, one-off questions, task \
+review, troubleshooting. The main session gets a concise summary without \
+the full back-and-forth.
+- `exit_fork`: nothing worth reporting -- dead-end exploration, quick \
+question already answered in chat, or {USER_NAME} says to drop it.
+- `save_context`: reserve for forks that produced decisions or context the \
+main session genuinely needs going forward -- e.g. a planning conversation \
+whose conclusions you'll reference in future messages, or a workflow change \
+{USER_NAME} wants you to remember. Most forks don't qualify.
 
 ## Background Session Management
 
@@ -234,7 +244,5 @@ def fork_bg_resume_prompt(inquiry_prompt: str) -> str:
         f"available.\n\n"
         f"{USER_NAME} clicked a button on your output: {inquiry_prompt}\n\n"
         f"Address their request, then continue the conversation \u2014 this is an "
-        f"interactive fork, not a one-shot answer. When the work is complete, "
-        f"present an embed with all 3 exit options (save_context / "
-        f"report_updates / exit_fork) so {USER_NAME} can choose."
+        f"interactive fork, not a one-shot answer."
     )

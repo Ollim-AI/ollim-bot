@@ -255,16 +255,13 @@ def setup_scheduler(bot: discord.Client, agent: Agent, owner: discord.User) -> A
 
         if escalated:
             prompt = (
-                f"[fork-timeout] REMINDER: This fork has been idle for over {timeout * 2} minutes "
-                "and you already received a timeout notice. You MUST exit now: "
-                "use `save_context`, `report_updates(message)`, or `exit_fork`."
+                f"[fork-timeout] This fork has been idle for {timeout * 2} minutes "
+                "and you already received a timeout notice. You MUST exit now."
             )
         else:
             prompt = (
                 f"[fork-timeout] This fork has been idle for {timeout} minutes. "
-                "Decide what to do: use `save_context` to promote to main session, "
-                "`report_updates(message)` to send a summary, or `exit_fork` to discard. "
-                f"If {USER_NAME} is still engaged, ask them what they'd like to do."
+                f"If {USER_NAME} is still engaged, ask them. Otherwise, exit the fork."
             )
 
         async with agent.lock():
