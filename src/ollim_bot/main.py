@@ -5,10 +5,12 @@ from __future__ import annotations
 import asyncio
 import atexit
 import contextlib
+import json
 import logging
 import os
 import signal
 import sys
+import urllib.request
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -177,6 +179,39 @@ async def _run(bot: Bot, token: str) -> None:
             await bot.close()
 
 
+def _discord_api(token: str, method: str, path: str, body: dict | None = None) -> dict:
+    """Make a Discord REST API call."""
+    url = f"https://discord.com/api/v10{path}"
+    headers = {"Authorization": f"Bot {token}", "Content-Type": "application/json"}
+    data = json.dumps(body).encode() if body else None
+    req = urllib.request.Request(url, data=data, headers=headers, method=method)
+    with urllib.request.urlopen(req) as resp:
+        return json.loads(resp.read())
+
+
+def _dm_owner(token: str, message: str) -> None:
+    """Send a DM to the bot owner via Discord REST API."""
+    app = _discord_api(token, "GET", "/oauth2/applications/@me")
+    owner_id = app["owner"]["id"]
+    channel = _discord_api(token, "POST", "/users/@me/channels", {"recipient_id": owner_id})
+    _discord_api(token, "POST", f"/channels/{channel['id']}/messages", {"content": message})
+
+
+def _login_via_discord(token: str) -> None:
+    """Start Claude login and DM the auth URL to the bot owner."""
+    from ollim_bot.auth import start_login
+
+    print("Not logged in to Claude — starting login via Discord DM...")
+    url, proc = start_login()
+    _dm_owner(token, f"**Claude login required**\n\nClick to authenticate:\n{url}")
+    print("Login URL sent via Discord DM — waiting for authentication...")
+    proc.wait()
+    if proc.returncode != 0:
+        print("Login failed — run `ollim-bot auth login` to try again")
+        raise SystemExit(1)
+    print("Login successful!")
+
+
 def main() -> None:
     if _dispatch_subcommand():
         return
@@ -188,9 +223,10 @@ def main() -> None:
         print("Set DISCORD_TOKEN in .env")
         raise SystemExit(1)
 
-    from ollim_bot.auth import ensure_authenticated
+    from ollim_bot.auth import is_authenticated
 
-    ensure_authenticated()
+    if not is_authenticated():
+        _login_via_discord(token)
 
     _check_already_running()
     _ensure_sdk_layout()
