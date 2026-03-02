@@ -53,6 +53,7 @@ from ollim_bot.storage import DATA_DIR
 from ollim_bot.streamer import StreamParser, StreamStatus
 from ollim_bot.subagent_prompts import (
     GMAIL_READER_PROMPT,
+    GUIDE_PROMPT,
     HISTORY_REVIEWER_PROMPT,
     RESPONSIVENESS_REVIEWER_PROMPT,
     USER_PROXY_PROMPT,
@@ -179,6 +180,24 @@ class Agent:
             permission_mode="default",
             hooks={"Stop": [HookMatcher(hooks=[require_report_hook])]},
             agents={
+                "guide": AgentDefinition(
+                    description=(
+                        "ollim-bot setup and usage guide. Searches docs.ollim.ai "
+                        "and checks configuration files to answer 'how do I...', "
+                        "'what's the format for...', and 'is my config correct?' "
+                        "questions. Shows full docs text verbatim."
+                    ),
+                    prompt=GUIDE_PROMPT,
+                    tools=[
+                        "mcp__docs__*",
+                        "Read(**.md)",
+                        "Glob(**.md)",
+                        "Bash(ollim-bot help)",
+                        "Bash(ollim-bot routine list)",
+                        "Bash(ollim-bot reminder list)",
+                    ],
+                    model="haiku",
+                ),
                 "gmail-reader": AgentDefinition(
                     description="Email triage specialist. Reads Gmail, sorts through noise, surfaces important emails with suggested follow-up tasks.",
                     prompt=GMAIL_READER_PROMPT,

@@ -59,7 +59,7 @@ Never write working data into the source repo or source code into `~/.ollim-bot/
 - `agent.py` -- Claude Agent SDK brain (persistent sessions, MCP tools, subagents, slash command routing)
 - `main.py` -- CLI entry point and command router (`ollim-bot` dispatches to bot, routines, reminders, tasks, cal, gmail)
 - `prompts.py` -- System prompt for the main agent and fork prompt helpers
-- `subagent_prompts.py` -- System prompts for subagents (gmail-reader, history-reviewer, responsiveness-reviewer, user-proxy)
+- `subagent_prompts.py` -- System prompts for subagents (guide, gmail-reader, history-reviewer, responsiveness-reviewer, user-proxy)
 - `agent_tools.py` -- MCP tools: `discord_embed`, `ping_user`, `follow_up_chain`, `save_context`, `report_updates`, `enter_fork`, `exit_fork`
 - `channel.py` -- DM channel reference, set once at startup (`init_channel`/`get_channel`)
 - `webhook.py` -- Webhook HTTP server for external triggers (aiohttp, auth, validation, Haiku screening, dispatch)
@@ -93,7 +93,7 @@ Never write working data into the source repo or source code into `~/.ollim-bot/
 - Single `ClaudeSDKClient` for persistent conversation with auto-compaction (single-user bot)
 - No `setting_sources` -- all config is in code (no CLAUDE.md, skills, or settings.json loaded)
 - `permission_mode="default"` -- SDK default; whitelisted tools auto-approved, others routed through `permissions.py`
-- Subagents defined programmatically via `AgentDefinition`: gmail-reader, history-reviewer, responsiveness-reviewer, user-proxy
+- Subagents defined programmatically via `AgentDefinition`: guide, gmail-reader, history-reviewer, responsiveness-reviewer, user-proxy
 - Two MCP servers: `discord` (agent_tools.py — 7 tools) and `docs` (remote, `docs.ollim.ai/mcp` — self-referencing documentation)
 - Tool instructions (tasks, cal, routines, reminders, embeds) inlined in SYSTEM_PROMPT; history delegated to subagent
 - `ResultMessage.result` is a fallback — don't double-count with `AssistantMessage` text blocks
