@@ -529,6 +529,10 @@ class Agent:
 
         Falls back to AssistantMessage text blocks if no StreamEvent arrives,
         then to ResultMessage.result. Saves session ID on completion.
+
+        Detects mid-turn auto-compaction (context overflow) and transparently
+        retries ``receive_response()`` so the post-compaction response streams
+        through normally.
         """
         client, message = await self._resolve_client(message)
 
@@ -568,50 +572,82 @@ class Agent:
         result_text: str | None = None
         fork_interrupted = False
         parser = StreamParser()
+        compacted = False
 
-        try:
-            async for msg in client.receive_response():
-                if isinstance(msg, StreamEvent):
-                    # Interrupt once when enter_fork tool fires; suppress
-                    # remaining StreamEvents but let the loop end naturally
-                    # so ResultMessage still saves the session ID.
-                    if not fork_interrupted and enter_fork_requested():
-                        fork_interrupted = True
-                        with contextlib.suppress(CLIConnectionError):
-                            await client.interrupt()
+        async def _consume(response):
+            """Process messages from one receive_response() call."""
+            nonlocal streamed, fork_interrupted, result_text, compacted
+
+            try:
+                async for msg in response:
+                    if isinstance(msg, SystemMessage):
+                        if msg.subtype == "compact_boundary":
+                            compacted = True
+                            log.warning("auto-compaction detected mid-turn")
                         continue
-                    if fork_interrupted:
-                        continue
 
-                    # Capture fork session ID from first StreamEvent
-                    if self._fork_client is not None and client is self._fork_client and self._fork_session_id is None:
-                        self._fork_session_id = msg.session_id
-                        log_session_event(
-                            msg.session_id,
-                            "interactive_fork",
-                            parent_session_id=load_session_id(),
-                        )
+                    if isinstance(msg, StreamEvent):
+                        # Interrupt once when enter_fork tool fires; suppress
+                        # remaining StreamEvents but let the loop end naturally
+                        # so ResultMessage still saves the session ID.
+                        if not fork_interrupted and enter_fork_requested():
+                            fork_interrupted = True
+                            with contextlib.suppress(CLIConnectionError):
+                                await client.interrupt()
+                            continue
+                        if fork_interrupted:
+                            continue
 
-                    async for item in parser.feed(msg.event):
-                        streamed = True
-                        yield item
+                        # Capture fork session ID from first StreamEvent
+                        if (
+                            self._fork_client is not None
+                            and client is self._fork_client
+                            and self._fork_session_id is None
+                        ):
+                            self._fork_session_id = msg.session_id
+                            log_session_event(
+                                msg.session_id,
+                                "interactive_fork",
+                                parent_session_id=load_session_id(),
+                            )
 
-                elif isinstance(msg, AssistantMessage) and not streamed:
-                    for block in msg.content:
-                        if isinstance(block, TextBlock):
-                            fallback_parts.append(block.text)
-                elif isinstance(msg, ResultMessage):
-                    if msg.result:
-                        result_text = msg.result
-                    self._save_result_session(client, msg, log_fork_event=False)
-        except CLIConnectionError:
-            if not fork_interrupted:
-                raise
+                        async for item in parser.feed(msg.event):
+                            streamed = True
+                            yield item
 
-        # Drain any active status (e.g. tool as last action in a pure-tool turn)
-        async for item in parser.drain():
-            streamed = True
+                    elif isinstance(msg, AssistantMessage) and not streamed:
+                        for block in msg.content:
+                            if isinstance(block, TextBlock):
+                                fallback_parts.append(block.text)
+                    elif isinstance(msg, ResultMessage):
+                        if msg.result:
+                            result_text = msg.result
+                        self._save_result_session(client, msg, log_fork_event=False)
+            except CLIConnectionError:
+                if not fork_interrupted:
+                    raise
+
+            # Drain any active status (e.g. tool as last action in a pure-tool turn)
+            async for item in parser.drain():
+                streamed = True
+                yield item
+
+        # First pass
+        async for item in _consume(client.receive_response()):
             yield item
+
+        # Auto-compaction: SDK terminated the response mid-turn to compact
+        # context.  The post-compaction response needs a second
+        # receive_response() call.
+        if compacted and not streamed:
+            log.info("consuming post-compaction response")
+            yield StreamStatus(kind="tool_start", label="Auto-compacting")
+            try:
+                async with asyncio.timeout(120):
+                    async for item in _consume(client.receive_response()):
+                        yield item
+            except TimeoutError:
+                log.error("post-compaction response timed out after 120s")
 
         if not streamed:
             if fallback_parts:
