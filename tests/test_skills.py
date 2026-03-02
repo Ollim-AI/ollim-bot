@@ -1,8 +1,11 @@
-"""Tests for skills.py — skill parsing, listing, and index building."""
+"""Tests for skills.py — skill parsing, listing, index building, and command expansion."""
 
+import ollim_bot.skills as skills_mod
 from ollim_bot.skills import (
+    _expand_commands,
     _parse_skill,
     build_skill_index,
+    build_skills_section,
     collect_skill_tools,
     list_skills,
     read_skill,
@@ -257,3 +260,117 @@ def test_collect_skill_tools_skips_skills_without_tools(data_dir):
     tools = collect_skill_tools(["no-tools"])
 
     assert tools == []
+
+
+# --- _expand_commands ---
+
+
+def test_expand_commands_no_commands():
+    text = "Plain text with no commands."
+
+    result = _expand_commands(text)
+
+    assert result == text
+
+
+def test_expand_commands_single():
+    text = "Today: !`echo hello`"
+
+    result = _expand_commands(text)
+
+    assert result == "Today: hello"
+
+
+def test_expand_commands_multiple():
+    text = "A: !`echo alpha` B: !`echo beta`"
+
+    result = _expand_commands(text)
+
+    assert result == "A: alpha B: beta"
+
+
+def test_expand_commands_mixed_content():
+    text = "## Status\n\nTasks: !`echo 3 pending`\n\n- bullet one\n- bullet two"
+
+    result = _expand_commands(text)
+
+    assert "3 pending" in result
+    assert "!`" not in result
+    assert "- bullet one" in result
+
+
+def test_expand_commands_failure():
+    result = _expand_commands("!`false`")
+
+    assert "[command failed (exit 1)" in result
+
+
+def test_expand_commands_failure_with_stderr():
+    result = _expand_commands("!`sh -c 'echo oops >&2; exit 1'`")
+
+    assert "[command failed (exit 1)" in result
+    assert "oops" in result
+
+
+def test_expand_commands_not_found():
+    result = _expand_commands("!`nonexistent-xyz-cmd-12345`")
+
+    assert "[command not found" in result
+
+
+def test_expand_commands_parse_error():
+    result = _expand_commands("!`echo 'unclosed`")
+
+    assert "[command parse error" in result
+
+
+def test_expand_commands_timeout(monkeypatch):
+    monkeypatch.setattr(skills_mod, "_COMMAND_TIMEOUT", 0.5)
+    monkeypatch.setattr(skills_mod, "_TOTAL_TIMEOUT", 5)
+
+    result = _expand_commands("!`sleep 10`")
+
+    assert "[command timed out" in result
+
+
+def test_expand_commands_total_timeout(monkeypatch):
+    monkeypatch.setattr(skills_mod, "_COMMAND_TIMEOUT", 5)
+    monkeypatch.setattr(skills_mod, "_TOTAL_TIMEOUT", 0.5)
+
+    result = _expand_commands("!`sleep 5` then !`echo second`")
+
+    assert "[command timed out" in result
+    assert "[command skipped (total timeout): echo second]" in result
+
+
+def test_expand_commands_output_truncation(monkeypatch):
+    monkeypatch.setattr(skills_mod, "_MAX_OUTPUT", 50)
+
+    result = _expand_commands("!`seq 1 10000`")
+
+    assert len(result) < 200
+    assert "[...truncated]" in result
+
+
+def test_expand_commands_deduplicates():
+    text = "!`echo same` and !`echo same`"
+
+    result = _expand_commands(text)
+
+    assert result == "same and same"
+
+
+# --- build_skills_section with commands ---
+
+
+def test_build_skills_section_expands_commands(data_dir):
+    skills_dir = data_dir / "skills"
+    d = skills_dir / "status"
+    d.mkdir(parents=True)
+    (d / "SKILL.md").write_text("---\nname: status\ndescription: Current status.\n---\nTasks: !`echo 5 pending`")
+
+    result = build_skills_section(["status"])
+
+    assert "SKILL INSTRUCTIONS:" in result
+    assert "5 pending" in result
+    assert "!`" not in result
