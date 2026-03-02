@@ -495,21 +495,16 @@ class Agent:
         client = await self._get_client()
         return client, message
 
-    def _save_result_session(self, client: ClaudeSDKClient, msg: ResultMessage, *, log_fork_event: bool) -> None:
-        """Save session ID from a ResultMessage.
-
-        log_fork_event=True logs the interactive_fork event here (used by
-        non-streaming paths where no StreamEvent captures it first).
-        """
+    def _save_result_session(self, client: ClaudeSDKClient, msg: ResultMessage) -> None:
+        """Save session ID from a ResultMessage."""
         if self._fork_client is not None and client is self._fork_client:
             if self._fork_session_id is None:
                 self._fork_session_id = msg.session_id
-                if log_fork_event:
-                    log_session_event(
-                        msg.session_id,
-                        "interactive_fork",
-                        parent_session_id=load_session_id(),
-                    )
+                log_session_event(
+                    msg.session_id,
+                    "interactive_fork",
+                    parent_session_id=load_session_id(),
+                )
         elif self._client is client:
             save_session_id(msg.session_id)
 
@@ -619,7 +614,7 @@ class Agent:
                     elif isinstance(msg, ResultMessage):
                         if msg.result:
                             result_text = msg.result
-                        self._save_result_session(client, msg, log_fork_event=True)
+                        self._save_result_session(client, msg)
             except CLIConnectionError:
                 if not fork_interrupted:
                     raise
