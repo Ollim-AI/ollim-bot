@@ -8,7 +8,8 @@ from dataclasses import asdict, dataclass, replace
 from datetime import date, datetime
 from pathlib import Path
 
-from ollim_bot.storage import STATE_DIR, TZ, atomic_write
+from ollim_bot.config import TZ
+from ollim_bot.storage import STATE_DIR, atomic_write
 
 BUDGET_FILE: Path = STATE_DIR / "ping_budget.json"
 _DEFAULT_CAPACITY = 5

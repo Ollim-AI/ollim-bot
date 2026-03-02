@@ -13,8 +13,6 @@ from typing import TypeVar
 
 import yaml
 
-from ollim_bot.config import TZ as TZ
-
 DATA_DIR = Path.home() / ".ollim-bot"
 STATE_DIR = DATA_DIR / "state"
 
