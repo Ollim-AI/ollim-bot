@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import logging
 import time
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass
@@ -15,6 +16,8 @@ from ollim_bot.forks import enter_fork_requested
 from ollim_bot.formatting import format_tool_label
 from ollim_bot.permissions import pop_denial
 from ollim_bot.sessions import track_message
+
+log = logging.getLogger(__name__)
 
 # Discord allows ~5 edits per 5 seconds per channel.  0.5s gives a
 # responsive feel; discord.py handles any 429s transparently.
@@ -220,5 +223,6 @@ async def stream_to_channel(
     await flush()
 
     if not buf and not enter_fork_requested():
-        msg = await channel.send("hmm, I didn't have a response for that.")
+        log.error("empty agent response — no text or tool output received")
+        msg = await channel.send("error: empty response from agent.")
         track_message(msg.id)
