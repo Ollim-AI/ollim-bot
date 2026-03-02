@@ -291,9 +291,9 @@ async def follow_up_chain(args: dict[str, Any]) -> dict[str, Any]:
 
 @tool(
     "save_context",
-    "Promote the current interactive fork to the main session. Only available "
-    "in interactive forks. If you don't call this, everything from this fork "
-    "is discarded.",
+    "Promote the current interactive fork to the main session. "
+    "Reserve for forks that produced decisions or context the main session "
+    "needs going forward. Most forks should use report_updates instead.",
     {
         "type": "object",
         "properties": {},
@@ -311,9 +311,8 @@ async def save_context(args: dict[str, Any]) -> dict[str, Any]:
 
 @tool(
     "report_updates",
-    "Report a short summary from this fork to the main conversation. "
-    "The fork is discarded but the summary is injected into the next main-session "
-    "message. Use for lightweight findings that don't need full context preservation.",
+    "Default fork exit. Summarize findings and discard the fork — the summary "
+    "is injected into the next main-session message.",
     {
         "type": "object",
         "properties": {
@@ -346,8 +345,8 @@ async def report_updates(args: dict[str, Any]) -> dict[str, Any]:
 @tool(
     "enter_fork",
     "Start an interactive forked session for research, tangents, or focused work. "
-    "The fork branches from the main conversation. Use exit_fork, save_context, or "
-    "report_updates to end it.",
+    "The fork branches from the main conversation. Use report_updates, exit_fork, "
+    "or save_context to end it.",
     {
         "type": "object",
         "properties": {
@@ -367,7 +366,7 @@ async def enter_fork(args: dict[str, Any]) -> dict[str, Any]:
         return _resp("Error: enter_fork is not available in background forks.")
     if in_interactive_fork():
         return _resp(
-            "Error: already in an interactive fork. Use exit_fork, save_context, or report_updates to end it first."
+            "Error: already in an interactive fork. Use report_updates, exit_fork, or save_context to end it first."
         )
     request_enter_fork(args.get("topic"), idle_timeout=args.get("idle_timeout", 10))
     return _resp("Entering fork — interrupting current turn.")
