@@ -103,8 +103,8 @@ def scan_all() -> list[ToolPatternError]:
             errors.extend(validate_tool_set(reminder.allowed_tools, f"reminder:{reminder.id}"))
 
     for skill in list_skills():
-        if skill.tools:
-            errors.extend(validate_tool_set(skill.tools, f"skill:{skill.name}"))
+        if skill.allowed_tools:
+            errors.extend(validate_tool_set(skill.allowed_tools, f"skill:{skill.name}"))
 
     for webhook in list_webhooks():
         if webhook.allowed_tools:
@@ -182,8 +182,8 @@ def collect_all_tool_sets() -> dict[str, list[str]]:
     tool_sets: dict[str, list[str]] = {"main": list(MAIN_SESSION_TOOLS)}
 
     for name, spec in load_subagent_specs().items():
-        if spec.tools:
-            tool_sets[f"subagent:{name}"] = spec.tools
+        if spec.allowed_tools:
+            tool_sets[f"subagent:{name}"] = spec.allowed_tools
 
     for routine in list_routines():
         if routine.allowed_tools:
@@ -194,8 +194,8 @@ def collect_all_tool_sets() -> dict[str, list[str]]:
             tool_sets[f"reminder:{reminder.id}"] = reminder.allowed_tools
 
     for skill in list_skills():
-        if skill.tools:
-            tool_sets[f"skill:{skill.name}"] = skill.tools
+        if skill.allowed_tools:
+            tool_sets[f"skill:{skill.name}"] = skill.allowed_tools
 
     for webhook in list_webhooks():
         if webhook.allowed_tools:

@@ -5,7 +5,7 @@ description: >-
   configuration files to answer 'how do I...', 'what's the format for...',
   and 'is my config correct?' questions. Shows full docs text verbatim.
 model: haiku
-tools:
+allowed-tools:
   - mcp__docs__*
   - Read(**.md)
   - Glob(**.md)

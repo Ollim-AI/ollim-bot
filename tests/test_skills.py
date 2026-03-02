@@ -20,16 +20,16 @@ def test_parse_skill_valid():
     assert skill.name == "email-triage"
     assert skill.description == "Process emails by priority."
     assert skill.message == "## Steps\n1. Read emails"
-    assert skill.tools is None
+    assert skill.allowed_tools is None
 
 
 def test_parse_skill_with_tools():
-    text = '---\nname: gmail\ndescription: Email tools.\ntools:\n  - "Bash(ollim-bot gmail *)"\n  - "Read(**.md)"\n---\nDo email stuff'
+    text = '---\nname: gmail\ndescription: Email tools.\nallowed-tools:\n  - "Bash(ollim-bot gmail *)"\n  - "Read(**.md)"\n---\nDo email stuff'
 
     skill = _parse_skill(text)
 
     assert skill is not None
-    assert skill.tools == ["Bash(ollim-bot gmail *)", "Read(**.md)"]
+    assert skill.allowed_tools == ["Bash(ollim-bot gmail *)", "Read(**.md)"]
 
 
 def test_parse_skill_missing_delimiters():
@@ -218,7 +218,7 @@ def test_collect_skill_tools_from_skills(data_dir):
     d = skills_dir / "gmail"
     d.mkdir(parents=True)
     (d / "SKILL.md").write_text(
-        '---\nname: gmail\ndescription: Email.\ntools:\n  - "Bash(ollim-bot gmail *)"\n  - "Read(**.md)"\n---\nbody'
+        '---\nname: gmail\ndescription: Email.\nallowed-tools:\n  - "Bash(ollim-bot gmail *)"\n  - "Read(**.md)"\n---\nbody'
     )
 
     tools = collect_skill_tools(["gmail"])
@@ -232,7 +232,7 @@ def test_collect_skill_tools_deduplicates(data_dir):
         d = skills_dir / name
         d.mkdir(parents=True)
         (d / "SKILL.md").write_text(
-            f'---\nname: {name}\ndescription: desc\ntools:\n  - "Read(**.md)"\n  - "Bash(ollim-bot help)"\n---\nbody'
+            f'---\nname: {name}\ndescription: desc\nallowed-tools:\n  - "Read(**.md)"\n  - "Bash(ollim-bot help)"\n---\nbody'
         )
 
     tools = collect_skill_tools(["a", "b"])

@@ -106,16 +106,17 @@ def _serialize_md(item: T) -> str:
     for key, value in data.items():
         if key in defaults and value == defaults[key]:
             continue
+        yaml_key = key.replace("_", "-")
         if isinstance(value, str):
-            lines.append(f'{key}: "{value}"')
+            lines.append(f'{yaml_key}: "{value}"')
         elif isinstance(value, bool):
-            lines.append(f"{key}: {str(value).lower()}")
+            lines.append(f"{yaml_key}: {str(value).lower()}")
         elif isinstance(value, list):
-            lines.append(f"{key}:")
+            lines.append(f"{yaml_key}:")
             for item in value:
                 lines.append(f'  - "{item}"' if isinstance(item, str) else f"  - {item}")
         else:
-            lines.append(f"{key}: {value}")
+            lines.append(f"{yaml_key}: {value}")
     lines.append("---")
     lines.append(message)
     return "\n".join(lines) + "\n"
@@ -135,7 +136,8 @@ def parse_md(text: str, cls: type[T]) -> T:
 
     fields = {f.name: f for f in dataclasses.fields(cls)}
     filtered: dict[str, object] = {}
-    for key, value in data.items():
+    for raw_key, value in data.items():
+        key = raw_key.replace("-", "_")
         if key not in fields:
             continue
         expected = fields[key].type

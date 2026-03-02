@@ -22,7 +22,7 @@ class Skill:
     name: str  # lowercase, hyphens — must match directory name
     description: str  # what the skill does and when to use it
     message: str  # the markdown body (instructions)
-    tools: list[str] | None = None  # tool dependencies (merged into host job)
+    allowed_tools: list[str] | None = None  # tool dependencies (merged into host job)
 
 
 def _parse_skill(text: str) -> Skill | None:
@@ -91,8 +91,8 @@ def collect_skill_tools(skill_names: list[str] | None) -> list[str]:
     seen: set[str] = set()
     for name in skill_names:
         skill = read_skill(name)
-        if skill is not None and skill.tools:
-            for tool in skill.tools:
+        if skill is not None and skill.allowed_tools:
+            for tool in skill.allowed_tools:
                 if tool not in seen:
                     seen.add(tool)
                     tools.append(tool)
