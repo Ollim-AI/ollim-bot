@@ -28,9 +28,7 @@ log = logging.getLogger(__name__)
 
 def _is_protected_path(file_path: str) -> bool:
     """Return True if *file_path* resolves under the protected ``state/`` directory."""
-    resolved = Path(file_path).resolve()
-    state_resolved = storage.STATE_DIR.resolve()
-    return resolved == state_resolved or state_resolved in resolved.parents
+    return Path(file_path).resolve().is_relative_to(storage.STATE_DIR.resolve())
 
 
 # ---------------------------------------------------------------------------

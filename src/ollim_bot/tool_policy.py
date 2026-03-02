@@ -8,6 +8,7 @@ Builds the dynamic SDK ceiling as the union of all declared tool sets.
 
 from __future__ import annotations
 
+import functools
 import logging
 import re
 from collections.abc import Mapping, Sequence
@@ -63,6 +64,7 @@ _STATE_PROBE_PATHS = (
 )
 
 
+@functools.lru_cache(maxsize=64)
 def _glob_to_regex(pattern: str) -> re.Pattern[str]:
     """Convert a Claude Code CLI glob to a compiled regex.
 
@@ -277,10 +279,10 @@ def build_superset(tool_sets: dict[str, list[str]]) -> list[str]:
     Strips Write/Edit patterns that could reach the protected ``state/`` directory.
     """
     seen: set[str] = set()
-    result: list[str] = []
+    unique: list[str] = []
     for tools in tool_sets.values():
-        for tool in strip_state_dir_writes(tools):
+        for tool in tools:
             if tool not in seen:
                 seen.add(tool)
-                result.append(tool)
-    return result
+                unique.append(tool)
+    return strip_state_dir_writes(unique)
