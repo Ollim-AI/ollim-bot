@@ -41,13 +41,13 @@ def test_allowed_tools_preserves_help_if_present():
 # --- _apply_ping_restrictions ---
 
 
-def test_allow_ping_false_no_allowed_tools_unchanged():
-    """When allow_ping=False but no allowed_tools, config is unchanged."""
+def test_allow_ping_false_no_allowed_tools_returns_empty():
+    """When allow_ping=False and allowed_tools is None, returns empty list."""
     config = BgForkConfig(allow_ping=False)
 
     result = _apply_ping_restrictions(config)
 
-    assert result is config
+    assert result.allowed_tools == []
 
 
 def test_allow_ping_false_filters_from_allowed_tools():

@@ -10,7 +10,9 @@ from __future__ import annotations
 
 import logging
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass
+from typing import Any, Literal
 
 log = logging.getLogger(__name__)
 
@@ -24,7 +26,7 @@ class ToolPatternError:
     pattern: str
     source: str  # e.g. "routine:heartbeat", "subagent:guide", "main"
     message: str
-    severity: str  # "error" | "warning"
+    severity: Literal["error", "warning"]
 
 
 # ---------------------------------------------------------------------------
@@ -37,19 +39,15 @@ _BASH_CHAIN_RE = re.compile(r"[;&|]")
 # Matches tool patterns with arguments: ToolName(args)
 _TOOL_WITH_ARGS_RE = re.compile(r"^(\w+)\((.+)\)$")
 
-# Overly broad non-Bash tools: single * without path structure
-_BROAD_GLOB_RE = re.compile(r"^\*$")
-
 
 def validate_pattern(pattern: str) -> list[str]:
     """Return error messages for a single tool pattern. Empty list = valid."""
     errors: list[str] = []
 
-    if not pattern or not pattern.strip():
+    pattern = pattern.strip()
+    if not pattern:
         errors.append("empty tool pattern")
         return errors
-
-    pattern = pattern.strip()
 
     match = _TOOL_WITH_ARGS_RE.match(pattern)
     if match:
@@ -61,7 +59,7 @@ def validate_pattern(pattern: str) -> list[str]:
                 return errors
             if _BASH_CHAIN_RE.search(args):
                 errors.append(f"Bash pattern contains chaining operators: {args!r}")
-        elif _BROAD_GLOB_RE.match(args):
+        elif args == "*":
             errors.append(f"{tool_name}(*) is overly broad — add a path restriction")
 
     return errors
@@ -82,33 +80,14 @@ def validate_tool_set(patterns: list[str], source: str) -> list[ToolPatternError
 # ---------------------------------------------------------------------------
 
 
-def scan_all() -> list[ToolPatternError]:
-    """Scan all tool declarations across routines, reminders, and webhooks.
-
-    Imports are deferred to avoid circular dependencies.
-    """
-    from ollim_bot.scheduling.reminders import list_reminders
-    from ollim_bot.scheduling.routines import list_routines
-    from ollim_bot.skills import list_skills
-    from ollim_bot.webhook import list_webhooks
+def scan_all(tool_sets: dict[str, list[str]] | None = None) -> list[ToolPatternError]:
+    """Validate all tool declarations. Accepts pre-collected tool_sets to avoid re-reading."""
+    if tool_sets is None:
+        tool_sets = collect_all_tool_sets()
 
     errors: list[ToolPatternError] = []
-
-    for routine in list_routines():
-        if routine.allowed_tools:
-            errors.extend(validate_tool_set(routine.allowed_tools, f"routine:{routine.id}"))
-
-    for reminder in list_reminders():
-        if reminder.allowed_tools:
-            errors.extend(validate_tool_set(reminder.allowed_tools, f"reminder:{reminder.id}"))
-
-    for skill in list_skills():
-        if skill.allowed_tools:
-            errors.extend(validate_tool_set(skill.allowed_tools, f"skill:{skill.name}"))
-
-    for webhook in list_webhooks():
-        if webhook.allowed_tools:
-            errors.extend(validate_tool_set(webhook.allowed_tools, f"webhook:{webhook.id}"))
+    for source, tools in tool_sets.items():
+        errors.extend(validate_tool_set(tools, source))
 
     for err in errors:
         if err.severity == "error":
@@ -167,23 +146,33 @@ MINIMAL_BG_TOOLS: list[str] = [
 # ---------------------------------------------------------------------------
 
 
-def collect_all_tool_sets() -> dict[str, list[str]]:
+def collect_all_tool_sets(
+    specs: Mapping[str, Any] | None = None,
+) -> dict[str, list[str]]:
     """Collect tool sets from all sources.
 
     Returns a mapping of source name -> tool list.
+    Accepts pre-loaded subagent specs to avoid redundant disk reads.
     Imports are deferred to avoid circular dependencies.
     """
     from ollim_bot.scheduling.reminders import list_reminders
     from ollim_bot.scheduling.routines import list_routines
     from ollim_bot.skills import list_skills
-    from ollim_bot.subagents import load_subagent_specs
     from ollim_bot.webhook import list_webhooks
 
     tool_sets: dict[str, list[str]] = {"main": list(MAIN_SESSION_TOOLS)}
 
-    for name, spec in load_subagent_specs().items():
-        if spec.tools:
-            tool_sets[f"subagent:{name}"] = spec.tools
+    resolved_specs: Mapping[str, Any]
+    if specs is None:
+        from ollim_bot.subagents import load_subagent_specs
+
+        resolved_specs = load_subagent_specs()
+    else:
+        resolved_specs = specs
+    for name, spec in resolved_specs.items():
+        tools = getattr(spec, "tools", None)
+        if tools:
+            tool_sets[f"subagent:{name}"] = tools
 
     for routine in list_routines():
         if routine.allowed_tools:

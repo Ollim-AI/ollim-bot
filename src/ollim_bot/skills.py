@@ -131,15 +131,29 @@ def _expand_commands(text: str) -> str:
     return _COMMAND_PATTERN.sub(lambda m: results[m.group(1)], text)
 
 
-def build_skills_section(skill_names: list[str] | None) -> str:
-    """Load referenced skills, expand commands, and format as a SKILL INSTRUCTIONS block."""
+def load_skills(skill_names: list[str] | None) -> list[Skill]:
+    """Load referenced skills by name. Shared entry point to avoid double reads."""
     if not skill_names:
-        return ""
+        return []
     loaded = []
     for name in skill_names:
         skill = read_skill(name)
         if skill is not None:
             loaded.append(skill)
+    return loaded
+
+
+def build_skills_section(
+    skill_names: list[str] | None = None,
+    *,
+    skills: list[Skill] | None = None,
+) -> str:
+    """Expand commands and format as a SKILL INSTRUCTIONS block.
+
+    Pass pre-loaded ``skills`` to avoid redundant disk reads, or ``skill_names``
+    to load on the fly.
+    """
+    loaded = skills if skills is not None else load_skills(skill_names)
     if not loaded:
         return ""
     lines = ["SKILL INSTRUCTIONS:\n"]
@@ -149,15 +163,21 @@ def build_skills_section(skill_names: list[str] | None) -> str:
     return "\n".join(lines) + "\n"
 
 
-def collect_skill_tools(skill_names: list[str] | None) -> list[str]:
-    """Collect tool dependencies from referenced skills. Deduplicated."""
-    if not skill_names:
-        return []
+def collect_skill_tools(
+    skill_names: list[str] | None = None,
+    *,
+    skills: list[Skill] | None = None,
+) -> list[str]:
+    """Collect tool dependencies from referenced skills. Deduplicated.
+
+    Pass pre-loaded ``skills`` to avoid redundant disk reads, or ``skill_names``
+    to load on the fly.
+    """
+    loaded = skills if skills is not None else load_skills(skill_names)
     tools: list[str] = []
     seen: set[str] = set()
-    for name in skill_names:
-        skill = read_skill(name)
-        if skill is not None and skill.allowed_tools:
+    for skill in loaded:
+        if skill.allowed_tools:
             for tool in skill.allowed_tools:
                 if tool not in seen:
                     seen.add(tool)
