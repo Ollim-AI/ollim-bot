@@ -166,8 +166,9 @@ Never write working data into the source repo or source code into `~/.ollim-bot/
 - `build_skill_index()` generates description index for system prompt (empty string when no skills)
 - System prompt: static section explaining skills + dynamic index appended at `Agent.__init__`
 - Routine/Reminder `skills: list[str] | None` field — references skill names to auto-load
-- Preamble injection: `_build_skills_section()` in `preamble.py` loads and injects `SKILL INSTRUCTIONS:` block
+- Preamble injection: `build_skills_section()` loads and injects `SKILL INSTRUCTIONS:` block
 - Injection works for both bg and fg prompts (before the message body)
+- Dynamic context: `!`command`` markers in skill messages are expanded to stdout at fire time (sync subprocess, 10s per-command / 30s total cap)
 - Chain propagation: `skills` field on `ChainContext`, forwarded via `follow_up_chain` → `--skills` CLI arg
 - Agent-created: agent uses Write to create `skills/<name>/SKILL.md`, Read to load them
 - Format reference: `~/.ollim-bot/skill-spec.md` (agent reads on demand)
