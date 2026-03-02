@@ -683,9 +683,12 @@ class Agent:
         async for item in _consume(client.receive_response()):
             yield item
 
-        # Auto-compaction: SDK terminated the response mid-turn to compact
-        # context.  The post-compaction response needs a second
-        # receive_response() call.
+        # Auto-compaction: when context overflows mid-turn, the SDK emits
+        # SystemMessage(subtype="compact_boundary") then ends the stream
+        # with no content.  No new query() is needed — just call
+        # receive_response() again.  MCP tools from the orphaned response
+        # still execute in the SDK's _read_messages background task.
+        # compact_metadata.pre_tokens gives the pre-compaction token count.
         if compacted:
             log.info("consuming post-compaction response")
             label = "Auto-compacting"
