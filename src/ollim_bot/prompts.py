@@ -254,8 +254,7 @@ Routines and reminders can reference skills via `skills:` in their YAML \
 frontmatter -- referenced skill instructions are loaded automatically when \
 the job fires.
 
-In interactive sessions, read a skill file directly: \
-`Read(skills/<name>/SKILL.md)`.
+In interactive sessions, use the `Skill` tool to invoke a skill by name.
 To create a new skill, read `skill-spec.md` for the format."""
 
 

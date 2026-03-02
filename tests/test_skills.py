@@ -1,10 +1,9 @@
-"""Tests for skills.py — skill parsing, listing, index building, and command expansion."""
+"""Tests for skills.py — skill parsing, listing, and command expansion."""
 
 import ollim_bot.skills as skills_mod
 from ollim_bot.skills import (
     _expand_commands,
     _parse_skill,
-    build_skill_index,
     build_skills_section,
     collect_skill_tools,
     list_skills,
@@ -186,27 +185,6 @@ def test_read_skill_corrupt(data_dir):
     (skill_dir / "SKILL.md").write_text("garbage")
 
     assert read_skill("broken") is None
-
-
-# --- build_skill_index ---
-
-
-def test_build_skill_index_empty(data_dir):
-    assert build_skill_index() == ""
-
-
-def test_build_skill_index_with_skills(data_dir):
-    skills_dir = data_dir / "skills"
-    for name, desc in [("alpha", "Does alpha things"), ("beta", "Does beta things")]:
-        d = skills_dir / name
-        d.mkdir(parents=True)
-        (d / "SKILL.md").write_text(f"---\nname: {name}\ndescription: {desc}\n---\nbody")
-
-    index = build_skill_index()
-
-    assert "Available skills:" in index
-    assert "**alpha**: Does alpha things" in index
-    assert "**beta**: Does beta things" in index
 
 
 # --- collect_skill_tools ---

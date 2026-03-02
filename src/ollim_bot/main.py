@@ -48,6 +48,9 @@ commands:
   ollim-bot gmail unread     List unread emails
   ollim-bot gmail read       Read an email by ID
   ollim-bot gmail search     Search emails
+  ollim-bot auth login       Log in to Claude (Agent SDK)
+  ollim-bot auth status      Show auth status
+  ollim-bot auth logout      Log out
   ollim-bot help             Show this help message
 
 examples:
@@ -58,15 +61,32 @@ examples:
 """
 
 
-def _ensure_spec_symlinks() -> None:
-    """Symlink spec docs into the data dir for agent access."""
+def _ensure_sdk_layout() -> None:
+    """Set up the SDK-expected directory structure in DATA_DIR.
+
+    - Copies bundled agent specs to .claude/agents/ (with template expansion)
+    - Symlinks .claude/skills/ -> ../skills/ for SDK skill discovery
+    - Symlinks spec docs into DATA_DIR for agent access
+    """
+    from ollim_bot.subagents import install_agents
+
     DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+    # Bundled agents → .claude/agents/
+    install_agents()
+
+    # Skills symlink → .claude/skills/ -> ../skills/
+    skills_link = DATA_DIR / ".claude" / "skills"
+    skills_link.parent.mkdir(parents=True, exist_ok=True)
+    with contextlib.suppress(FileExistsError):
+        skills_link.symlink_to(Path("..") / "skills")
+
+    # Spec doc symlinks
     for name in ("routine-reminder-spec.md", "webhook-spec.md"):
         source = PROJECT_DIR / "docs" / name
         target = DATA_DIR / name
-        if target.is_symlink() or target.exists():
-            continue
-        target.symlink_to(source)
+        with contextlib.suppress(FileExistsError):
+            target.symlink_to(source)
 
 
 def _check_already_running() -> None:
@@ -89,6 +109,11 @@ def _dispatch_subcommand() -> bool:
     rest = sys.argv[2:]
     if cmd in ("help", "--help", "-h"):
         print(HELP)
+        return True
+    if cmd == "auth":
+        from ollim_bot.auth import run_auth_command
+
+        run_auth_command(rest)
         return True
     routes: dict[str, tuple[str, str]] = {
         "routine": ("ollim_bot.scheduling.routine_cmd", "run_routine_command"),
@@ -163,8 +188,12 @@ def main() -> None:
         print("Set DISCORD_TOKEN in .env")
         raise SystemExit(1)
 
+    from ollim_bot.auth import ensure_authenticated
+
+    ensure_authenticated()
+
     _check_already_running()
-    _ensure_spec_symlinks()
+    _ensure_sdk_layout()
 
     from ollim_bot.bot import create_bot
 

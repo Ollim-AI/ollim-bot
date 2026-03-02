@@ -188,11 +188,20 @@ def test_collect_all_tool_sets_includes_main():
     assert tool_sets["main"] == MAIN_SESSION_TOOLS
 
 
-def test_collect_all_tool_sets_includes_subagents():
+def test_collect_all_tool_sets_includes_subagents(monkeypatch):
+    monkeypatch.setattr(
+        "ollim_bot.subagents.load_agent_tool_sets",
+        lambda: {"subagent:guide": ["mcp__docs__*"]},
+    )
+
     tool_sets = collect_all_tool_sets()
 
     assert "subagent:guide" in tool_sets
     assert "mcp__docs__*" in tool_sets["subagent:guide"]
+
+
+def test_main_session_tools_includes_skill():
+    assert "Skill" in MAIN_SESSION_TOOLS
 
 
 # --- _glob_to_regex ---
