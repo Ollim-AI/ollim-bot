@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import contextlib
-import contextvars
 import json
 import logging
 from typing import Any, NamedTuple
@@ -29,7 +28,7 @@ log = logging.getLogger(__name__)
 
 _session_allowed: set[str] = set()
 _dont_ask: bool = True
-_last_denied: contextvars.ContextVar[bool] = contextvars.ContextVar("_last_denied", default=False)
+_denied_labels: set[str] = set()
 
 # Emoji constants
 APPROVE = "\N{WHITE HEAVY CHECK MARK}"
@@ -54,10 +53,10 @@ def set_dont_ask(value: bool) -> None:
     _dont_ask = value
 
 
-def pop_denial() -> bool:
-    """Return True (once) if the last canUseTool call was a denial."""
-    if _last_denied.get():
-        _last_denied.set(False)
+def is_denied(label: str) -> bool:
+    """Check (and consume) whether a tool label was denied by canUseTool."""
+    if label in _denied_labels:
+        _denied_labels.discard(label)
         return True
     return False
 
@@ -101,6 +100,7 @@ def reset() -> None:
     """Clear session-allowed set and cancel all pending approvals. Called on /clear."""
     cancel_pending()
     _session_allowed.clear()
+    _denied_labels.clear()
 
 
 # ---------------------------------------------------------------------------
@@ -179,9 +179,9 @@ async def handle_tool_permission(
     if _dont_ask:
         if is_session_allowed(tool_name):
             return PermissionResultAllow()
-        _last_denied.set(True)
+        _denied_labels.add(format_tool_label(tool_name, json.dumps(input_data)))
         return PermissionResultDeny(message=f"{tool_name} is not allowed")
     result = await request_approval(tool_name, input_data)
     if isinstance(result, PermissionResultDeny):
-        _last_denied.set(True)
+        _denied_labels.add(format_tool_label(tool_name, json.dumps(input_data)))
     return result
