@@ -199,7 +199,7 @@ async def test_compact_finalized_by_tool_start():
 
 @pytest.mark.asyncio
 async def test_compact_finalized_at_cleanup_when_no_content_follows():
-    """If nothing follows compact_start, annotation is finalized and empty-response error fires."""
+    """If nothing follows compact_start, annotation is finalized — no error (compaction is legitimate)."""
     ch = FakeChannel()
 
     await _stream(
@@ -209,15 +209,12 @@ async def test_compact_finalized_at_cleanup_when_no_content_follows():
         ),
     )
 
-    # Annotation stays, plus empty-response error (no actual agent content arrived)
-    assert len(ch.messages) == 2
+    # Annotation stays; no error because compaction occurred (e.g. interrupted during compaction)
+    assert len(ch.messages) == 1
 
     annotation = ch.messages[0]
     assert "auto-compacted" in annotation.content
     assert not annotation.deleted
-
-    error = ch.messages[1]
-    assert "error" in error.content
 
 
 # --- Non-compact status still works normally ---

@@ -166,11 +166,16 @@ class Agent:
         self._fork_client: ClaudeSDKClient | None = None
         self._fork_session_id: str | None = None
         self._lock = asyncio.Lock()
+        self._compacting = False
         self._bg_tasks: set[asyncio.Task[None]] = set()
 
     @property
     def in_fork(self) -> bool:
         return self._fork_client is not None
+
+    @property
+    def is_compacting(self) -> bool:
+        return self._compacting
 
     def lock(self) -> asyncio.Lock:
         return self._lock
@@ -609,7 +614,7 @@ class Agent:
                     elif isinstance(msg, ResultMessage):
                         if msg.result:
                             result_text = msg.result
-                        self._save_result_session(client, msg, log_fork_event=False)
+                        self._save_result_session(client, msg, log_fork_event=True)
             except CLIConnectionError:
                 if not fork_interrupted:
                     raise
@@ -634,13 +639,16 @@ class Agent:
             label = "Auto-compacting"
             if compact_tokens is not None:
                 label += f" {compact_tokens / 1000:.0f}k tokens"
-            yield StreamStatus(kind="compact_start", label=label, compact_tokens=compact_tokens)
+            self._compacting = True
             try:
-                async with asyncio.timeout(120):
+                yield StreamStatus(kind="compact_start", label=label, compact_tokens=compact_tokens)
+                async with asyncio.timeout(300):
                     async for item in _consume(client.receive_response()):
                         yield item
             except TimeoutError:
-                log.error("post-compaction response timed out after 120s")
+                log.error("post-compaction response timed out after 300s")
+            finally:
+                self._compacting = False
 
         if not streamed:
             if fallback_parts:

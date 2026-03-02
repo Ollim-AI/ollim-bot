@@ -316,8 +316,10 @@ def create_bot() -> commands.Bot:
 
         await message.add_reaction("\N{EYES}")
 
-        # Interrupt so the user's new message gets a fresh response
-        if agent.lock().locked():
+        # Interrupt so the user's new message gets a fresh response.
+        # Skip during compaction: interrupt kills the post-compaction response
+        # (dead zone), and the new message would trigger a redundant compaction.
+        if agent.lock().locked() and not agent.is_compacting:
             await agent.interrupt()
 
         async with agent.lock():
