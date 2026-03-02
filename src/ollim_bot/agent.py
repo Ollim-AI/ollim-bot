@@ -629,24 +629,20 @@ class Agent:
             yield item
 
         # Auto-compaction: when context overflows mid-turn, the SDK emits
-        # SystemMessage(subtype="compact_boundary") then ends the stream
-        # with no content.  No new query() is needed — just call
-        # receive_response() again.  MCP tools from the orphaned response
-        # still execute in the SDK's _read_messages background task.
-        # compact_metadata.pre_tokens gives the pre-compaction token count.
+        # SystemMessage(subtype="compact_boundary") then ends the stream.
+        # The CLI waits for a new query — re-send the message so the agent
+        # responds against the freshly compacted context.
         if compacted:
-            log.info("consuming post-compaction response")
+            log.info("re-sending query after auto-compaction")
             label = "Auto-compacting"
             if compact_tokens is not None:
                 label += f" {compact_tokens / 1000:.0f}k tokens"
             self._compacting = True
             try:
                 yield StreamStatus(kind="compact_start", label=label, compact_tokens=compact_tokens)
-                async with asyncio.timeout(300):
-                    async for item in _consume(client.receive_response()):
-                        yield item
-            except TimeoutError:
-                log.error("post-compaction response timed out after 300s")
+                await client.query(message)
+                async for item in _consume(client.receive_response()):
+                    yield item
             finally:
                 self._compacting = False
 
