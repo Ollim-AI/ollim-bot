@@ -617,16 +617,19 @@ class Agent:
         fork_interrupted = False
         parser = StreamParser()
         compacted = False
+        compact_tokens: int | None = None
 
         async def _consume(response):
             """Process messages from one receive_response() call."""
-            nonlocal streamed, fork_interrupted, result_text, compacted
+            nonlocal streamed, fork_interrupted, result_text, compacted, compact_tokens
 
             try:
                 async for msg in response:
                     if isinstance(msg, SystemMessage):
                         if msg.subtype == "compact_boundary":
                             compacted = True
+                            meta = msg.data.get("compact_metadata", {})
+                            compact_tokens = meta.get("pre_tokens")
                             log.warning("auto-compaction detected mid-turn")
                         continue
 
@@ -683,9 +686,12 @@ class Agent:
         # Auto-compaction: SDK terminated the response mid-turn to compact
         # context.  The post-compaction response needs a second
         # receive_response() call.
-        if compacted and not streamed:
+        if compacted:
             log.info("consuming post-compaction response")
-            yield StreamStatus(kind="tool_start", label="Auto-compacting")
+            label = "Auto-compacting"
+            if compact_tokens is not None:
+                label += f" {compact_tokens / 1000:.0f}k tokens"
+            yield StreamStatus(kind="compact_start", label=label, compact_tokens=compact_tokens)
             try:
                 async with asyncio.timeout(120):
                     async for item in _consume(client.receive_response()):
