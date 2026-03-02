@@ -14,7 +14,7 @@ import discord
 
 from ollim_bot.forks import enter_fork_requested
 from ollim_bot.formatting import format_tool_label
-from ollim_bot.permissions import pop_denial
+from ollim_bot.permissions import is_denied
 from ollim_bot.sessions import track_message
 
 log = logging.getLogger(__name__)
@@ -45,7 +45,7 @@ class StreamParser:
         self._tool_name: str | None = None
         self._tool_input_buf = ""
         self._status_active = False
-        self._pending_label: str | None = None
+        self._deferred_labels: list[str] = []
 
     async def feed(self, event: dict[str, Any]) -> AsyncGenerator[str | StreamStatus, None]:
         """Process one SSE event dict."""
@@ -53,12 +53,13 @@ class StreamParser:
 
         if etype == "content_block_start":
             block = event["content_block"]
-            async for item in self._drain():
+            is_tool = block["type"] == "tool_use"
+            async for item in self._drain(defer=is_tool):
                 yield item
             if block["type"] == "thinking":
                 yield StreamStatus(kind="thinking_start")
                 self._status_active = True
-            elif block["type"] == "tool_use":
+            elif is_tool:
                 self._tool_name = block["name"]
                 self._tool_input_buf = ""
 
@@ -67,7 +68,7 @@ class StreamParser:
             if delta.get("type") == "input_json_delta":
                 self._tool_input_buf += delta.get("partial_json", "")
             elif text := delta.get("text", ""):
-                async for item in self._drain():
+                async for item in self._drain(defer=False):
                     yield item
                 yield text
 
@@ -76,7 +77,7 @@ class StreamParser:
                 label = format_tool_label(self._tool_name, self._tool_input_buf)
                 yield StreamStatus(kind="tool_start", label=label)
                 self._status_active = True
-                self._pending_label = label
+                self._deferred_labels.append(label)
                 self._tool_name = None
             elif self._status_active:
                 self._status_active = False
@@ -84,22 +85,20 @@ class StreamParser:
 
     async def drain(self) -> AsyncGenerator[str | StreamStatus, None]:
         """Flush any active status phase. Call after the stream ends."""
-        async for item in self._drain():
+        async for item in self._drain(defer=False):
             yield item
 
-    async def _drain(self) -> AsyncGenerator[str | StreamStatus, None]:
-        if not self._status_active:
-            return
-        self._status_active = False
-        denied = pop_denial()
-        yield StreamStatus(kind="phase_end")
-        if self._pending_label is not None:
-            label = self._pending_label
-            self._pending_label = None
-            if denied:
-                yield f"\n-# *~~{label}~~ — denied*\n"
-            else:
-                yield f"\n-# *{label}*\n"
+    async def _drain(self, *, defer: bool) -> AsyncGenerator[str | StreamStatus, None]:
+        if self._status_active:
+            self._status_active = False
+            yield StreamStatus(kind="phase_end")
+        if not defer and self._deferred_labels:
+            for label in self._deferred_labels:
+                if is_denied(label):
+                    yield f"\n-# *~~{label}~~ — denied*\n"
+                else:
+                    yield f"\n-# *{label}*\n"
+            self._deferred_labels.clear()
 
 
 async def stream_to_channel(
