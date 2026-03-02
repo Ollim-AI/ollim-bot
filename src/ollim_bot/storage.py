@@ -113,8 +113,8 @@ def _serialize_md(item: T) -> str:
             lines.append(f"{yaml_key}: {str(value).lower()}")
         elif isinstance(value, list):
             lines.append(f"{yaml_key}:")
-            for item in value:
-                lines.append(f'  - "{item}"' if isinstance(item, str) else f"  - {item}")
+            for entry in value:
+                lines.append(f'  - "{entry}"' if isinstance(entry, str) else f"  - {entry}")
         else:
             lines.append(f"{yaml_key}: {value}")
     lines.append("---")
