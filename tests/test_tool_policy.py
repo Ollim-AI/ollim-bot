@@ -1,10 +1,15 @@
 """Tests for tool pattern validation and scanning."""
 
+import pytest
+
 from ollim_bot.tool_policy import (
     MAIN_SESSION_TOOLS,
     ToolPatternError,
+    _could_match_state_dir,
+    _glob_to_regex,
     build_superset,
     collect_all_tool_sets,
+    strip_state_dir_writes,
     validate_pattern,
     validate_tool_set,
 )
@@ -188,3 +193,132 @@ def test_collect_all_tool_sets_includes_subagents():
 
     assert "subagent:guide" in tool_sets
     assert "mcp__docs__*" in tool_sets["subagent:guide"]
+
+
+# --- _glob_to_regex ---
+
+
+@pytest.mark.parametrize(
+    "pattern,path,expected",
+    [
+        ("**.md", "foo.md", True),
+        ("**.md", "routines/foo.md", True),
+        ("**.md", "state/foo.md", True),
+        ("**.md", "state/foo.json", False),
+        ("**", "state/config.json", True),
+        ("**", "anything", True),
+        ("*.md", "foo.md", True),
+        ("*.md", "state/foo.md", False),
+        ("routines/**", "routines/foo.md", True),
+        ("routines/**", "state/foo.json", False),
+        ("state/**", "state/config.json", True),
+        ("state/**", "routines/foo.md", False),
+        ("**/state/**", "state/config.json", True),
+        ("**/state/**", "a/state/config.json", True),
+        ("**/state/**", "routines/foo.md", False),
+        ("*/*.json", "state/config.json", True),
+        ("*/*.json", "config.json", False),
+    ],
+)
+def test_glob_to_regex(pattern, path, expected):
+    regex = _glob_to_regex(pattern)
+
+    assert bool(regex.match(path)) is expected
+
+
+# --- _could_match_state_dir ---
+
+
+@pytest.mark.parametrize(
+    "pattern,expected",
+    [
+        ("**", True),
+        ("**.json", True),
+        ("**.jsonl", True),
+        ("state/**", True),
+        ("**/state/**", True),
+        ("*/*.json", True),
+        ("**.md", False),
+        ("routines/**", False),
+        ("skills/**", False),
+        ("*.md", False),
+        ("*.json", False),  # single-level, won't match state/x.json
+    ],
+)
+def test_could_match_state_dir(pattern, expected):
+    assert _could_match_state_dir(pattern) is expected
+
+
+# --- validate_pattern: state-dir protection ---
+
+
+def test_write_state_glob_rejected():
+    errors = validate_pattern("Write(**)")
+
+    assert any("state/" in e for e in errors)
+
+
+def test_edit_state_glob_rejected():
+    errors = validate_pattern("Edit(**.json)")
+
+    assert any("state/" in e for e in errors)
+
+
+def test_write_md_passes_state_check():
+    errors = validate_pattern("Write(**.md)")
+
+    assert not any("state/" in e for e in errors)
+
+
+def test_read_broad_glob_not_state_rejected():
+    """Read(**) is broad but not a write tool — no state-dir error."""
+    errors = validate_pattern("Read(**)")
+
+    assert not any("state/" in e for e in errors)
+
+
+# --- strip_state_dir_writes ---
+
+
+def test_strip_state_dir_writes_removes_dangerous():
+    tools = ["Write(**)", "Read(**.md)", "Edit(**.json)", "Task"]
+
+    result = strip_state_dir_writes(tools)
+
+    assert result == ["Read(**.md)", "Task"]
+
+
+def test_strip_state_dir_writes_keeps_safe():
+    tools = ["Write(**.md)", "Edit(routines/**)", "Read(**)", "Task"]
+
+    result = strip_state_dir_writes(tools)
+
+    assert result == tools
+
+
+# --- build_superset: state-dir protection ---
+
+
+def test_build_superset_strips_state_writes():
+    tool_sets = {
+        "main": ["Write(**.md)", "Read(**.md)", "Task"],
+        "routine:bad": ["Write(**)", "Edit(**.json)"],
+    }
+
+    result = build_superset(tool_sets)
+
+    assert "Write(**.md)" in result
+    assert "Task" in result
+    assert "Read(**.md)" in result
+    assert "Write(**)" not in result
+    assert "Edit(**.json)" not in result
+
+
+# --- MAIN_SESSION_TOOLS is safe ---
+
+
+def test_main_session_tools_pass_state_check():
+    """All declared main session tools must pass state-dir validation."""
+    for tool in MAIN_SESSION_TOOLS:
+        errors = validate_pattern(tool)
+        assert not any("state/" in e for e in errors), f"{tool} failed: {errors}"

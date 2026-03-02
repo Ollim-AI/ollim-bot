@@ -1,9 +1,9 @@
 """Tool pattern validation, scanning, and superset construction.
 
 Validates tool patterns declared across routines, reminders, webhooks,
-subagents, and skills. Blocks dangerous patterns (Bash(*), bash chaining)
-and warns on overly broad wildcards. Builds the dynamic SDK ceiling
-as the union of all declared tool sets.
+subagents, and skills. Blocks dangerous patterns (Bash(*), bash chaining),
+warns on overly broad wildcards, and enforces write-protection on state/.
+Builds the dynamic SDK ceiling as the union of all declared tool sets.
 """
 
 from __future__ import annotations
@@ -43,6 +43,57 @@ _BASH_CHAIN_RE = re.compile(r"[;&|]")
 # Matches tool patterns with arguments: ToolName(args)
 _TOOL_WITH_ARGS_RE = re.compile(r"^(\w+)\((.+)\)$")
 
+# Tools that modify files on disk
+_FILE_WRITE_TOOLS = frozenset(("Write", "Edit"))
+
+
+# ---------------------------------------------------------------------------
+# State directory write-protection
+# ---------------------------------------------------------------------------
+
+# Probe paths covering different patterns state files could take.
+# Not tied to specific filenames — just representative structures.
+_STATE_PROBE_PATHS = (
+    "state/x",
+    "state/x.json",
+    "state/x.jsonl",
+    "state/sub/x",
+)
+
+
+def _glob_to_regex(pattern: str) -> re.Pattern[str]:
+    """Convert a Claude Code CLI glob to a compiled regex.
+
+    Handles ``**/`` (zero-or-more directory prefix), ``**`` (recursive match),
+    ``*`` (single directory level), and ``?`` (single character).
+    """
+    parts: list[str] = []
+    i = 0
+    n = len(pattern)
+    while i < n:
+        if pattern[i : i + 3] == "**/":
+            parts.append("(.*/)?")
+            i += 3
+        elif pattern[i : i + 2] == "**":
+            parts.append(".*")
+            i += 2
+        elif pattern[i] == "*":
+            parts.append("[^/]*")
+            i += 1
+        elif pattern[i] == "?":
+            parts.append("[^/]")
+            i += 1
+        else:
+            parts.append(re.escape(pattern[i]))
+            i += 1
+    return re.compile(f"^{''.join(parts)}$")
+
+
+def _could_match_state_dir(glob_pattern: str) -> bool:
+    """Check if a file glob could match any path under ``state/``."""
+    regex = _glob_to_regex(glob_pattern)
+    return any(regex.match(p) for p in _STATE_PROBE_PATHS)
+
 
 def validate_pattern(pattern: str) -> list[str]:
     """Return error messages for a single tool pattern. Empty list = valid."""
@@ -65,6 +116,9 @@ def validate_pattern(pattern: str) -> list[str]:
                 errors.append(f"Bash pattern contains chaining operators: {args!r}")
         elif args == "*":
             errors.append(f"{tool_name}(*) is overly broad — add a path restriction")
+
+        if tool_name in _FILE_WRITE_TOOLS and _could_match_state_dir(args):
+            errors.append(f"{tool_name} pattern could match protected state/ directory")
 
     return errors
 
@@ -197,12 +251,33 @@ def collect_all_tool_sets(
     return tool_sets
 
 
+def strip_state_dir_writes(tools: list[str]) -> list[str]:
+    """Remove Write/Edit patterns that could match the protected ``state/`` directory.
+
+    Called both at SDK ceiling construction and per-fork tool restriction
+    to ensure no tool set — however declared — grants write access to state/.
+    """
+    result: list[str] = []
+    for tool in tools:
+        match = _TOOL_WITH_ARGS_RE.match(tool.strip())
+        if match:
+            name, args = match.groups()
+            if name in _FILE_WRITE_TOOLS and _could_match_state_dir(args):
+                log.warning("Stripped %s: matches protected state/", tool)
+                continue
+        result.append(tool)
+    return result
+
+
 def build_superset(tool_sets: dict[str, list[str]]) -> list[str]:
-    """Deduplicated union of all tool sets."""
+    """Deduplicated union of all tool sets.
+
+    Strips Write/Edit patterns that could reach the protected ``state/`` directory.
+    """
     seen: set[str] = set()
     result: list[str] = []
     for tools in tool_sets.values():
-        for tool in tools:
+        for tool in strip_state_dir_writes(tools):
             if tool not in seen:
                 seen.add(tool)
                 result.append(tool)

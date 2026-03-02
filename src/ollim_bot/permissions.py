@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import json
 import logging
+from pathlib import Path
 from typing import Any, NamedTuple
 
 import anyio
@@ -16,11 +17,23 @@ from claude_agent_sdk.types import (
     ToolPermissionContext,
 )
 
+from ollim_bot import storage
 from ollim_bot.channel import get_channel
 from ollim_bot.forks import in_bg_fork
 from ollim_bot.formatting import format_tool_label
 
 log = logging.getLogger(__name__)
+
+# Tools that modify files on disk — used for state-dir write protection
+_FILE_WRITE_TOOLS = frozenset(("Write", "Edit"))
+
+
+def _is_protected_path(file_path: str) -> bool:
+    """Return True if *file_path* resolves under the protected ``state/`` directory."""
+    resolved = Path(file_path).resolve()
+    state_resolved = storage.STATE_DIR.resolve()
+    return resolved == state_resolved or state_resolved in resolved.parents
+
 
 # ---------------------------------------------------------------------------
 # State
@@ -174,6 +187,10 @@ async def handle_tool_permission(
     context: ToolPermissionContext,
 ) -> PermissionResult:
     """canUseTool callback — bg forks: deny; dontAsk: silent deny; else: Discord approval."""
+    if tool_name in _FILE_WRITE_TOOLS and _is_protected_path(input_data.get("file_path", "")):
+        return PermissionResultDeny(
+            message=f"{tool_name} to state/ is blocked — system files are write-protected",
+        )
     if in_bg_fork():
         return PermissionResultDeny(message=f"{tool_name} is not allowed")
     if _dont_ask:
