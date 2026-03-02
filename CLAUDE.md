@@ -74,6 +74,7 @@ Never write working data into the source repo or source code into `~/.ollim-bot/
 - `embeds.py` -- Embed/button types, builders, maps, and `build_embed`/`build_view` (shared by agent_tools and views)
 - `inquiries.py` -- Persists button inquiry prompts to `~/.ollim-bot/state/inquiries.json` (7-day TTL)
 - `ping_budget.py` -- Refill-on-read ping budget for bg fork notifications (state, enforcement, status formatting)
+- `runtime_config.py` -- Persistent runtime configuration (`~/.ollim-bot/state/config.json`): model/thinking per context, timeouts, permission mode
 - `google/` -- Google API integration sub-package
   - `auth.py` -- Shared Google OAuth2 (Tasks + Calendar + Gmail)
   - `tasks.py` -- Google Tasks CLI + API helpers (`complete_task`, `delete_task`)
@@ -113,6 +114,7 @@ Never write working data into the source repo or source code into `~/.ollim-bot/
 - `/interrupt` -- stop current response (fire-and-forget, no lock, silent)
 - `/permissions <dontAsk|default|acceptEdits|bypassPermissions>` -- switch permission mode (fork-scoped); `dontAsk` is the default
 - `/ping-budget [capacity] [refill_rate]` -- view or configure ping budget (bg fork pings only)
+- `/config [key] [value]` -- view or set persistent runtime config (model/thinking per context, timeouts, permission mode)
 - `Agent.slash()` -- generic method routing SDK slash commands, captures SystemMessage + AssistantMessage + ResultMessage
 - `Agent.set_model()` -- uses `dataclasses.replace()` on shared options + updates live client
 - `Agent.set_thinking()` -- updates `max_thinking_tokens` on shared options + drops client (no live setter)

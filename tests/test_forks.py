@@ -6,9 +6,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-import ollim_bot.forks as forks_mod
 from ollim_bot.forks import (
-    BG_FORK_TIMEOUT,
     BgForkConfig,
     ForkExitAction,
     append_update,
@@ -243,13 +241,17 @@ def test_should_auto_exit_false_when_not_prompted():
 # --- Background fork timeout ---
 
 
-def test_bg_fork_timeout_constant():
-    assert BG_FORK_TIMEOUT == 1800
+def test_bg_fork_timeout_default():
+    from ollim_bot.runtime_config import RuntimeConfig
+
+    assert RuntimeConfig().bg_fork_timeout == 1800
 
 
 def test_bg_fork_timeout_cancels_and_notifies(monkeypatch, data_dir):
     """A bg fork that exceeds the timeout is cancelled and sends a DM alert."""
+    from ollim_bot import runtime_config
     from ollim_bot.channel import init_channel
+    from ollim_bot.runtime_config import RuntimeConfig
 
     sent_messages: list[str] = []
     channel = AsyncMock()
@@ -267,7 +269,9 @@ def test_bg_fork_timeout_cancels_and_notifies(monkeypatch, data_dir):
     agent.run_on_client = AsyncMock(side_effect=hang_forever)
 
     # Shrink timeout to 0.1s so the test runs fast
-    monkeypatch.setattr(forks_mod, "BG_FORK_TIMEOUT", 0.1)
+    tiny_cfg = RuntimeConfig(bg_fork_timeout=0)
+    monkeypatch.setattr(runtime_config, "load", lambda: tiny_cfg)
+    # asyncio.timeout(0) fires immediately — same effect as the old 0.1s monkeypatch
 
     _run(run_agent_background(agent, "[routine-bg:test] do stuff"))
 

@@ -19,8 +19,6 @@ from ollim_bot.storage import STATE_DIR, atomic_write
 
 log = logging.getLogger(__name__)
 
-BG_FORK_TIMEOUT = 1800  # 30 minutes
-
 if TYPE_CHECKING:
     import discord
     from claude_agent_sdk import ClaudeSDKClient
@@ -208,11 +206,13 @@ def in_interactive_fork() -> bool:
     return _in_interactive_fork
 
 
-def set_interactive_fork(active: bool, *, idle_timeout: int = 10) -> None:
+def set_interactive_fork(active: bool, *, idle_timeout: int | None = None) -> None:
     """Enter or exit interactive fork mode."""
+    from ollim_bot import runtime_config
+
     global _in_interactive_fork, _fork_exit_action, _fork_idle_timeout, _fork_prompted_at
     _in_interactive_fork = active
-    _fork_idle_timeout = idle_timeout
+    _fork_idle_timeout = idle_timeout if idle_timeout is not None else runtime_config.load().fork_idle_timeout
     _fork_exit_action = ForkExitAction.NONE
     _fork_prompted_at = None
 
@@ -233,7 +233,7 @@ def enter_fork_requested() -> bool:
     return _enter_fork_requested
 
 
-def request_enter_fork(topic: str | None, *, idle_timeout: int = 10) -> None:
+def request_enter_fork(topic: str | None, *, idle_timeout: int) -> None:
     global _enter_fork_requested, _enter_fork_topic, _enter_fork_timeout
     _enter_fork_requested = True
     _enter_fork_topic = topic
@@ -242,14 +242,17 @@ def request_enter_fork(topic: str | None, *, idle_timeout: int = 10) -> None:
 
 def pop_enter_fork() -> tuple[str | None, int]:
     """Read and clear the enter-fork request. Returns (topic, idle_timeout)."""
+    from ollim_bot import runtime_config
+
+    cfg_timeout = runtime_config.load().fork_idle_timeout
     global _enter_fork_requested, _enter_fork_topic, _enter_fork_timeout
     if not _enter_fork_requested:
-        return None, 10
+        return None, cfg_timeout
     topic = _enter_fork_topic
     timeout = _enter_fork_timeout
     _enter_fork_requested = False
     _enter_fork_topic = None
-    _enter_fork_timeout = 10
+    _enter_fork_timeout = cfg_timeout
     return topic, timeout
 
 
@@ -302,10 +305,12 @@ def _extract_prompt_tag(prompt: str) -> str:
     return "bg fork"
 
 
-async def _notify_fork_failure(channel: discord.abc.Messageable, tag: str, *, timed_out: bool = False) -> None:
+async def _notify_fork_failure(
+    channel: discord.abc.Messageable, tag: str, *, timed_out: bool = False, timeout_seconds: int = 0
+) -> None:
     """Best-effort DM notification when a bg fork fails or times out."""
     if timed_out:
-        msg = f"Background task timed out after {BG_FORK_TIMEOUT // 60} minutes: `{tag}`"
+        msg = f"Background task timed out after {timeout_seconds // 60} minutes: `{tag}`"
     else:
         msg = f"Background task failed: `{tag}` -- check logs for details."
     with contextlib.suppress(Exception):
@@ -326,6 +331,7 @@ async def run_agent_background(
     Contextvars scope in_fork state to this task, so bg forks run
     concurrently without stomping on main session or other forks.
     """
+    from ollim_bot import runtime_config
     from ollim_bot.sessions import (
         cancel_message_collector,
         flush_message_collector,
@@ -335,6 +341,7 @@ async def run_agent_background(
     )
 
     tag = _extract_prompt_tag(prompt)
+    bg_timeout = runtime_config.load().bg_fork_timeout
     busy = agent.lock().locked()
     if busy:
         log.info("bg fork running in quiet mode (user busy): %s", tag)
@@ -354,7 +361,7 @@ async def run_agent_background(
     start_message_collector()
 
     try:
-        async with asyncio.timeout(BG_FORK_TIMEOUT):
+        async with asyncio.timeout(bg_timeout):
             allowed = bg_config.allowed_tools if bg_config else None
             blocked = bg_config.disallowed_tools if bg_config else None
             client: ClaudeSDKClient | None = None
@@ -406,8 +413,8 @@ async def run_agent_background(
                 await client.disconnect()
         log.info("bg fork completed: %s", tag)
     except TimeoutError:
-        log.warning("bg fork timed out after %ds: %s", BG_FORK_TIMEOUT, tag)
-        await _notify_fork_failure(dm, tag, timed_out=True)
+        log.warning("bg fork timed out after %ds: %s", bg_timeout, tag)
+        await _notify_fork_failure(dm, tag, timed_out=True, timeout_seconds=bg_timeout)
     except Exception:
         log.exception("bg fork failed: %s", tag)
         await _notify_fork_failure(dm, tag)
