@@ -55,7 +55,7 @@ This extends to any blocking interaction: if the user takes an action while the 
 ## Communication
 
 **Every word earns its place.** *(hard rule)*
-Bot framework messages — slash command feedback, error cases, status updates — are lowercase, one-line, unpunctuated beyond a period. `"switched to opus."` not `"I've switched the model to Opus for you!"` Empty responses get `"hmm, I didn't have a response for that."` not an apology or explanation. Embed titles are stripped of emoji (LLMs love to add them; users don't need them).
+Bot framework messages — slash command feedback, error cases, status updates — are lowercase, one-line, unpunctuated beyond a period. `"switched to opus."` not `"I've switched the model to Opus for you!"` Empty responses get `"error: empty response from agent."` — surface the failure, don't hide it behind a vague "hmm." Embed titles are stripped of emoji (LLMs love to add them; users don't need them).
 
 This applies to the bot's own UI text, not the agent's conversational responses. The agent follows its personality rules in `prompts.py` (concise and direct, warm but not overbearing, ADHD-aware) — those allow multi-line explanation when context demands it.
 
