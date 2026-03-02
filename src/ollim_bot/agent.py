@@ -137,6 +137,9 @@ class Agent:
     def __init__(self) -> None:
         skill_index = build_skill_index()
         system_prompt = f"{SYSTEM_PROMPT}\n\n{skill_index}" if skill_index else SYSTEM_PROMPT
+        specs = load_subagent_specs()
+        tool_sets = tool_policy.collect_all_tool_sets(specs)
+        tool_policy.scan_all(tool_sets)
         self.options = ClaudeAgentOptions(
             cwd=DATA_DIR,
             include_partial_messages=True,
@@ -146,12 +149,11 @@ class Agent:
                 "discord": agent_server,
                 "docs": {"type": "http", "url": "https://docs.ollim.ai/mcp"},
             },
-            allowed_tools=tool_policy.build_superset(tool_policy.collect_all_tool_sets()),
+            allowed_tools=tool_policy.build_superset(tool_sets),
             permission_mode="default",
             hooks={"Stop": [HookMatcher(hooks=[require_report_hook])]},
-            agents=build_agent_definitions(load_subagent_specs()),
+            agents=build_agent_definitions(specs),
         )
-        tool_policy.scan_all()
 
         cfg = runtime_config.load()
         if cfg.model_main:

@@ -7,6 +7,7 @@ Chain reminders inject chain context so the agent can call follow_up_chain.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from dataclasses import replace
 from datetime import datetime, timedelta
@@ -43,7 +44,7 @@ from ollim_bot.scheduling.preamble import (
 )
 from ollim_bot.scheduling.reminders import Reminder, list_reminders, remove_reminder
 from ollim_bot.scheduling.routines import Routine, list_routines
-from ollim_bot.skills import collect_skill_tools
+from ollim_bot.skills import Skill, collect_skill_tools, load_skills
 from ollim_bot.streamer import stream_to_channel
 
 if TYPE_CHECKING:
@@ -57,31 +58,31 @@ _registered_reminders: set[str] = set()
 _PING_TOOLS = ["mcp__discord__ping_user", "mcp__discord__discord_embed"]
 
 
-def _merge_skill_tools(config: BgForkConfig, skill_names: list[str] | None) -> BgForkConfig:
-    """Merge tool dependencies from referenced skills into the config."""
-    skill_tools = collect_skill_tools(skill_names)
+def _merge_skill_tools(config: BgForkConfig, skills: list[Skill]) -> BgForkConfig:
+    """Merge tool dependencies from pre-loaded skills into the config.
+
+    BgForkConfig.from_item always sets allowed_tools (MINIMAL_BG_TOOLS default),
+    so config.allowed_tools is guaranteed non-None here.
+    """
+    skill_tools = collect_skill_tools(skills=skills)
     if not skill_tools:
         return config
-    if config.allowed_tools is not None:
-        merged = list(config.allowed_tools)
-        for tool in skill_tools:
-            if tool not in merged:
-                merged.append(tool)
-        return replace(config, allowed_tools=merged)
-    # No allowed_tools set — skill tools have nothing to merge into.
-    # (Phase 4 will make minimal defaults explicit, at which point this path
-    # merges skill tools into the minimal set.)
-    return config
+    merged = list(config.allowed_tools or [])
+    for tool in skill_tools:
+        if tool not in merged:
+            merged.append(tool)
+    return replace(config, allowed_tools=merged)
 
 
 def _apply_ping_restrictions(config: BgForkConfig) -> BgForkConfig:
-    """Hide ping/embed tools from SDK when allow_ping is false."""
+    """Hide ping/embed tools from SDK when allow_ping is false.
+
+    BgForkConfig.from_item always sets allowed_tools, so we filter directly.
+    """
     if config.allow_ping:
         return config
-    if config.allowed_tools is not None:
-        filtered = [t for t in config.allowed_tools if t not in _PING_TOOLS]
-        return replace(config, allowed_tools=filtered)
-    return config
+    filtered = [t for t in (config.allowed_tools or []) if t not in _PING_TOOLS]
+    return replace(config, allowed_tools=filtered)
 
 
 def _register_routine(
@@ -96,15 +97,20 @@ def _register_routine(
 
     async def _fire() -> None:
         busy = agent.lock().locked()
+        skills = load_skills(routine.skills)
         bg_config = BgForkConfig.from_item(routine)
-        bg_config = _merge_skill_tools(bg_config, routine.skills)
+        bg_config = _merge_skill_tools(bg_config, skills)
         bg_config = _apply_ping_restrictions(bg_config)
-        prompt = build_routine_prompt(
+        # build_routine_prompt runs _expand_commands (sync subprocess, up to 30s)
+        # — offload to thread to avoid blocking the event loop
+        prompt = await asyncio.to_thread(
+            build_routine_prompt,
             routine,
             reminders=list_reminders(),
             routines=list_routines(),
             busy=busy,
             bg_config=bg_config,
+            skills=skills,
         )
         try:
             if routine.background:
@@ -153,15 +159,20 @@ def _register_reminder(
 
     async def fire_oneshot() -> None:
         busy = agent.lock().locked()
+        skills = load_skills(reminder.skills)
         bg_config = BgForkConfig.from_item(reminder)
-        bg_config = _merge_skill_tools(bg_config, reminder.skills)
+        bg_config = _merge_skill_tools(bg_config, skills)
         bg_config = _apply_ping_restrictions(bg_config)
-        prompt = build_reminder_prompt(
+        # build_reminder_prompt runs _expand_commands (sync subprocess, up to 30s)
+        # — offload to thread to avoid blocking the event loop
+        prompt = await asyncio.to_thread(
+            build_reminder_prompt,
             reminder,
             reminders=list_reminders(),
             routines=list_routines(),
             busy=busy,
             bg_config=bg_config,
+            skills=skills,
         )
         # follow_up_chain MCP tool reads this to schedule the next link
         chain_ctx = None

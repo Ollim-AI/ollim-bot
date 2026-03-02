@@ -22,7 +22,15 @@ log = logging.getLogger(__name__)
 _SOURCE_DIR = Path(__file__).parent / "subagents"
 _OVERRIDE_DIR = DATA_DIR / "subagents"
 
-_TEMPLATE_VARS = {"USER_NAME": USER_NAME, "BOT_NAME": BOT_NAME}
+
+class _SafeMap(dict[str, str]):
+    """Dict that leaves unknown {placeholders} verbatim instead of raising KeyError."""
+
+    def __missing__(self, key: str) -> str:
+        return f"{{{key}}}"
+
+
+_TEMPLATE_VARS = _SafeMap({"USER_NAME": USER_NAME, "BOT_NAME": BOT_NAME})
 
 _ModelName = Literal["sonnet", "opus", "haiku", "inherit"]
 

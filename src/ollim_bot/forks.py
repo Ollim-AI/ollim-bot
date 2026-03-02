@@ -105,7 +105,7 @@ class BgForkConfig:
         """
         from ollim_bot.tool_policy import MINIMAL_BG_TOOLS
 
-        allowed = getattr(item, "allowed_tools", None)
+        allowed = item.allowed_tools
         if allowed is None:
             allowed = list(MINIMAL_BG_TOOLS)
         return cls(
