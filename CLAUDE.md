@@ -226,10 +226,10 @@ Never write working data into the source repo or source code into `~/.ollim-bot/
 ## Interactive forks
 - `/fork [topic]` or `enter_fork(topic?, idle_timeout=10)` MCP tool starts interactive fork
 - Forks branch from main session (never nested); bg forks can run in parallel
-- Three exit strategies via MCP tools or buttons:
-  - `save_context`: promote fork to main session (interactive forks only, via `swap_client`)
+- Three exit strategies via MCP tools or buttons (default: `report_updates`):
   - `report_updates(message)`: queue summary, discard fork
   - `exit_fork`: clean discard, return to main session
+  - `save_context`: promote fork to main session — reserved for forks with context needed going forward (interactive only, via `swap_client`)
 - Fork state in `forks.py`: `_in_interactive_fork`, `_fork_exit_action`, `_fork_last_activity`, `_fork_prompted_at`
 - Agent routing: `stream_chat`/`chat` route to `_fork_client` when active; `_prepend_context(clear=False)` for forks
 - Post-stream transitions: `_check_fork_transitions()` in bot.py checks `enter_fork_requested()` and `pop_exit_action()`
