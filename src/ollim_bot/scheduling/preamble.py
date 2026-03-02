@@ -12,6 +12,7 @@ from ollim_bot.config import TZ
 from ollim_bot.forks import BgForkConfig
 from ollim_bot.scheduling.reminders import Reminder
 from ollim_bot.scheduling.routines import Routine
+from ollim_bot.skills import build_skills_section
 
 # Standard cron: 0=Sunday. APScheduler CronTrigger: 0=Monday.
 # Convert numeric values to named days to avoid the mismatch.
@@ -337,11 +338,12 @@ def build_routine_prompt(
     busy: bool = False,
     bg_config: BgForkConfig | None = None,
 ) -> str:
+    skills_section = build_skills_section(routine.skills)
     if routine.background:
         schedule = build_upcoming_schedule(routines, reminders, current_id=routine.id)
         preamble = build_bg_preamble(schedule, busy=busy, bg_config=bg_config)
-        return f"[routine-bg:{routine.id}] {preamble}{routine.message}"
-    return f"[routine:{routine.id}] {routine.message}"
+        return f"[routine-bg:{routine.id}] {preamble}{skills_section}{routine.message}"
+    return f"[routine:{routine.id}] {skills_section}{routine.message}"
 
 
 def build_reminder_prompt(
@@ -358,6 +360,10 @@ def build_reminder_prompt(
     if reminder.background:
         schedule = build_upcoming_schedule(routines, reminders, current_id=reminder.id)
         parts.append(build_bg_preamble(schedule, busy=busy, bg_config=bg_config).rstrip())
+
+    skills_section = build_skills_section(reminder.skills)
+    if skills_section:
+        parts.append(f"\n{skills_section.rstrip()}")
 
     if reminder.max_chain > 0:
         check_num = reminder.chain_depth + 1

@@ -75,6 +75,12 @@ def run_reminder_command(argv: list[str]) -> None:
         default=None,
         help="Denylist of SDK tool patterns (bg only)",
     )
+    add_p.add_argument(
+        "--skills",
+        nargs="+",
+        default=None,
+        help="Skill names to load when firing",
+    )
 
     sub.add_parser("list", help="Show pending reminders")
 
@@ -110,6 +116,7 @@ def _handle_add(args: argparse.Namespace) -> None:
         allow_ping=not args.no_ping,
         allowed_tools=args.allowed_tools,
         disallowed_tools=args.disallowed_tools,
+        skills=args.skills,
     )
     append_reminder(reminder)
     print(f"scheduled {reminder.id}: {_fmt_schedule(reminder)} -- {_summary(reminder)}")

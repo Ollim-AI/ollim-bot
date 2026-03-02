@@ -26,6 +26,7 @@ class Routine:
     allow_ping: bool = True
     allowed_tools: list[str] | None = None
     disallowed_tools: list[str] | None = None
+    skills: list[str] | None = None
 
     def __post_init__(self) -> None:
         if self.allowed_tools is not None and self.disallowed_tools is not None:
@@ -45,6 +46,7 @@ class Routine:
         allow_ping: bool = True,
         allowed_tools: list[str] | None = None,
         disallowed_tools: list[str] | None = None,
+        skills: list[str] | None = None,
     ) -> "Routine":
         return Routine(
             id=uuid4().hex[:8],
@@ -59,6 +61,7 @@ class Routine:
             allow_ping=allow_ping,
             allowed_tools=allowed_tools,
             disallowed_tools=disallowed_tools,
+            skills=skills,
         )
 
 

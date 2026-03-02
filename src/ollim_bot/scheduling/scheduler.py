@@ -160,6 +160,7 @@ def _register_reminder(
                 allow_ping=reminder.allow_ping,
                 allowed_tools=reminder.allowed_tools,
                 disallowed_tools=reminder.disallowed_tools,
+                skills=reminder.skills,
             )
 
         try:
