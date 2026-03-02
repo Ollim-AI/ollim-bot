@@ -43,6 +43,7 @@ from ollim_bot.scheduling.preamble import (
 )
 from ollim_bot.scheduling.reminders import Reminder, list_reminders, remove_reminder
 from ollim_bot.scheduling.routines import Routine, list_routines
+from ollim_bot.skills import collect_skill_tools
 from ollim_bot.streamer import stream_to_channel
 
 if TYPE_CHECKING:
@@ -56,6 +57,23 @@ _registered_reminders: set[str] = set()
 _PING_TOOLS = ["mcp__discord__ping_user", "mcp__discord__discord_embed"]
 
 
+def _merge_skill_tools(config: BgForkConfig, skill_names: list[str] | None) -> BgForkConfig:
+    """Merge tool dependencies from referenced skills into the config."""
+    skill_tools = collect_skill_tools(skill_names)
+    if not skill_tools:
+        return config
+    if config.allowed_tools is not None:
+        merged = list(config.allowed_tools)
+        for tool in skill_tools:
+            if tool not in merged:
+                merged.append(tool)
+        return replace(config, allowed_tools=merged)
+    # No allowed_tools set — skill tools have nothing to merge into.
+    # (Phase 4 will make minimal defaults explicit, at which point this path
+    # merges skill tools into the minimal set.)
+    return config
+
+
 def _apply_ping_restrictions(config: BgForkConfig) -> BgForkConfig:
     """Hide ping/embed tools from SDK when allow_ping is false."""
     if config.allow_ping:
@@ -63,9 +81,7 @@ def _apply_ping_restrictions(config: BgForkConfig) -> BgForkConfig:
     if config.allowed_tools is not None:
         filtered = [t for t in config.allowed_tools if t not in _PING_TOOLS]
         return replace(config, allowed_tools=filtered)
-    existing = config.disallowed_tools or []
-    merged = existing + [t for t in _PING_TOOLS if t not in existing]
-    return replace(config, disallowed_tools=merged)
+    return config
 
 
 def _register_routine(
@@ -80,7 +96,9 @@ def _register_routine(
 
     async def _fire() -> None:
         busy = agent.lock().locked()
-        bg_config = _apply_ping_restrictions(BgForkConfig.from_item(routine))
+        bg_config = BgForkConfig.from_item(routine)
+        bg_config = _merge_skill_tools(bg_config, routine.skills)
+        bg_config = _apply_ping_restrictions(bg_config)
         prompt = build_routine_prompt(
             routine,
             reminders=list_reminders(),
@@ -135,7 +153,9 @@ def _register_reminder(
 
     async def fire_oneshot() -> None:
         busy = agent.lock().locked()
-        bg_config = _apply_ping_restrictions(BgForkConfig.from_item(reminder))
+        bg_config = BgForkConfig.from_item(reminder)
+        bg_config = _merge_skill_tools(bg_config, reminder.skills)
+        bg_config = _apply_ping_restrictions(bg_config)
         prompt = build_reminder_prompt(
             reminder,
             reminders=list_reminders(),
@@ -159,7 +179,6 @@ def _register_reminder(
                 update_main_session=reminder.update_main_session,
                 allow_ping=reminder.allow_ping,
                 allowed_tools=reminder.allowed_tools,
-                disallowed_tools=reminder.disallowed_tools,
                 skills=reminder.skills,
             )
 

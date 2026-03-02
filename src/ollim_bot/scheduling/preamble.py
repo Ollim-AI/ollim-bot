@@ -314,12 +314,6 @@ def build_bg_preamble(
             + "\n".join(f"  - {t}" for t in config.allowed_tools)
             + "\n\n"
         )
-    elif config.disallowed_tools is not None:
-        tools_section = (
-            "TOOL RESTRICTIONS: These tools are NOT available for this task:\n"
-            + "\n".join(f"  - {t}" for t in config.disallowed_tools)
-            + "\n\n"
-        )
     else:
         tools_section = ""
 
