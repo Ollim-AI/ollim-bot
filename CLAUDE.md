@@ -66,7 +66,7 @@ Never write working data into the source repo or source code into `~/.ollim-bot/
 - `forks.py` -- Fork state (bg + interactive), pending updates I/O, `run_agent_background`, `send_agent_dm`
 - `views.py` -- Persistent button handlers via `DynamicItem` (delegates to google/, forks, and streamer)
 - `storage.py` -- Shared JSONL I/O, markdown I/O (`read_md_dir`/`write_md`/`remove_md`), git auto-commit, and path constants (`DATA_DIR` for agent workspace, `STATE_DIR` for code-only infrastructure in `~/.ollim-bot/state/`)
-- `streamer.py` -- Streams agent responses to Discord (throttled edits, 2000-char overflow)
+- `streamer.py` -- Streams agent responses to Discord (throttled edits, 2000-char overflow, tool label rendering with denial strikethrough)
 - `sessions.py` -- Persists Agent SDK session ID (plain string file) + session history JSONL log (lifecycle events)
 - `permissions.py` -- Discord-based tool approval (canUseTool callback, reaction-based approval, session-allowed set)
 - `formatting.py` -- Tool-label formatting helpers (shared by agent and permissions)
@@ -164,11 +164,11 @@ Never write working data into the source repo or source code into `~/.ollim-bot/
 - Uses `storage.append_jsonl()` for writes (git auto-commit)
 
 ## Permissions
-- Default mode is `dontAsk`: non-whitelisted tools silently denied, no Discord prompt
+- Default mode is `dontAsk`: non-whitelisted tools denied (shown with strikethrough in response), no Discord prompt
 - `dontAsk` is our layer (`_dont_ask` flag in permissions.py); SDK stays at `default`
 - Other modes (`default`, `acceptEdits`, `bypassPermissions`) clear `_dont_ask` and pass through to SDK
 - Approval flow (when `dontAsk` is off): send message with tool label, add reactions (approve/deny/always), await Future (60s timeout, auto-deny)
-- `canUseTool` callback: bg forks → immediate deny; `dontAsk` → silent deny (unless session-allowed); else → Discord approval
+- `canUseTool` callback: bg forks → immediate deny; `dontAsk` → deny with strikethrough label (unless session-allowed); else → Discord approval
 - `_session_allowed` set: shared across main + interactive forks, reset on `/clear`
 - Permission mode is fork-scoped (only affects active client); `/model` is shared (affects both)
 - `cancel_pending()` called on interrupt, fork exit, and `/clear`
@@ -281,10 +281,6 @@ Before proposing the plan (ExitPlanMode), load the `python-principles` skill and
 
 ## Documentation
 - `SearchOllimBot` MCP tool — search `docs.ollim.ai` for architecture, conventions, and integration patterns. Use for "how does X work" or "how to add Y" questions; use code exploration for implementation details and debugging.
-
-## Custom agents
-- `ollim-bot-guide` -- interactive reference guide: setup, configuration, conventions, "how do I..." questions. Searches docs.ollim.ai and verifies against code. Shows full docs text, doesn't paraphrase.
-- `bot-debugger` -- deep runtime debugger: missed pings, blocked routines, budget exhaustion, fork behavior. Reads session transcripts for post-mortem investigation.
 
 ## Useful skills
 - `/feature-development` -- guided feature dev: explore, clarify, architect, implement, review
