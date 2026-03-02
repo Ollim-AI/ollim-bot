@@ -59,7 +59,7 @@ Never write working data into the source repo or source code into `~/.ollim-bot/
 - `agent.py` -- Claude Agent SDK brain (persistent sessions, MCP tools, subagents, slash command routing)
 - `main.py` -- CLI entry point and command router (`ollim-bot` dispatches to bot, routines, reminders, tasks, cal, gmail)
 - `prompts.py` -- System prompt for the main agent and fork prompt helpers
-- `subagent_prompts.py` -- System prompts for subagents (guide, gmail-reader, history-reviewer, responsiveness-reviewer, user-proxy)
+- `subagents.py` -- Bundled agent installation (`install_agents`) and tool-set extraction (`load_agent_tool_sets`) for policy validation; specs in `subagents/*.md`
 - `agent_tools.py` -- MCP tools: `discord_embed`, `ping_user`, `follow_up_chain`, `save_context`, `report_updates`, `enter_fork`, `exit_fork`
 - `channel.py` -- DM channel reference, set once at startup (`init_channel`/`get_channel`)
 - `webhook.py` -- Webhook HTTP server for external triggers (aiohttp, auth, validation, Haiku screening, dispatch)
@@ -92,9 +92,10 @@ Never write working data into the source repo or source code into `~/.ollim-bot/
 ## Agent SDK config
 - Auth: Claude Code OAuth (no API key needed)
 - Single `ClaudeSDKClient` for persistent conversation with auto-compaction (single-user bot)
-- No `setting_sources` -- all config is in code (no CLAUDE.md, skills, or settings.json loaded)
+- `setting_sources=["project"]` -- SDK loads agents from `.claude/agents/` and discovers skills from `.claude/skills/` (relative to `cwd=DATA_DIR`)
 - `permission_mode="default"` -- SDK default; whitelisted tools auto-approved, others routed through `permissions.py`
-- Subagents defined programmatically via `AgentDefinition`: guide, gmail-reader, history-reviewer, responsiveness-reviewer, user-proxy
+- Subagents: bundled specs in `src/ollim_bot/subagents/*.md`, installed to `~/.ollim-bot/.claude/agents/` at init with template expansion (skip existing); SDK loads them via `setting_sources`
+- `Skill` tool in `allowed_tools` -- SDK handles interactive skill discovery/invocation; per-job injection stays custom
 - Two MCP servers: `discord` (agent_tools.py — 7 tools) and `docs` (remote, `docs.ollim.ai/mcp` — self-referencing documentation)
 - Tool instructions (tasks, cal, routines, reminders, embeds) inlined in SYSTEM_PROMPT; history delegated to subagent
 - `ResultMessage.result` is a fallback — don't double-count with `AssistantMessage` text blocks
@@ -163,8 +164,9 @@ Never write working data into the source repo or source code into `~/.ollim-bot/
 - `Skill` frozen dataclass: `name`, `description`, `message` (markdown body)
 - `list_skills()` walks `skills/*/SKILL.md`, `read_skill(name)` reads one by name
 - `_parse_skill()` returns `Skill | None` (no exceptions — None for invalid files)
-- `build_skill_index()` generates description index for system prompt (empty string when no skills)
-- System prompt: static section explaining skills + dynamic index appended at `Agent.__init__`
+- SDK discovery: `~/.ollim-bot/.claude/skills/ → ../skills/` symlink; SDK loads skill descriptions via `setting_sources`
+- Interactive use: agent invokes skills via SDK's `Skill` tool (auto-discovered, no custom index)
+- Per-job injection (custom): routines/reminders reference skills by name; `build_skills_section()` loads, expands commands, and injects at fire time
 - Routine/Reminder `skills: list[str] | None` field — references skill names to auto-load
 - Preamble injection: `build_skills_section()` loads and injects `SKILL INSTRUCTIONS:` block
 - Injection works for both bg and fg prompts (before the message body)

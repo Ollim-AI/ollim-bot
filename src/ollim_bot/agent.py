@@ -48,10 +48,9 @@ from ollim_bot.sessions import (
     session_start_time,
     set_swap_in_progress,
 )
-from ollim_bot.skills import build_skill_index, list_skills
+from ollim_bot.skills import list_skills
 from ollim_bot.storage import DATA_DIR
 from ollim_bot.streamer import StreamParser, StreamStatus
-from ollim_bot.subagents import build_agent_definitions, load_subagent_specs
 
 log = logging.getLogger(__name__)
 
@@ -141,16 +140,14 @@ def _apply_tool_restrictions(
 class Agent:
     def __init__(self) -> None:
         all_skills = list_skills()
-        skill_index = build_skill_index(all_skills)
-        system_prompt = f"{SYSTEM_PROMPT}\n\n{skill_index}" if skill_index else SYSTEM_PROMPT
-        specs = load_subagent_specs()
-        tool_sets = tool_policy.collect_all_tool_sets(specs, skills=all_skills)
+        tool_sets = tool_policy.collect_all_tool_sets(skills=all_skills)
         tool_policy.scan_all(tool_sets)
         self.options = ClaudeAgentOptions(
             cwd=DATA_DIR,
             include_partial_messages=True,
             can_use_tool=handle_tool_permission,
-            system_prompt=system_prompt,
+            system_prompt=SYSTEM_PROMPT,
+            setting_sources=["project"],
             mcp_servers={
                 "discord": agent_server,
                 "docs": {"type": "http", "url": "https://docs.ollim.ai/mcp"},
@@ -158,7 +155,6 @@ class Agent:
             allowed_tools=tool_policy.build_superset(tool_sets),
             permission_mode="default",
             hooks={"Stop": [HookMatcher(hooks=[require_report_hook])]},
-            agents=build_agent_definitions(specs),
         )
 
         cfg = runtime_config.load()

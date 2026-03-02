@@ -45,5 +45,6 @@ def data_dir(tmp_path, monkeypatch):
     import ollim_bot.webhook as webhook_mod
 
     monkeypatch.setattr(skills_mod, "SKILLS_DIR", tmp_path / "skills")
+    monkeypatch.setattr(skills_mod, "_SKILLS_DIR_RESOLVED", (tmp_path / "skills").resolve())
     monkeypatch.setattr(webhook_mod, "WEBHOOKS_DIR", tmp_path / "webhooks")
     return tmp_path

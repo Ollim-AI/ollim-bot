@@ -20,6 +20,7 @@ import yaml
 from ollim_bot.storage import DATA_DIR, parse_md
 
 SKILLS_DIR = DATA_DIR / "skills"
+_SKILLS_DIR_RESOLVED = SKILLS_DIR.resolve()
 
 log = logging.getLogger(__name__)
 
@@ -41,7 +42,7 @@ def _parse_skill(text: str) -> Skill | None:
     """Parse a SKILL.md file into a Skill. Returns None for invalid files."""
     try:
         return parse_md(text, Skill)
-    except (ValueError, yaml.YAMLError, TypeError):
+    except (ValueError, yaml.YAMLError, TypeError, KeyError):
         return None
 
 
@@ -68,7 +69,7 @@ def list_skills() -> list[Skill]:
 def read_skill(name: str) -> Skill | None:
     """Read a single skill by name. Returns None if not found or corrupt."""
     skill_md = SKILLS_DIR / name / "SKILL.md"
-    if not skill_md.resolve().is_relative_to(SKILLS_DIR.resolve()):
+    if not skill_md.resolve().is_relative_to(_SKILLS_DIR_RESOLVED):
         log.warning("Skill name contains path traversal: %s", name)
         return None
     try:
@@ -168,18 +169,3 @@ def collect_skill_tools(skills: list[Skill]) -> list[str]:
                     seen.add(tool)
                     tools.append(tool)
     return tools
-
-
-def build_skill_index(skills: list[Skill] | None = None) -> str:
-    """Build the dynamic skill index for the system prompt.
-
-    Returns an empty string when no skills exist.
-    """
-    if skills is None:
-        skills = list_skills()
-    if not skills:
-        return ""
-    lines = ["Available skills:"]
-    for skill in skills:
-        lines.append(f"- **{skill.name}**: {skill.description}")
-    return "\n".join(lines)

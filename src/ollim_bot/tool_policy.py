@@ -11,13 +11,12 @@ from __future__ import annotations
 import functools
 import logging
 import re
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
     from ollim_bot.skills import Skill
-    from ollim_bot.subagents import SubagentSpec
 
 log = logging.getLogger(__name__)
 
@@ -187,6 +186,7 @@ MAIN_SESSION_TOOLS: list[str] = [
     "mcp__discord__exit_fork",
     "mcp__docs__*",
     "Task",
+    "Skill",
 ]
 
 
@@ -209,28 +209,21 @@ MINIMAL_BG_TOOLS: list[str] = [
 
 
 def collect_all_tool_sets(
-    specs: Mapping[str, SubagentSpec] | None = None,
     skills: Sequence[Skill] | None = None,
 ) -> dict[str, list[str]]:
     """Collect tool sets from all sources.
 
     Returns a mapping of source name -> tool list.
-    Accepts pre-loaded subagent specs and skills to avoid redundant disk reads.
     Imports are deferred to avoid circular dependencies.
     """
     from ollim_bot.scheduling.reminders import list_reminders
     from ollim_bot.scheduling.routines import list_routines
+    from ollim_bot.subagents import load_agent_tool_sets
     from ollim_bot.webhook import list_webhooks
 
     tool_sets: dict[str, list[str]] = {"main": list(MAIN_SESSION_TOOLS)}
 
-    if specs is None:
-        from ollim_bot.subagents import load_subagent_specs
-
-        specs = load_subagent_specs()
-    for name, spec in specs.items():
-        if spec.tools:
-            tool_sets[f"subagent:{name}"] = spec.tools
+    tool_sets.update(load_agent_tool_sets())
 
     for routine in list_routines():
         if routine.allowed_tools:
