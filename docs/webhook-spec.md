@@ -10,8 +10,8 @@ Webhook specs are markdown files with YAML frontmatter in `webhooks/`.
 id: "github-ci"
 isolated: true
 model: "haiku"
-allow_ping: true
-update_main_session: "on_ping"
+allow-ping: true
+update-main-session: "on_ping"
 fields:
   type: object
   required:
@@ -44,5 +44,5 @@ declared field values -- the prompt template (your instructions) is in the file.
 
 ## Config fields
 
-Config fields match routine/reminder YAML: `isolated`, `model`, `allow_ping`,
-`update_main_session`.
+Config fields match routine/reminder YAML: `isolated`, `model`, `allow-ping`,
+`update-main-session`.

@@ -33,7 +33,7 @@ class SubagentSpec:
     description: str
     message: str  # prompt body
     model: _ModelName | None = None
-    tools: list[str] | None = None
+    allowed_tools: list[str] | None = None
 
 
 def _load_spec(path: Path) -> SubagentSpec | None:
@@ -78,7 +78,7 @@ def build_agent_definitions(
         definitions[name] = AgentDefinition(
             description=spec.description.format_map(_TEMPLATE_VARS),
             prompt=prompt,
-            tools=spec.tools or [],
+            tools=spec.allowed_tools or [],
             model=spec.model,
         )
     return definitions

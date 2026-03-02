@@ -4,8 +4,10 @@ import json
 from dataclasses import dataclass
 
 from ollim_bot.storage import (
+    _serialize_md,
     _slugify,
     append_jsonl,
+    parse_md,
     read_jsonl,
     read_md_dir,
     remove_jsonl,
@@ -286,3 +288,39 @@ def test_write_md_list_none_omitted(tmp_path):
 
     content = next(d.glob("*.md")).read_text()
     assert "tags" not in content.split("---")[1]
+
+
+# --- Kebab-case YAML keys ---
+
+
+@dataclass(frozen=True, slots=True)
+class MdItemWithUnderscores:
+    id: str
+    message: str
+    allowed_tools: list[str] | None = None
+    allow_ping: bool = True
+
+
+def test_serialize_md_writes_kebab_case_keys():
+    item = MdItemWithUnderscores(
+        id="abc",
+        message="test",
+        allowed_tools=["Bash(ollim-bot help)"],
+        allow_ping=False,
+    )
+
+    output = _serialize_md(item)
+
+    assert "allowed-tools:" in output
+    assert "allow-ping:" in output
+    assert "allowed_tools" not in output
+    assert "allow_ping" not in output
+
+
+def test_parse_md_accepts_legacy_snake_case_keys():
+    legacy = '---\nid: "abc"\nallowed_tools:\n  - "Bash(ollim-bot help)"\nallow_ping: false\n---\ntest'
+
+    item = parse_md(legacy, MdItemWithUnderscores)
+
+    assert item.allowed_tools == ["Bash(ollim-bot help)"]
+    assert item.allow_ping is False

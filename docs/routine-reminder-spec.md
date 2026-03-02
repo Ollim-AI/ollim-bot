@@ -36,15 +36,14 @@ Your prompt goes here as the markdown body.
 | `model` | no | `null` | Model override: "opus", "sonnet", "haiku" (bg only) |
 | `thinking` | no | `true` | Extended thinking (bg only) |
 | `isolated` | no | `false` | Fresh context, no conversation history (bg only) |
-| `update_main_session` | no | `"on_ping"` | Reporting mode (bg only) |
-| `allow_ping` | no | `true` | Enable/disable `ping_user`/`discord_embed` (bg only) |
-| `allowed_tools` | no | `null` | SDK tool allowlist — only these tools available (bg only) |
-| `disallowed_tools` | no | `null` | SDK tool denylist — these tools removed (bg only) |
+| `update-main-session` | no | `"on_ping"` | Reporting mode (bg only) |
+| `allow-ping` | no | `true` | Enable/disable `ping_user`/`discord_embed` (bg only) |
+| `allowed-tools` | no | `null` | SDK tool allowlist — only these tools available (bg only) |
 
-`allowed_tools` and `disallowed_tools` are mutually exclusive. Use SDK tool format
+Use SDK tool format for `allowed-tools`
 (e.g. `Bash(ollim-bot gmail *)`, `mcp__discord__*`).
 
-`update_main_session` modes:
+`update-main-session` modes:
 - `always`: must call `report_updates` before finishing
 - `on_ping` (default): report if you pinged, otherwise optional
 - `freely`: reporting optional regardless
@@ -58,10 +57,10 @@ Same as routine fields, except:
 
 | Field | Default | Description |
 |-------|---------|-------------|
-| `run_at` | — | ISO datetime when the reminder fires |
-| `max_chain` | `0` | 0 = one-shot, N = allow N follow-up checks |
-| `chain_depth` | `0` | Current position in the chain (managed by `follow_up_chain`) |
-| `chain_parent` | `null` | ID of the root reminder in the chain (auto-set) |
+| `run-at` | — | ISO datetime when the reminder fires |
+| `max-chain` | `0` | 0 = one-shot, N = allow N follow-up checks |
+| `chain-depth` | `0` | Current position in the chain (managed by `follow_up_chain`) |
+| `chain-parent` | `null` | ID of the root reminder in the chain (auto-set) |
 
 ## Reminder CLI
 
@@ -83,7 +82,6 @@ Full flags for background/complex reminders:
 | `--update-main-session <mode>` | Reporting mode (bg only) |
 | `--no-ping` | Disable ping_user/discord_embed (bg only) |
 | `--allowed-tools <tool> ...` | SDK tool allowlist (bg only) |
-| `--disallowed-tools <tool> ...` | SDK tool denylist (bg only) |
 
 Other commands: `ollim-bot reminder list`, `ollim-bot reminder cancel <id>`.
 
@@ -209,9 +207,9 @@ Call report_updates with: email summary, task IDs shown, reminders scheduled.
 ---
 id: "c4f5e6a7"
 description: "Check if Julius finished the report"
-run_at: "2026-02-24T14:00:00-08:00"
+run-at: "2026-02-24T14:00:00-08:00"
 background: true
-max_chain: 3
+max-chain: 3
 ---
 Check if Julius finished the quarterly report he mentioned this morning.
 
