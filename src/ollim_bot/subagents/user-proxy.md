@@ -6,7 +6,7 @@ description: >-
   history for past corrections. Returns answer + reasoning + confidence
   (HIGH/MEDIUM/LOW).
 model: haiku
-allowed-tools:
+tools:
   - Read(**.md)
   - Glob(**.md)
   - Bash(claude-history *)

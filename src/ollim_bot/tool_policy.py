@@ -182,8 +182,8 @@ def collect_all_tool_sets() -> dict[str, list[str]]:
     tool_sets: dict[str, list[str]] = {"main": list(MAIN_SESSION_TOOLS)}
 
     for name, spec in load_subagent_specs().items():
-        if spec.allowed_tools:
-            tool_sets[f"subagent:{name}"] = spec.allowed_tools
+        if spec.tools:
+            tool_sets[f"subagent:{name}"] = spec.tools
 
     for routine in list_routines():
         if routine.allowed_tools:

@@ -10,7 +10,7 @@ VALID_SPEC = dedent("""\
     name: test-agent
     description: "A test subagent"
     model: haiku
-    allowed-tools:
+    tools:
       - "Read(**.md)"
       - "Bash(ollim-bot help)"
     ---
@@ -27,7 +27,7 @@ def test_parse_valid_spec():
     assert spec.name == "test-agent"
     assert spec.description == "A test subagent"
     assert spec.model == "haiku"
-    assert spec.allowed_tools == ["Read(**.md)", "Bash(ollim-bot help)"]
+    assert spec.tools == ["Read(**.md)", "Bash(ollim-bot help)"]
     assert "{USER_NAME}" in spec.message
 
 
@@ -44,7 +44,7 @@ def test_parse_spec_without_optional_fields():
 
     assert spec.name == "minimal"
     assert spec.model is None
-    assert spec.allowed_tools is None
+    assert spec.tools is None
 
 
 def test_parse_spec_ignores_unknown_fields():
@@ -84,7 +84,7 @@ def test_source_specs_have_required_fields():
         assert spec.name == name
         assert spec.description
         assert spec.message
-        assert spec.allowed_tools is not None and len(spec.allowed_tools) > 0
+        assert spec.tools is not None and len(spec.tools) > 0
 
 
 # --- build_agent_definitions ---
@@ -97,7 +97,7 @@ def test_build_agent_definitions_expands_templates():
             description="Helps {USER_NAME}",
             message="You are {USER_NAME}'s assistant. {BOT_NAME} is the bot.",
             model="haiku",
-            allowed_tools=["Read(**.md)"],
+            tools=["Read(**.md)"],
         )
     }
 
@@ -116,7 +116,7 @@ def test_build_agent_definitions_preserves_tools_and_model():
             description="Test",
             message="Prompt",
             model="sonnet",
-            allowed_tools=["Bash(ollim-bot gmail *)", "Read(**.md)"],
+            tools=["Bash(ollim-bot gmail *)", "Read(**.md)"],
         )
     }
 
@@ -133,7 +133,7 @@ def test_build_agent_definitions_none_tools_becomes_empty_list():
             name="test",
             description="Test",
             message="Prompt",
-            allowed_tools=None,
+            tools=None,
         )
     }
 
