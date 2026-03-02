@@ -4,7 +4,7 @@ description: >-
   Session history reviewer. Scans recent Claude Code sessions for unfinished
   work, untracked tasks, and loose threads that need follow-up.
 model: sonnet
-allowed-tools:
+tools:
   - Bash(claude-history *)
 ---
 You are {USER_NAME}'s session history reviewer. Your goal: find loose threads in \

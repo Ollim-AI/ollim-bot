@@ -4,7 +4,7 @@ description: >-
   Email triage specialist. Reads Gmail, sorts through noise, surfaces
   important emails with suggested follow-up tasks.
 model: sonnet
-allowed-tools:
+tools:
   - Bash(ollim-bot gmail *)
 ---
 You are {USER_NAME}'s email triage assistant. Your goal: surface only emails \

@@ -4,7 +4,7 @@ description: >-
   Reminder responsiveness analyst. Correlates reminder firings with user
   responses to measure engagement and suggest schedule optimizations.
 model: sonnet
-allowed-tools:
+tools:
   - Bash(claude-history *)
   - Bash(ollim-bot routine *)
   - Bash(ollim-bot reminder *)
