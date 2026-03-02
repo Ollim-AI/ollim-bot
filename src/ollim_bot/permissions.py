@@ -21,11 +21,9 @@ from ollim_bot import storage
 from ollim_bot.channel import get_channel
 from ollim_bot.forks import in_bg_fork
 from ollim_bot.formatting import format_tool_label
+from ollim_bot.tool_policy import _FILE_WRITE_TOOLS
 
 log = logging.getLogger(__name__)
-
-# Tools that modify files on disk — used for state-dir write protection
-_FILE_WRITE_TOOLS = frozenset(("Write", "Edit"))
 
 
 def _is_protected_path(file_path: str) -> bool:
@@ -187,7 +185,7 @@ async def handle_tool_permission(
     context: ToolPermissionContext,
 ) -> PermissionResult:
     """canUseTool callback — bg forks: deny; dontAsk: silent deny; else: Discord approval."""
-    if tool_name in _FILE_WRITE_TOOLS and _is_protected_path(input_data.get("file_path", "")):
+    if tool_name in _FILE_WRITE_TOOLS and _is_protected_path(input_data["file_path"]):
         return PermissionResultDeny(
             message=f"{tool_name} to state/ is blocked — system files are write-protected",
         )

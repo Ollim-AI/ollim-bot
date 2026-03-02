@@ -53,6 +53,8 @@ _FILE_WRITE_TOOLS = frozenset(("Write", "Edit"))
 
 # Probe paths covering different patterns state files could take.
 # Not tied to specific filenames — just representative structures.
+# Limitation: extension-specific patterns (e.g. state/*.txt) slip through
+# if no probe matches. Acceptable because state/ only uses .json/.jsonl.
 _STATE_PROBE_PATHS = (
     "state/x",
     "state/x.json",
