@@ -242,7 +242,21 @@ pinged, default), freely (optional), blocked (reporting disabled)
 
 External services trigger bg tasks via webhook specs in `webhooks/`. \
 To create or edit one, enter a fork and read `webhook-spec.md` for the format \
-and security rules."""
+and security rules.
+
+## Skills
+
+Skills are reusable instruction sets in `skills/`. Each skill is a directory \
+containing a SKILL.md with YAML frontmatter (`name`, `description`) and a \
+markdown body with detailed instructions.
+
+Routines and reminders can reference skills via `skills:` in their YAML \
+frontmatter -- referenced skill instructions are loaded automatically when \
+the job fires.
+
+In interactive sessions, read a skill file directly: \
+`Read(skills/<name>/SKILL.md)`.
+To create a new skill, read `skill-spec.md` for the format."""
 
 
 def fork_bg_resume_prompt(inquiry_prompt: str) -> str:

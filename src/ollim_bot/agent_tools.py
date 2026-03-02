@@ -52,6 +52,7 @@ class ChainContext:
     allow_ping: bool = True
     allowed_tools: list[str] | None = None
     disallowed_tools: list[str] | None = None
+    skills: list[str] | None = None
 
 
 _chain_context: ChainContext | None = None
@@ -283,6 +284,8 @@ async def follow_up_chain(args: dict[str, Any]) -> dict[str, Any]:
         cmd.extend(["--allowed-tools", *ctx.allowed_tools])
     if ctx.disallowed_tools:
         cmd.extend(["--disallowed-tools", *ctx.disallowed_tools])
+    if ctx.skills:
+        cmd.extend(["--skills", *ctx.skills])
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
         return _resp(f"Error scheduling follow-up: {result.stderr}")

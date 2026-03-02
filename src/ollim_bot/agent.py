@@ -49,6 +49,7 @@ from ollim_bot.sessions import (
     session_start_time,
     set_swap_in_progress,
 )
+from ollim_bot.skills import build_skill_index
 from ollim_bot.storage import DATA_DIR
 from ollim_bot.streamer import StreamParser, StreamStatus
 from ollim_bot.subagent_prompts import (
@@ -144,11 +145,13 @@ def _apply_tool_restrictions(
 
 class Agent:
     def __init__(self) -> None:
+        skill_index = build_skill_index()
+        system_prompt = f"{SYSTEM_PROMPT}\n\n{skill_index}" if skill_index else SYSTEM_PROMPT
         self.options = ClaudeAgentOptions(
             cwd=DATA_DIR,
             include_partial_messages=True,
             can_use_tool=handle_tool_permission,
-            system_prompt=SYSTEM_PROMPT,
+            system_prompt=system_prompt,
             mcp_servers={
                 "discord": agent_server,
                 "docs": {"type": "http", "url": "https://docs.ollim.ai/mcp"},

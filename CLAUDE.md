@@ -49,7 +49,7 @@ Two separate trees — never mix them:
 | `~/.ollim-bot/` (`DATA_DIR`) | Agent working data (routines, reminders, webhooks, state) | yes (auto-committed) |
 
 `DATA_DIR` subdivisions:
-- `routines/`, `reminders/`, `webhooks/` — agent-managed markdown files
+- `routines/`, `reminders/`, `webhooks/`, `skills/` — agent-managed markdown files
 - `state/` (`STATE_DIR`) — code-only infrastructure (sessions, ping budget, inquiries, tokens)
 
 Never write working data into the source repo or source code into `~/.ollim-bot/`.
@@ -75,6 +75,7 @@ Never write working data into the source repo or source code into `~/.ollim-bot/
 - `inquiries.py` -- Persists button inquiry prompts to `~/.ollim-bot/state/inquiries.json` (7-day TTL)
 - `ping_budget.py` -- Refill-on-read ping budget for bg fork notifications (state, enforcement, status formatting)
 - `runtime_config.py` -- Persistent runtime configuration (`~/.ollim-bot/state/config.json`): model/thinking per context, timeouts, permission mode
+- `skills.py` -- Skill data model and directory-based persistence (`skills/*/SKILL.md`), skill index builder for system prompt
 - `google/` -- Google API integration sub-package
   - `auth.py` -- Shared Google OAuth2 (Tasks + Calendar + Gmail)
   - `tasks.py` -- Google Tasks CLI + API helpers (`complete_task`, `delete_task`)
@@ -156,6 +157,20 @@ Never write working data into the source repo or source code into `~/.ollim-bot/
 - Dispatch: `asyncio.create_task(run_agent_background(...))` — same bg fork path as scheduler jobs
 - Prompt tag: `[webhook:<slug>]` follows `[routine-bg:X]` convention
 - `create_app(secret, agent, owner, process_fn)` — `process_fn` parameter enables testing without Agent SDK
+
+## Skills
+- Reusable instruction sets in `~/.ollim-bot/skills/<name>/SKILL.md` (directory per skill)
+- `Skill` frozen dataclass: `name`, `description`, `message` (markdown body)
+- `list_skills()` walks `skills/*/SKILL.md`, `read_skill(name)` reads one by name
+- `_parse_skill()` returns `Skill | None` (no exceptions — None for invalid files)
+- `build_skill_index()` generates description index for system prompt (empty string when no skills)
+- System prompt: static section explaining skills + dynamic index appended at `Agent.__init__`
+- Routine/Reminder `skills: list[str] | None` field — references skill names to auto-load
+- Preamble injection: `_build_skills_section()` in `preamble.py` loads and injects `SKILL INSTRUCTIONS:` block
+- Injection works for both bg and fg prompts (before the message body)
+- Chain propagation: `skills` field on `ChainContext`, forwarded via `follow_up_chain` → `--skills` CLI arg
+- Agent-created: agent uses Write to create `skills/<name>/SKILL.md`, Read to load them
+- Format reference: `~/.ollim-bot/skill-spec.md` (agent reads on demand)
 
 ## Session history
 - `~/.ollim-bot/state/session_history.jsonl` -- append-only log of session lifecycle events
