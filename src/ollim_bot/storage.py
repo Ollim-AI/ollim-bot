@@ -121,7 +121,7 @@ def _serialize_md(item: T) -> str:
     return "\n".join(lines) + "\n"
 
 
-def _parse_md(text: str, cls: type[T]) -> T:
+def parse_md(text: str, cls: type[T]) -> T:
     """Parse a single markdown file with YAML frontmatter into a dataclass."""
     parts = text.split("---", 2)
     if len(parts) < 3:
@@ -155,7 +155,7 @@ def read_md_dir(dir_path: Path, cls: type[T]) -> list[T]:
     for filepath in sorted(dir_path.glob("*.md")):
         try:
             text = filepath.read_text()
-            result.append(_parse_md(text, cls))
+            result.append(parse_md(text, cls))
         except (ValueError, yaml.YAMLError, TypeError, KeyError):
             log.warning("Skipping corrupt file: %s", filepath)
     return result
