@@ -468,7 +468,7 @@ def test_stop_hook_blocks_bg_stop_with_unreported_output(data_dir):
 def _exhausted_budget() -> ping_budget.BudgetState:
     from datetime import date, datetime
 
-    from ollim_bot.storage import TZ
+    from ollim_bot.config import TZ
 
     return ping_budget.BudgetState(
         capacity=5,

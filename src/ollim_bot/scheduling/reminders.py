@@ -9,7 +9,8 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from uuid import uuid4
 
-from ollim_bot.storage import DATA_DIR, TZ, read_md_dir, remove_md, write_md
+from ollim_bot.config import TZ
+from ollim_bot.storage import DATA_DIR, read_md_dir, remove_md, write_md
 
 REMINDERS_DIR = DATA_DIR / "reminders"
 

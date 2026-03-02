@@ -23,8 +23,7 @@ from ollim_bot.agent_tools import (
     set_chain_context,
     set_fork_chain_context,
 )
-from ollim_bot.config import TZ as _TZ
-from ollim_bot.config import USER_NAME
+from ollim_bot.config import TZ, USER_NAME
 from ollim_bot.embeds import fork_exit_embed
 from ollim_bot.forks import (
     BgForkConfig,
@@ -49,7 +48,6 @@ from ollim_bot.streamer import stream_to_channel
 if TYPE_CHECKING:
     from ollim_bot.agent import Agent
 
-TZ = _TZ
 log = logging.getLogger(__name__)
 
 _registered_routines: set[str] = set()
@@ -203,7 +201,7 @@ def _register_reminder(
 
 def setup_scheduler(bot: discord.Client, agent: Agent, owner: discord.User) -> AsyncIOScheduler:
     """Polls routines/reminders every 10s, registering new and pruning stale jobs."""
-    scheduler = AsyncIOScheduler(timezone=str(_TZ))
+    scheduler = AsyncIOScheduler(timezone=str(TZ))
 
     @scheduler.scheduled_job(IntervalTrigger(seconds=10))
     async def sync_all() -> None:

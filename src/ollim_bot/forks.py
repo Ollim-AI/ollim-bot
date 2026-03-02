@@ -131,7 +131,6 @@ def get_bg_fork_config() -> BgForkConfig:
 # ---------------------------------------------------------------------------
 
 _UPDATES_FILE = STATE_DIR / "pending_updates.json"
-_TZ = TZ
 _updates_lock = asyncio.Lock()
 
 
@@ -148,7 +147,7 @@ async def append_update(message: str) -> None:
     """
     async with _updates_lock:
         updates = json.loads(_UPDATES_FILE.read_text()) if _UPDATES_FILE.exists() else []
-        updates.append({"ts": datetime.now(_TZ).isoformat(), "message": message})
+        updates.append({"ts": datetime.now(TZ).isoformat(), "message": message})
         atomic_write(_UPDATES_FILE, json.dumps(updates).encode())
         log.info("pending update appended (now %d): %.80s", len(updates), message)
 
