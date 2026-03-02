@@ -14,6 +14,7 @@ from ollim_bot.scheduling.preamble import (
 )
 from ollim_bot.scheduling.reminders import Reminder
 from ollim_bot.scheduling.routines import Routine
+from ollim_bot.skills import load_skills
 
 
 def test_routine_prompt_foreground():
@@ -524,8 +525,9 @@ def _create_skill(data_dir, name, description="desc", body="instructions"):
 def test_routine_prompt_with_skills(data_dir):
     _create_skill(data_dir, "email-triage", body="1. Read emails\n2. Categorize")
     routine = Routine(id="abc", message="Morning review", cron="0 8 * * *", skills=["email-triage"])
+    skills = load_skills(routine.skills)
 
-    prompt = build_routine_prompt(routine, reminders=[], routines=[])
+    prompt = build_routine_prompt(routine, reminders=[], routines=[], skills=skills)
 
     assert "SKILL INSTRUCTIONS:" in prompt
     assert "### email-triage" in prompt
@@ -550,8 +552,9 @@ def test_bg_routine_prompt_with_skills(data_dir):
         background=True,
         skills=["task-review"],
     )
+    skills = load_skills(routine.skills)
 
-    prompt = build_routine_prompt(routine, reminders=[], routines=[routine])
+    prompt = build_routine_prompt(routine, reminders=[], routines=[routine], skills=skills)
 
     assert "SKILL INSTRUCTIONS:" in prompt
     assert "### task-review" in prompt
@@ -566,8 +569,9 @@ def test_reminder_prompt_with_skills(data_dir):
         run_at="2026-02-16T12:00:00-08:00",
         skills=["email-triage"],
     )
+    skills = load_skills(reminder.skills)
 
-    prompt = build_reminder_prompt(reminder, reminders=[], routines=[])
+    prompt = build_reminder_prompt(reminder, reminders=[], routines=[], skills=skills)
 
     assert "SKILL INSTRUCTIONS:" in prompt
     assert "Triage process" in prompt
@@ -575,8 +579,9 @@ def test_reminder_prompt_with_skills(data_dir):
 
 def test_prompt_skips_missing_skill(data_dir):
     routine = Routine(id="abc", message="Review", cron="0 8 * * *", skills=["nonexistent"])
+    skills = load_skills(routine.skills)
 
-    prompt = build_routine_prompt(routine, reminders=[], routines=[])
+    prompt = build_routine_prompt(routine, reminders=[], routines=[], skills=skills)
 
     assert "SKILL INSTRUCTIONS" not in prompt
 
@@ -585,8 +590,9 @@ def test_prompt_loads_multiple_skills(data_dir):
     _create_skill(data_dir, "alpha", body="Alpha instructions")
     _create_skill(data_dir, "beta", body="Beta instructions")
     routine = Routine(id="abc", message="Do stuff", cron="0 8 * * *", skills=["alpha", "beta"])
+    skills = load_skills(routine.skills)
 
-    prompt = build_routine_prompt(routine, reminders=[], routines=[])
+    prompt = build_routine_prompt(routine, reminders=[], routines=[], skills=skills)
 
     assert "### alpha" in prompt
     assert "### beta" in prompt
@@ -595,8 +601,9 @@ def test_prompt_loads_multiple_skills(data_dir):
 def test_prompt_partial_skill_loading(data_dir):
     _create_skill(data_dir, "exists", body="Real instructions")
     routine = Routine(id="abc", message="Review", cron="0 8 * * *", skills=["exists", "missing"])
+    skills = load_skills(routine.skills)
 
-    prompt = build_routine_prompt(routine, reminders=[], routines=[])
+    prompt = build_routine_prompt(routine, reminders=[], routines=[], skills=skills)
 
     assert "### exists" in prompt
     assert "Real instructions" in prompt

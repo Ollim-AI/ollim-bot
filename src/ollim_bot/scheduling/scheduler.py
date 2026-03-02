@@ -64,7 +64,7 @@ def _merge_skill_tools(config: BgForkConfig, skills: list[Skill]) -> BgForkConfi
     BgForkConfig.from_item always sets allowed_tools (MINIMAL_BG_TOOLS default),
     so config.allowed_tools is guaranteed non-None here.
     """
-    skill_tools = collect_skill_tools(skills=skills)
+    skill_tools = collect_skill_tools(skills)
     if not skill_tools:
         return config
     merged = list(config.allowed_tools or [])
@@ -98,16 +98,22 @@ def _register_routine(
     async def _fire() -> None:
         busy = agent.lock().locked()
         skills = load_skills(routine.skills)
-        bg_config = BgForkConfig.from_item(routine)
-        bg_config = _merge_skill_tools(bg_config, skills)
-        bg_config = _apply_ping_restrictions(bg_config)
+        bg_config: BgForkConfig | None = None
+        reminders: list[Reminder] = []
+        routines: list[Routine] = []
+        if routine.background:
+            bg_config = BgForkConfig.from_item(routine)
+            bg_config = _merge_skill_tools(bg_config, skills)
+            bg_config = _apply_ping_restrictions(bg_config)
+            reminders = list_reminders()
+            routines = list_routines()
         # build_routine_prompt runs _expand_commands (sync subprocess, up to 30s)
         # — offload to thread to avoid blocking the event loop
         prompt = await asyncio.to_thread(
             build_routine_prompt,
             routine,
-            reminders=list_reminders(),
-            routines=list_routines(),
+            reminders=reminders,
+            routines=routines,
             busy=busy,
             bg_config=bg_config,
             skills=skills,
@@ -160,16 +166,22 @@ def _register_reminder(
     async def fire_oneshot() -> None:
         busy = agent.lock().locked()
         skills = load_skills(reminder.skills)
-        bg_config = BgForkConfig.from_item(reminder)
-        bg_config = _merge_skill_tools(bg_config, skills)
-        bg_config = _apply_ping_restrictions(bg_config)
+        bg_config: BgForkConfig | None = None
+        all_reminders: list[Reminder] = []
+        all_routines: list[Routine] = []
+        if reminder.background:
+            bg_config = BgForkConfig.from_item(reminder)
+            bg_config = _merge_skill_tools(bg_config, skills)
+            bg_config = _apply_ping_restrictions(bg_config)
+            all_reminders = list_reminders()
+            all_routines = list_routines()
         # build_reminder_prompt runs _expand_commands (sync subprocess, up to 30s)
         # — offload to thread to avoid blocking the event loop
         prompt = await asyncio.to_thread(
             build_reminder_prompt,
             reminder,
-            reminders=list_reminders(),
-            routines=list_routines(),
+            reminders=all_reminders,
+            routines=all_routines,
             busy=busy,
             bg_config=bg_config,
             skills=skills,

@@ -10,9 +10,13 @@ from __future__ import annotations
 
 import logging
 import re
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Literal
+
+if TYPE_CHECKING:
+    from ollim_bot.skills import Skill
+    from ollim_bot.subagents import SubagentSpec
 
 log = logging.getLogger(__name__)
 
@@ -147,32 +151,28 @@ MINIMAL_BG_TOOLS: list[str] = [
 
 
 def collect_all_tool_sets(
-    specs: Mapping[str, Any] | None = None,
+    specs: Mapping[str, SubagentSpec] | None = None,
+    skills: Sequence[Skill] | None = None,
 ) -> dict[str, list[str]]:
     """Collect tool sets from all sources.
 
     Returns a mapping of source name -> tool list.
-    Accepts pre-loaded subagent specs to avoid redundant disk reads.
+    Accepts pre-loaded subagent specs and skills to avoid redundant disk reads.
     Imports are deferred to avoid circular dependencies.
     """
     from ollim_bot.scheduling.reminders import list_reminders
     from ollim_bot.scheduling.routines import list_routines
-    from ollim_bot.skills import list_skills
     from ollim_bot.webhook import list_webhooks
 
     tool_sets: dict[str, list[str]] = {"main": list(MAIN_SESSION_TOOLS)}
 
-    resolved_specs: Mapping[str, Any]
     if specs is None:
         from ollim_bot.subagents import load_subagent_specs
 
-        resolved_specs = load_subagent_specs()
-    else:
-        resolved_specs = specs
-    for name, spec in resolved_specs.items():
-        tools = getattr(spec, "tools", None)
-        if tools:
-            tool_sets[f"subagent:{name}"] = tools
+        specs = load_subagent_specs()
+    for name, spec in specs.items():
+        if spec.tools:
+            tool_sets[f"subagent:{name}"] = spec.tools
 
     for routine in list_routines():
         if routine.allowed_tools:
@@ -182,7 +182,11 @@ def collect_all_tool_sets(
         if reminder.allowed_tools:
             tool_sets[f"reminder:{reminder.id}"] = reminder.allowed_tools
 
-    for skill in list_skills():
+    if skills is None:
+        from ollim_bot.skills import list_skills
+
+        skills = list_skills()
+    for skill in skills:
         if skill.allowed_tools:
             tool_sets[f"skill:{skill.name}"] = skill.allowed_tools
 

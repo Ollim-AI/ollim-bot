@@ -333,7 +333,7 @@ def build_routine_prompt(
     bg_config: BgForkConfig | None = None,
     skills: list[Skill] | None = None,
 ) -> str:
-    skills_section = build_skills_section(routine.skills, skills=skills)
+    skills_section = build_skills_section(skills or [])
     if routine.background:
         schedule = build_upcoming_schedule(routines, reminders, current_id=routine.id)
         preamble = build_bg_preamble(schedule, busy=busy, bg_config=bg_config)
@@ -357,7 +357,7 @@ def build_reminder_prompt(
         schedule = build_upcoming_schedule(routines, reminders, current_id=reminder.id)
         parts.append(build_bg_preamble(schedule, busy=busy, bg_config=bg_config).rstrip())
 
-    skills_section = build_skills_section(reminder.skills, skills=skills)
+    skills_section = build_skills_section(skills or [])
     if skills_section:
         parts.append(f"\n{skills_section.rstrip()}")
 
