@@ -27,6 +27,7 @@ from ollim_bot.fork_state import (
     touch_activity,
 )
 from ollim_bot.forks import (
+    MAX_PENDING_UPDATES,
     append_update,
     clear_pending_updates,
     peek_pending_updates,
@@ -392,16 +393,17 @@ def test_concurrent_append_and_clear(data_dir):
 
 
 def test_many_concurrent_appends(data_dir):
-    """Stress test: 20 concurrent append_update calls — all must survive."""
+    """Stress test: 20 concurrent append_update calls — capped at MAX_PENDING_UPDATES."""
 
     async def _scenario():
         tasks = [asyncio.create_task(append_update(f"update-{i}")) for i in range(20)]
         await asyncio.gather(*tasks)
 
         result = await pop_pending_updates()
-        messages = sorted([u.message for u in result])
-        expected = sorted([f"update-{i}" for i in range(20)])
-        assert messages == expected
+        assert len(result) == MAX_PENDING_UPDATES
+        # All messages must be from the original set (no corruption)
+        all_expected = {f"update-{i}" for i in range(20)}
+        assert all(u.message in all_expected for u in result)
 
     _run(_scenario())
 
