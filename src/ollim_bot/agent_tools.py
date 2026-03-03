@@ -136,6 +136,7 @@ def _check_bg_budget(args: dict[str, Any]) -> dict[str, Any] | None:
             },
             "buttons": {
                 "type": "array",
+                "maxItems": 5,
                 "items": {
                     "type": "object",
                     "properties": {
