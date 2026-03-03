@@ -309,6 +309,7 @@ def setup_scheduler(bot: discord.Client, agent: Agent, owner: discord.User) -> A
             )
 
         async with agent.lock():
+            await dm.send("-# fork idle — checking in...")
             await dm.typing()
             await stream_to_channel(dm, agent.stream_chat(prompt))
             result = await agent.pop_fork_exit()
