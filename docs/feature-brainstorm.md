@@ -20,43 +20,6 @@ Open questions:
 - Should the agent write the summary (costs a turn) or extract it post-hoc from JSONL?
 - How does this surface to the agent? System prompt injection? MCP tool to search?
 
-### ~~Isolated Routine Mode~~ ✓ Implemented
-`isolated: true` in routine/reminder YAML frontmatter. Creates standalone throwaway
-client with no conversation history. Combined with per-job model overrides.
-
-### ~~Per-Job Model Overrides~~ ✓ Implemented
-`model: "haiku"` in routine/reminder YAML frontmatter. Background jobs only —
-isolated mode is where model overrides clearly pay off (no cache miss on forked context).
-
-### ~~Webhook Endpoints (External Triggers)~~ ✅ Implemented
-See `webhook.py` and `docs/plans/2026-02-22-webhook-endpoints-design.md`.
-
-### ~~Per-Job Tool Restrictions~~ ✓ Implemented
-Routines/reminders configure which MCP tools are available.
-
-- `allowed_tools` / `disallowed_tools` in routine/reminder YAML frontmatter
-- Restricts what the agent can do during that job
-- Uses SDK tool format directly (`Bash(ollim-bot gmail *)`, `mcp__discord__*`, etc.)
-- Broader use: email triage only gets gmail + tasks tools, not calendar or forks
-
-Design:
-- `allowed_tools: [a, b]` -- allowlist is source of truth (explicit, safe)
-- `disallowed_tools: [x, y]` -- denylist shorthand, subtracts from default set
-- Orthogonal to `allow_ping` / `update_main_session` (those have their own rich behavior)
-
-### ~~Session ID History (JSONL)~~ ✓ Implemented
-Save main session IDs to a JSONL log for claude-history lookup efficiency.
-
-- Currently session ID is a plain string file (`~/.ollim-bot/sessions.json`)
-- Only stores the current session -- previous IDs lost on `/clear`
-- JSONL log of `{session_id, started_at, ended_at}` lets claude-history
-  jump straight to relevant transcripts without scanning all sessions
-- Pairs well with session memory snapshots -- summary + session ID together
-
-### ~~Default-Deny Permission Mode (`dontAsk`)~~ ✓ Implemented
-`dontAsk` is the default permission mode. Non-whitelisted tools silently denied.
-Switch via `/permissions` slash command.
-
 ### Persistent Routine Sessions
 Routines can opt into resuming from their own isolated session
 (`session: persistent` in YAML frontmatter). For specialized self-contained
@@ -84,15 +47,7 @@ patterns, and critical facts.
 - Related to Session Memory Snapshots (different scope: snapshots are
   per-session summaries for claude-history, this is living context)
 
-### ~~Enforce 1-Ping-Per-Session Architecturally~~ ✓ Implemented
-Mutable-container contextvar (`_bg_ping_count`) in `forks.py`. Checked in
-`_check_bg_budget()` before busy/budget checks. `critical=True` bypasses.
-
 ## Backlog
-
-### ~~Owner Identity Guard~~ ✓ Implemented
-Module-level `_owner_id` set in `on_ready`. Guards on `on_message`,
-`on_raw_reaction_add`, and all slash commands via `@app_commands.check`.
 
 ### External Content Sanitization
 Tag external content (emails, calendar events, web pages) as untrusted in agent context.
@@ -111,15 +66,6 @@ Add confirmation step before destructive actions.
 - Agent can also call `ollim-bot tasks delete` and `ollim-bot cal delete` directly
 - Options: Discord confirmation modal, two-step button flow, agent-level instruction to always confirm
 
-### ~~Background Fork Timeouts~~ ✓ Implemented
-`BG_FORK_TIMEOUT = 1800` (30 min) wraps `run_agent_background()`. On timeout:
-client disconnected, user notified via DM. Google API / subprocess timeouts
-remain as separate backlog items.
-
-### ~~Silent Button Handler Failures~~ ✓ Implemented
-`HttpError` try/except on `_handle_task_done`, `_handle_task_delete`,
-`_handle_event_delete` in `views.py`. Ephemeral error response on failure.
-
 ### Agent Uncertainty Instructions
 Add system prompt guidance for what to do when uncertain.
 
@@ -127,22 +73,6 @@ Add system prompt guidance for what to do when uncertain.
 - No instruction to push back on counterproductive requests
 - No guidance on confirming irreversible actions
 - May be addressed as part of a broader system prompt refactor (user-configurable prompts)
-
-### ~~Align `allow_ping: false` with Tool Visibility~~ ✓ Implemented
-`_hide_ping_tools()` helper in `scheduler.py`. When `allow_ping` is false,
-adds ping tools to `disallowed_tools` (or filters from `allowed_tools`).
-
-### ~~Bot Presence Always Offline~~ ✓ Implemented
-`activity=discord.Activity(type=ActivityType.watching, name="your DMs")`
-in `create_bot()`. Also enforced DM-only via `allowed_installs` and
-`allowed_contexts` on the command tree.
-
-### ~~Separate Agent Workspace from Code-Only State~~ ✓ Implemented
-Code-only infrastructure files (sessions, ping budget, credentials, PID)
-moved to `~/.ollim-bot/state/`. Agent workspace root now only contains
-agent-managed directories (`routines/`, `reminders/`, `webhooks/`) and
-spec symlinks. `storage.STATE_DIR` is the single source of truth for all
-state file paths — no more hardcoded `Path.home()` across modules.
 
 ## Under Consideration
 
