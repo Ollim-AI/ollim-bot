@@ -29,6 +29,7 @@ from ollim_bot.agent_context import (
 )
 from ollim_bot.agent_streaming import stream_response
 from ollim_bot.agent_tools import agent_server, require_report_hook
+from ollim_bot.channel import get_channel
 from ollim_bot.fork_state import (
     ForkExitAction,
     pop_exit_action,
@@ -406,7 +407,11 @@ class Agent:
         if self._fork_client is not None:
             message = await prepend_context(message, clear=False)
             return self._fork_client, message
+        has_updates = bool(peek_pending_updates())
         message = await prepend_context(message)
+        if has_updates:
+            with contextlib.suppress(Exception):
+                await get_channel().send("-# catching up on background activity...")
         client = await self._get_client()
         return client, message
 
