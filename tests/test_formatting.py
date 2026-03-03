@@ -11,6 +11,14 @@ def test_mcp_tool_strips_prefix():
     assert format_tool_label("mcp__discord__ping_user", "") == "ping_user"
 
 
+def test_mcp_tool_strips_any_server_prefix():
+    assert format_tool_label("mcp__docs__SearchOllimBot", "") == "SearchOllimBot"
+
+
+def test_mcp_tool_strips_generic_server_prefix():
+    assert format_tool_label("mcp__myserver__my_tool", "") == "my_tool"
+
+
 def test_bash_truncates_command():
     long_cmd = "a" * 100
     label = format_tool_label("Bash", f'{{"command": "{long_cmd}"}}')
