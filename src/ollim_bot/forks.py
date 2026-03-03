@@ -57,7 +57,15 @@ async def append_update(message: str) -> None:
         updates = json.loads(_UPDATES_FILE.read_text()) if _UPDATES_FILE.exists() else []
         updates.append({"ts": datetime.now(TZ).isoformat(), "message": message})
         if len(updates) > MAX_PENDING_UPDATES:
-            updates = updates[-MAX_PENDING_UPDATES:]
+            # Keep the most-recent (MAX_PENDING_UPDATES - 1) real entries and
+            # use the freed slot for a sentinel so the agent knows omission occurred.
+            dropped = len(updates) - (MAX_PENDING_UPDATES - 1)
+            updates = updates[-(MAX_PENDING_UPDATES - 1) :]
+            sentinel = {
+                "ts": datetime.now(TZ).isoformat(),
+                "message": f"({dropped} earlier update(s) omitted — cap reached)",
+            }
+            updates.insert(0, sentinel)
         atomic_write(_UPDATES_FILE, json.dumps(updates).encode())
         log.info("pending update appended (now %d): %.80s", len(updates), message)
 
