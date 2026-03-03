@@ -299,7 +299,7 @@ def create_bot() -> commands.Bot:
         init_channel(dm)
         resumed = load_session_id() is not None
         if resumed:
-            await dm.send("hey, i'm back online. i remember where we left off.")
+            await dm.send("hey, i'm back. picking up where we left off.")
         else:
             await dm.send(f"hey {USER_NAME.lower()}, {BOT_NAME} is online. what's on your plate today?")
 
