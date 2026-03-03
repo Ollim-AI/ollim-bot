@@ -155,9 +155,9 @@ async def request_approval(tool_name: str, input_data: dict[str, Any]) -> Permis
         _pending.pop(msg.id, None)
 
     if not entry.result:
-        # Woken by cancel_pending() with no emoji → treat as deny
-        with contextlib.suppress(discord.DiscordException):
-            await msg.edit(content=f"~~`{label}`~~ — cancelled")
+        # Woken by cancel_pending() with no emoji → treat as deny; delete to avoid orphaned messages
+        with contextlib.suppress(discord.NotFound):
+            await msg.delete()
         return PermissionResultDeny(message="approval cancelled")
 
     emoji = entry.result[0]
