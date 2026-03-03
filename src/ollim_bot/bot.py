@@ -228,6 +228,9 @@ def create_bot() -> commands.Bot:
         ]
     )
     async def slash_model(interaction: discord.Interaction, name: discord.app_commands.Choice[str]):
+        if agent.in_fork:
+            await interaction.response.send_message("exit fork first.", ephemeral=True)
+            return
         await agent.set_model(cast(ModelName, name.value))
         await interaction.response.send_message(f"switched to {name.value}.")
 
@@ -241,6 +244,9 @@ def create_bot() -> commands.Bot:
         ]
     )
     async def slash_thinking(interaction: discord.Interaction, enabled: discord.app_commands.Choice[str]):
+        if agent.in_fork:
+            await interaction.response.send_message("exit fork first.", ephemeral=True)
+            return
         await agent.set_thinking(enabled.value == "on")
         await interaction.response.send_message(f"thinking: {enabled.value}.")
 
