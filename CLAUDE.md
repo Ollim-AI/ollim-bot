@@ -58,6 +58,7 @@ Never write working data into the source repo or source code into `~/.ollim-bot/
 - `bot.py` -- Discord interface (DMs, @mentions, slash commands, reaction ack, interrupt-on-new-message)
 - `agent.py` -- Claude Agent SDK brain (persistent sessions, MCP tools, subagents, slash command routing)
 - `main.py` -- CLI entry point and command router (`ollim-bot` dispatches to bot, routines, reminders, tasks, cal, gmail)
+- `auth.py` -- Claude CLI auth via bundled Agent SDK CLI (`is_authenticated`, `start_login`, `ollim-bot auth` subcommands)
 - `prompts.py` -- System prompt for the main agent and fork prompt helpers
 - `subagents.py` -- Bundled agent installation (`install_agents`) and tool-set extraction (`load_agent_tool_sets`) for policy validation; specs in `subagents/*.md`
 - `agent_tools.py` -- MCP tools: `discord_embed`, `ping_user`, `follow_up_chain`, `save_context`, `report_updates`, `enter_fork`, `exit_fork`
@@ -91,6 +92,7 @@ Never write working data into the source repo or source code into `~/.ollim-bot/
 
 ## Agent SDK config
 - Auth: Claude Code OAuth (no API key needed)
+- Startup auth check: `is_authenticated()` runs `claude auth status --json`; if not logged in, `start_login()` captures OAuth URL (suppresses browser via `BROWSER=""`) and `main.py` DMs it to owner via Discord REST API
 - Single `ClaudeSDKClient` for persistent conversation with auto-compaction (single-user bot)
 - `setting_sources=["project"]` -- SDK loads agents from `.claude/agents/` and discovers skills from `.claude/skills/` (relative to `cwd=DATA_DIR`)
 - `permission_mode="default"` -- SDK default; whitelisted tools auto-approved, others routed through `permissions.py`
