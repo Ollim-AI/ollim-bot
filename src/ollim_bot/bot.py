@@ -2,9 +2,11 @@
 
 import base64
 import contextlib
+import logging
 from typing import Literal, cast
 
 import discord
+from claude_agent_sdk import CLIConnectionError
 from discord import app_commands
 from discord.ext import commands
 
@@ -26,6 +28,8 @@ from ollim_bot.sessions import load_session_id, lookup_fork_session
 from ollim_bot.streamer import stream_to_channel
 from ollim_bot.views import ActionButton
 from ollim_bot.views import init as init_views
+
+log = logging.getLogger(__name__)
 
 _owner_id: int | None = None
 
@@ -297,6 +301,8 @@ def create_bot() -> commands.Bot:
 
         content = message.content.strip()
 
+        await message.add_reaction("\N{EYES}")
+
         images = await _read_images(message.attachments)
 
         # Reply handling: fork-from-reply or quote context
@@ -315,28 +321,33 @@ def create_bot() -> commands.Bot:
                 except discord.NotFound:
                     pass
 
-        await message.add_reaction("\N{EYES}")
-
         # Interrupt so the user's new message gets a fresh response.
         # Skip during compaction: interrupt kills the post-compaction response
         # (dead zone), and the new message would trigger a redundant compaction.
         if agent.lock().locked() and not agent.is_compacting:
             await agent.interrupt()
 
-        async with agent.lock():
-            if fork_session_id:
-                await agent.enter_interactive_fork(resume_session_id=fork_session_id)
-                await _send_fork_enter(message.channel, None)
-                content = f"{_FORK_REPLY_PREFIX}\n\n{content}"
-            await _dispatch(message.channel, content, images=images or None)
-            if in_interactive_fork():
-                touch_activity()
-                clear_prompted()
-            await _check_fork_transitions(message.channel)
-
-        if bot.user:
-            with contextlib.suppress(discord.NotFound):
-                await message.remove_reaction("\N{EYES}", bot.user)
+        error_msg: str | None = None
+        try:
+            async with agent.lock():
+                if fork_session_id:
+                    await agent.enter_interactive_fork(resume_session_id=fork_session_id)
+                    await _send_fork_enter(message.channel, None)
+                    content = f"{_FORK_REPLY_PREFIX}\n\n{content}"
+                await _dispatch(message.channel, content, images=images or None)
+                if in_interactive_fork():
+                    touch_activity()
+                    clear_prompted()
+                await _check_fork_transitions(message.channel)
+        except CLIConnectionError as e:
+            log.error("CLIConnectionError in on_message: %s", e)
+            error_msg = "lost connection — try again."
+        finally:
+            if bot.user:
+                with contextlib.suppress(discord.NotFound):
+                    await message.remove_reaction("\N{EYES}", bot.user)
+            if error_msg is not None:
+                await message.channel.send(error_msg)
 
     @bot.event
     async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
