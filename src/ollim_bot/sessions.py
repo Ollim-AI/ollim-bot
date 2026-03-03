@@ -21,6 +21,7 @@ SessionEventType = Literal[
     "interactive_fork",
     "bg_fork",
     "isolated_bg",
+    "restarting",
 ]
 
 

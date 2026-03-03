@@ -27,6 +27,8 @@ class RuntimeConfig:
     bg_fork_timeout: int = 1800  # seconds
     fork_idle_timeout: int = 10  # minutes
     permission_mode: str = "dontAsk"
+    auto_update: bool = False
+    auto_update_interval: int = 60  # minutes
 
 
 _DEFAULTS = RuntimeConfig()
@@ -47,6 +49,8 @@ _KEY_META: dict[str, _KeyMeta] = {
     "bg_fork_timeout": _KeyMeta("bg_fork_timeout", "Max background fork runtime (seconds)", "int"),
     "fork_idle_timeout": _KeyMeta("fork_idle_timeout", "Interactive fork idle timeout (minutes)", "int"),
     "permission_mode": _KeyMeta("permission_mode", "Default permission mode", "permission_mode"),
+    "auto_update": _KeyMeta("auto_update", "Auto-pull and restart on new commits", "bool"),
+    "auto_update_interval": _KeyMeta("auto_update_interval", "Update check interval (minutes)", "int"),
 }
 
 VALID_KEYS = frozenset(_KEY_META)
@@ -133,7 +137,7 @@ def _format_value(key: str, value: str | int | bool | None) -> str:
         label = f"{value}s"
         return f"{label} (default)" if is_default else label
 
-    if key == "fork_idle_timeout":
+    if key in ("fork_idle_timeout", "auto_update_interval"):
         label = f"{value}m"
         return f"{label} (default)" if is_default else label
 

@@ -15,6 +15,8 @@ import yaml
 
 DATA_DIR = Path.home() / ".ollim-bot"
 STATE_DIR = DATA_DIR / "state"
+PROJECT_DIR = Path(__file__).resolve().parent.parent.parent
+PID_FILE = STATE_DIR / "bot.pid"
 
 T = TypeVar("T")
 log = logging.getLogger(__name__)
