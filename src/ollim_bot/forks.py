@@ -38,6 +38,7 @@ if TYPE_CHECKING:
 
 _UPDATES_FILE = STATE_DIR / "pending_updates.json"
 _updates_lock = asyncio.Lock()
+MAX_PENDING_UPDATES = 10
 
 
 class PendingUpdate(NamedTuple):
@@ -49,11 +50,14 @@ async def append_update(message: str) -> None:
     """Append a timestamped update to the pending updates file.
 
     Lock protects the read-modify-write cycle so concurrent bg forks
-    don't lose each other's updates.
+    don't lose each other's updates.  Capped at MAX_PENDING_UPDATES —
+    oldest entries are dropped when the cap is exceeded.
     """
     async with _updates_lock:
         updates = json.loads(_UPDATES_FILE.read_text()) if _UPDATES_FILE.exists() else []
         updates.append({"ts": datetime.now(TZ).isoformat(), "message": message})
+        if len(updates) > MAX_PENDING_UPDATES:
+            updates = updates[-MAX_PENDING_UPDATES:]
         atomic_write(_UPDATES_FILE, json.dumps(updates).encode())
         log.info("pending update appended (now %d): %.80s", len(updates), message)
 
