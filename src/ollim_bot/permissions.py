@@ -149,7 +149,7 @@ async def request_approval(tool_name: str, input_data: dict[str, Any]) -> Permis
             await entry.event.wait()
     except TimeoutError:
         with contextlib.suppress(discord.DiscordException):
-            await msg.edit(content=f"~~`{label}`~~ — timed out")
+            await msg.edit(content=f"~~`{label}`~~ — expired")
         return PermissionResultDeny(message="approval timed out")
     finally:
         _pending.pop(msg.id, None)
