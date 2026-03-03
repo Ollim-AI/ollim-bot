@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import re
 from typing import TYPE_CHECKING, Any, cast
 
@@ -150,7 +151,9 @@ async def _handle_agent_inquiry(interaction: discord.Interaction, inquiry_id: st
 
 async def _handle_dismiss(interaction: discord.Interaction, _data: str) -> None:
     assert interaction.message is not None
-    await interaction.message.delete()
+    await interaction.response.defer()
+    with contextlib.suppress(discord.NotFound):
+        await interaction.message.delete()
 
 
 async def _handle_fork_save(interaction: discord.Interaction, _data: str) -> None:
