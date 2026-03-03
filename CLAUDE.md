@@ -57,6 +57,8 @@ Never write working data into the source repo or source code into `~/.ollim-bot/
 ## Architecture
 - `bot.py` -- Discord interface (DMs, @mentions, slash commands, reaction ack, interrupt-on-new-message)
 - `agent.py` -- Claude Agent SDK brain (persistent sessions, MCP tools, subagents, slash command routing)
+- `agent_streaming.py` -- `stream_response()` free function: streaming loop, auto-compaction retry, fallback tiers, fork interrupt (tested independently)
+- `agent_context.py` -- Message context helpers: `timestamp`, `prepend_context`, `format_compact_stats`, `thinking()`, `ModelName`
 - `main.py` -- CLI entry point and command router (`ollim-bot` dispatches to bot, routines, reminders, tasks, cal, gmail)
 - `auth.py` -- Claude CLI auth via bundled Agent SDK CLI (`is_authenticated`, `start_login`, `ollim-bot auth` subcommands)
 - `prompts.py` -- System prompt for the main agent and fork prompt helpers
@@ -64,7 +66,8 @@ Never write working data into the source repo or source code into `~/.ollim-bot/
 - `agent_tools.py` -- MCP tools: `discord_embed`, `ping_user`, `follow_up_chain`, `save_context`, `report_updates`, `enter_fork`, `exit_fork`
 - `channel.py` -- DM channel reference, set once at startup (`init_channel`/`get_channel`)
 - `webhook.py` -- Webhook HTTP server for external triggers (aiohttp, auth, validation, Haiku screening, dispatch)
-- `forks.py` -- Fork state (bg + interactive), pending updates I/O, `run_agent_background`, `send_agent_dm`
+- `fork_state.py` -- Pure fork state: enums (`ForkExitAction`), dataclasses (`BgForkConfig`), contextvars, accessors (zero internal imports — leaf dependency)
+- `forks.py` -- Fork I/O: pending updates, `run_agent_background`, `send_agent_dm` (state moved to `fork_state.py`)
 - `views.py` -- Persistent button handlers via `DynamicItem` (delegates to google/, forks, and streamer)
 - `storage.py` -- Shared JSONL I/O, markdown I/O (`read_md_dir`/`write_md`/`remove_md`), git auto-commit, and path constants (`DATA_DIR` for agent workspace, `STATE_DIR` for code-only infrastructure in `~/.ollim-bot/state/`)
 - `streamer.py` -- Streams agent responses to Discord (throttled edits, 2000-char overflow, tool label rendering with denial strikethrough)
@@ -109,7 +112,7 @@ Never write working data into the source repo or source code into `~/.ollim-bot/
 - Race guard: `save_session_id` skipped if `self._client is not client` (client was dropped mid-stream by `/clear` or `/model`)
 - Auto-compaction: CLI sends `compact_boundary` + `ResultMessage` then **waits for a new `query()`** — it does NOT auto-continue. Code must re-send the message after compaction.
 - `_compacting` flag on Agent: set during post-compaction re-send; `bot.py` skips interrupt when True (interrupt during compaction kills the response)
-- `thinking: ThinkingConfig` preferred over deprecated `max_thinking_tokens`; `_thinking(enabled, budget)` helper in `agent.py`
+- `thinking: ThinkingConfig` preferred over deprecated `max_thinking_tokens`; `thinking(enabled, budget)` helper in `agent_context.py`
 - `ThinkingConfig` imported from `claude_agent_sdk.types` — TypedDicts: `{"type": "enabled", "budget_tokens": N}`, `{"type": "disabled"}`, `{"type": "adaptive"}`
 
 ## Discord slash commands
@@ -236,12 +239,12 @@ Never write working data into the source repo or source code into `~/.ollim-bot/
   - Pending updates prepended to all interactions: main sessions pop (read + clear), forks peek (read-only)
   - `update-main-session`: `always` (must report), `on_ping` (report if pinged, default), `freely` (optional), `blocked` (report_updates returns error)
   - `allow-ping: false`: disables `ping_user`/`discord_embed` entirely — `critical=True` does NOT bypass (author intent wins)
-  - `BgForkConfig` frozen dataclass in `forks.py` holds config fields; contextvar propagated to bg fork tasks
+  - `BgForkConfig` frozen dataclass in `fork_state.py` holds config fields; contextvar propagated to bg fork tasks
   - Tool restrictions: `allowed-tools` in YAML — uses SDK tool format (`Bash(ollim-bot gmail *)`, `mcp__discord__*`, etc.)
   - `allowed-tools`: overrides SDK `allowed_tools` (only listed tools available); `Bash(ollim-bot help)` auto-included
   - No `allowed-tools` declared → minimal default tools (report_updates, ping/embed, help) via `MINIMAL_BG_TOOLS`
   - Orthogonal to `allow-ping` — ping/embed have their own rich behavior (critical bypass, budget, busy state)
-  - SDK enforcement via `_apply_tool_restrictions()` in `agent.py`: agent doesn't see restricted tools at all
+  - SDK enforcement via `apply_tool_restrictions()` in `tool_policy.py`: agent doesn't see restricted tools at all
   - Preamble includes TOOL RESTRICTIONS section when active; chain reminders inherit restrictions via `ChainContext`
   - Stop hook (`require_report_hook` in `agent_tools.py`) adapts to mode: `always` blocks without report, `on_ping` blocks with unreported output, `freely`/`blocked` never block
 - Quiet when busy: bg forks always run; when `agent.lock()` is held, `_busy` contextvar is set and non-critical `ping_user`/`discord_embed` return errors (agent uses `report_updates` instead). `critical=True` bypasses. Preamble also instructs the agent explicitly.
@@ -256,7 +259,7 @@ Never write working data into the source repo or source code into `~/.ollim-bot/
   - `report_updates(message)`: queue summary, discard fork
   - `exit_fork`: clean discard, return to main session
   - `save_context`: promote fork to main session — reserved for forks with context needed going forward (interactive only, via `swap_client`)
-- Fork state in `forks.py`: `_in_interactive_fork`, `_fork_exit_action`, `_fork_last_activity`, `_fork_prompted_at`
+- Fork state in `fork_state.py`: `_in_interactive_fork`, `_fork_exit_action`, `_fork_last_activity`, `_fork_prompted_at`
 - Agent routing: `stream_chat`/`chat` route to `_fork_client` when active; `_prepend_context(clear=False)` for forks
 - Post-stream transitions: `_check_fork_transitions()` in bot.py checks `enter_fork_requested()` and `pop_exit_action()`
 - Idle timeout: scheduler checks every 60s; prompts agent after `idle_timeout` minutes; escalates to "you MUST exit" after another timeout (agent always decides exit strategy)
