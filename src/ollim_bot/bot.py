@@ -192,7 +192,7 @@ def create_bot() -> commands.Bot:
     @discord.app_commands.describe(instructions="Optional focus for the summary")
     @discord.app_commands.check(_owner_check)
     async def slash_compact(interaction: discord.Interaction, instructions: str | None = None):
-        await interaction.response.send_message("compacting...")
+        await interaction.response.defer(thinking=True)
         async with agent.lock():
             result = await agent.compact(instructions)
         await interaction.followup.send(result)
