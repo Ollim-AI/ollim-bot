@@ -203,7 +203,7 @@ def _login_via_discord(token: str) -> None:
 
     print("Not logged in to Claude — starting login via Discord DM...")
     url, proc = start_login()
-    _dm_owner(token, f"**Claude login required**\n\nClick to authenticate:\n{url}")
+    _dm_owner(token, f"claude login required — click to authenticate:\n{url}")
     print("Login URL sent via Discord DM — waiting for authentication...")
     proc.wait()
     if proc.returncode != 0:
