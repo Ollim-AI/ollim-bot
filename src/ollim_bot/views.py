@@ -186,7 +186,7 @@ async def _handle_fork_report(interaction: discord.Interaction, _data: str) -> N
         if not in_interactive_fork():
             await interaction.followup.send("fork already ended.", ephemeral=True)
             return
-        updates_before = len(peek_pending_updates())
+        seen_ts = {u.ts for u in peek_pending_updates()}
         await channel.typing()
         await stream_to_channel(
             channel,
@@ -197,8 +197,7 @@ async def _handle_fork_report(interaction: discord.Interaction, _data: str) -> N
                 "The fork ends immediately after your response."
             ),
         )
-        updates_after = peek_pending_updates()
-        new_updates = updates_after[updates_before:]
+        new_updates = [u for u in peek_pending_updates() if u.ts not in seen_ts]
         await _agent.exit_interactive_fork(ForkExitAction.REPORT)
     summary = new_updates[-1].message if new_updates else "no summary reported"
     await interaction.followup.send(embed=fork_exit_embed(ForkExitAction.REPORT, summary))
