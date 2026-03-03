@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import math
 from dataclasses import asdict, dataclass, replace
-from datetime import date, datetime
+from datetime import datetime
 from pathlib import Path
 
 from ollim_bot.config import TZ
@@ -40,7 +40,7 @@ def _refill(state: BudgetState) -> BudgetState:
 
 def _reset_daily(state: BudgetState) -> BudgetState:
     """Reset daily counters if date is stale."""
-    today = date.today().isoformat()
+    today = datetime.now(TZ).date().isoformat()
     if state.critical_reset_date != today:
         state = replace(state, critical_used=0, critical_reset_date=today)
     if state.daily_used_reset != today:
@@ -51,7 +51,7 @@ def _reset_daily(state: BudgetState) -> BudgetState:
 def load() -> BudgetState:
     """Read budget from disk; refill based on elapsed time; create defaults if missing."""
     now = datetime.now(TZ)
-    today = date.today().isoformat()
+    today = now.date().isoformat()
 
     if not BUDGET_FILE.exists():
         state = BudgetState(
