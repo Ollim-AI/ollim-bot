@@ -4,40 +4,15 @@ ADHD-friendly Discord bot with proactive reminders, powered by Claude.
 
 ## Product philosophy
 
-See `docs/design-philosophy.md` for the full rationale behind framework choices,
-patterns, and architecture.
+See `docs/design-philosophy.md` for the full rationale. Core beliefs, in priority order:
 
-Core beliefs, in priority order:
+1. **Context quality is the product** — wrong information is worse than missing; prefer asking over assuming.
+2. **Proactive over reactive** — the bot reaches out; features that wait to be invoked solve nothing.
+3. **Meet the user where they are** — integrate with existing tools, don't add new surfaces.
+4. **Files as shared language** — markdown for human+agent data, JSONL for code-only. No databases.
+5. **Single-user by design** — serve one human deeply. Others fork the repo.
 
-1. **Context quality is the product** — a useful assistant is only as useful as
-   how well it understands you right now. Every design decision should ask: does
-   this improve or degrade contextual understanding? Autonomy, features, and
-   integrations are secondary — their ceiling is the agent's context quality.
-   Corollary: wrong information is much worse than missing information — it
-   cascades into bad decisions. Prefer asking for clarification over assuming.
-2. **Proactive over reactive** — the bot reaches out, not the other way around.
-   ADHD means forgetting to check is the problem, so features that wait to be
-   invoked solve nothing. Default to push.
-3. **Meet the user where they are** — integrate with existing tools (Discord,
-   Google), don't add new surfaces. Yet another app is bad design for agents —
-   productivity needs the context of where the user already is.
-4. **Files as shared language** — markdown is the common language between human
-   and agent. Use it for anything both sides touch (routines, reminders, config).
-   JSONL for code-only data. No databases — the agent reads and writes files
-   natively.
-5. **Single-user by design** — built to serve one human deeply, not many
-   shallowly. Don't add auth, multi-tenancy, or per-user config. Others fork
-   the repo.
-
-Feature selection:
-
-- **Quality over breadth** — high-quality, well-tested features over shotgun
-  coverage. Say no to features that don't earn their complexity.
-- **Real-use grounded** — evaluate against actual daily use, not hypothetical
-  scenarios. If a feature isn't used weekly, question whether it belongs.
-
-These guide your own design proposals. When the user explicitly requests a
-feature, build it — don't gatekeep with philosophy.
+Quality over breadth, real-use grounded. These guide your own proposals — when the user explicitly requests a feature, build it.
 
 ## Directory layout
 
@@ -80,6 +55,7 @@ Never write working data into the source repo or source code into `~/.ollim-bot/
 - `ping_budget.py` -- Refill-on-read ping budget for bg fork notifications (state, enforcement, status formatting)
 - `runtime_config.py` -- Persistent runtime configuration (`~/.ollim-bot/state/config.json`): model/thinking per context, timeouts, permission mode
 - `skills.py` -- Skill data model and directory-based persistence (`skills/*/SKILL.md`), skill index builder for system prompt
+- `updater.py` -- Git-based auto-update: fetch, compare, pull (`--ff-only`), `uv sync`, restart via `os.execv`
 - `google/` -- Google API integration sub-package
   - `auth.py` -- Shared Google OAuth2 (Tasks + Calendar + Gmail)
   - `tasks.py` -- Google Tasks CLI + API helpers (`complete_task`, `delete_task`)
@@ -95,176 +71,84 @@ Never write working data into the source repo or source code into `~/.ollim-bot/
 
 ## Agent SDK config
 - Auth: Claude Code OAuth (no API key needed)
-- Startup auth check: `is_authenticated()` runs `claude auth status --json`; if not logged in, `start_login()` captures OAuth URL (suppresses browser via `BROWSER=""`) and `main.py` DMs it to owner via Discord REST API
-- Single `ClaudeSDKClient` for persistent conversation with auto-compaction (single-user bot)
-- `setting_sources=["project"]` -- SDK loads agents from `.claude/agents/` and discovers skills from `.claude/skills/` (relative to `cwd=DATA_DIR`)
-- `permission_mode="default"` -- SDK default; whitelisted tools auto-approved, others routed through `permissions.py`
-- Subagents: bundled specs in `src/ollim_bot/subagents/*.md`, installed to `~/.ollim-bot/.claude/agents/` at init with template expansion (skip existing); SDK loads them via `setting_sources`
-- `Skill` tool in `allowed_tools` -- SDK handles interactive skill discovery/invocation; per-job injection stays custom
-- Two MCP servers: `discord` (agent_tools.py — 7 tools) and `docs` (remote, `docs.ollim.ai/mcp` — self-referencing documentation)
-- Tool instructions (tasks, cal, routines, reminders, embeds) inlined in SYSTEM_PROMPT; history delegated to subagent
+- Single `ClaudeSDKClient` for persistent conversation with auto-compaction
+- `setting_sources=["project"]` — SDK loads agents and skills from `.claude/` (relative to `cwd=DATA_DIR`)
+- Two MCP servers: `discord` (agent_tools.py — 7 tools) and `docs` (remote, `docs.ollim.ai/mcp`)
+- Subagents: bundled specs in `src/ollim_bot/subagents/*.md`, installed to `~/.ollim-bot/.claude/agents/` at init (skip existing)
 - `ResultMessage.result` is a fallback — don't double-count with `AssistantMessage` text blocks
-- `include_partial_messages=True` -- enables `StreamEvent` for real-time streaming
-- `StreamEvent` imported from `claude_agent_sdk.types` (not in `__init__.__all__`)
-- Session ID persisted to `~/.ollim-bot/state/sessions.json` (plain string, not JSON); `resume=session_id` on reconnect
-- `_drop_client()`: set `_client = None` first, then interrupt + disconnect; suppresses `CLIConnectionError` on interrupt (subprocess may have exited)
+
+### SDK behavioral gotchas
+- Auto-compaction: CLI sends `compact_boundary` + `ResultMessage` then **waits for a new `query()`** — it does NOT auto-continue. Code must re-send the message.
+- `_compacting` flag: set during post-compaction re-send; `bot.py` skips interrupt when True (interrupt during compaction kills the response)
+- `_drop_client()`: set `_client = None` first, then interrupt + disconnect; suppresses `CLIConnectionError` (subprocess may have exited)
 - `swap_client(client, session_id)`: promotes forked client to main (avoids reconnect); drops old client
-- Race guard: `save_session_id` skipped if `self._client is not client` (client was dropped mid-stream by `/clear` or `/model`)
-- Auto-compaction: CLI sends `compact_boundary` + `ResultMessage` then **waits for a new `query()`** — it does NOT auto-continue. Code must re-send the message after compaction.
-- `_compacting` flag on Agent: set during post-compaction re-send; `bot.py` skips interrupt when True (interrupt during compaction kills the response)
-- `thinking: ThinkingConfig` preferred over deprecated `max_thinking_tokens`; `thinking(enabled, budget)` helper in `agent_context.py`
+- Race guard: `save_session_id` skipped if `self._client is not client` (dropped mid-stream by `/clear` or `/model`)
+- `_swap_in_progress` flag prevents `save_session_id()` from logging `compacted` during `swap_client()`
+- `StreamEvent` imported from `claude_agent_sdk.types` (not in `__init__.__all__`)
 - `ThinkingConfig` imported from `claude_agent_sdk.types` — TypedDicts: `{"type": "enabled", "budget_tokens": N}`, `{"type": "disabled"}`, `{"type": "adaptive"}`
+- `thinking: ThinkingConfig` preferred over deprecated `max_thinking_tokens`; `thinking(enabled, budget)` helper in `agent_context.py`
 
 ## Discord slash commands
 - `/clear` -- reset conversation (drop client + delete session ID)
 - `/compact [instructions]` -- compress context via SDK's native `/compact`
 - `/cost` -- show token usage via SDK's native `/cost`
-- `/model <opus|sonnet|haiku>` -- switch model (update options + drop client, next message reconnects)
-- `/thinking <on|off>` -- toggle extended thinking (update options + drop client, next message reconnects)
+- `/model <opus|sonnet|haiku>` -- switch model (drop client, next message reconnects)
+- `/thinking <on|off>` -- toggle extended thinking (drop client, next message reconnects)
 - `/fork [topic]` -- start interactive forked conversation
 - `/interrupt` -- stop current response (fire-and-forget, no lock, silent)
-- `/permissions <dontAsk|default|acceptEdits|bypassPermissions>` -- switch permission mode (fork-scoped); `dontAsk` is the default
-- `/ping-budget [capacity] [refill_rate]` -- view or configure ping budget (bg fork pings only)
-- `/config [key] [value]` -- view or set persistent runtime config (model/thinking per context, timeouts, permission mode)
-- `Agent.slash()` -- generic method routing SDK slash commands, captures SystemMessage + AssistantMessage + ResultMessage
-- `Agent.set_model()` -- uses `dataclasses.replace()` on shared options + updates live client
-- `Agent.set_thinking()` -- updates `thinking: ThinkingConfig` on shared options + drops client (no live setter)
-- `Agent.set_permission_mode()` -- fork-scoped: only updates active client (differs from `/model`)
+- `/permissions <dontAsk|default|acceptEdits|bypassPermissions>` -- switch permission mode (fork-scoped)
+- `/ping-budget [capacity] [refill_rate]` -- view or configure ping budget
+- `/config [key] [value]` -- view or set persistent runtime config
 - Synced via `bot.tree.sync()` in `on_ready`
 
 ## Discord embeds & buttons
-- `discord_embed` MCP tool via `create_sdk_mcp_server` — Claude controls when to send embeds
-- Channel set once at startup via `channel.init_channel()` in `on_ready`; MCP tools read via `channel.get_channel()`
+- `discord_embed` MCP tool — Claude controls when to send embeds
 - Button actions encoded in `custom_id`: `act:<action>:<data>` pattern
-- Direct actions (task_done, task_del, event_del, dismiss): call google/ API helpers directly or delete message, ephemeral response
-- Agent inquiry (agent:<uuid>): stored prompts, route back through agent via views.py
-- Fork actions (fork_save, fork_report, fork_exit): exit interactive fork with chosen strategy
 - `DynamicItem[Button]` for persistent buttons across restarts
 - Inquiry prompts persisted to `~/.ollim-bot/state/inquiries.json` (survive restarts, 7-day TTL)
 
+## Permissions
+- Default mode is `dontAsk`: non-whitelisted tools denied with strikethrough, no Discord prompt
+- `dontAsk` is our layer (`_dont_ask` flag in permissions.py); SDK stays at `default`
+- Permission mode is fork-scoped (only affects active client); `/model` is shared
+- `_session_allowed` set: shared across main + interactive forks, reset on `/clear`
+
 ## Ping budget
-- `~/.ollim-bot/state/ping_budget.json` — ephemeral state (no git commit)
-- Refill-on-read bucket: capacity (default 5), refills 1 per 90 min, capped at capacity
-- Lazy refill: `load()` computes accumulated pings from elapsed time since `last_refill`
-- Daily counters (`daily_used`, `critical_used`) reset at midnight
-- Scope: bg forks only — main session and interactive fork embeds are user-requested, never counted
-- Enforcement: `agent_tools.py` checks budget before `ping_user`/`discord_embed` in bg forks
-- Critical bypass: `critical=True` parameter on both tools; tracked but not capped
-- Over budget: tool returns error to agent, user not notified
-- Forward schedule: bg preamble shows upcoming bg tasks with times, descriptions, and file paths
-- Schedule window: `[now-15min, now+3h]` or next 3 forward tasks, whichever covers more
-- Agent awareness: budget status + schedule + refill timing injected into BG_PREAMBLE at job-fire time
-- `/ping-budget [capacity] [refill_rate]` — view or configure
+See `SearchOllimBot` for full mechanics. Key rules:
+- Scope: bg forks only — main session and interactive fork pings are never counted
+- `critical=True` bypasses budget but is tracked
+- Quiet when busy: `_busy` contextvar set when `agent.lock()` held; non-critical pings return errors
+
+## Routines & reminders
+Format spec: `docs/routine-reminder-spec.md`. Key implementation details:
+- Files: `~/.ollim-bot/routines/<slug>.md` and `reminders/<slug>.md` (YAML frontmatter + markdown)
+- Agent manages files directly (Glob/Read/Write/Edit) — no CLI required
+- Scheduler polls both directories every 10s, registers/removes APScheduler jobs
+- Background forks: `run_agent_background` creates disposable forked client (`fork_session=True`)
+  - `save_context` blocked in bg forks (only available in interactive forks)
+  - `report_updates(message)` persists summary; pending updates prepended to all interactions (main pops, forks peek)
+  - Tool restrictions: `allowed-tools` in YAML overrides SDK `allowed_tools`; no declaration → `MINIMAL_BG_TOOLS`
+  - SDK enforcement via `apply_tool_restrictions()` in `tool_policy.py`
+- Quiet when busy: bg forks always run; non-critical `ping_user`/`discord_embed` return errors when `agent.lock()` held. `critical=True` bypasses.
+- Bg forks run without `agent.lock()` — channel, chain context, in_fork, busy state, and bg_fork_config scoped via `contextvars`
+
+## Interactive forks
+- `/fork [topic]` or `enter_fork(topic?, idle_timeout=10)` MCP tool; forks branch from main session (never nested)
+- Three exit strategies: `report_updates(message)` (default), `exit_fork` (clean discard), `save_context` (promote to main via `swap_client`)
+- Idle timeout: scheduler checks every 60s; prompts agent, then escalates
+- Reply-to-fork: replying to a bg fork message resumes that fork's session (7-day TTL in `fork_messages.json`)
 
 ## Webhooks
-- `webhook.py` -- HTTP server for external triggers (aiohttp, embedded in Discord.py event loop)
-- Webhook specs: `~/.ollim-bot/webhooks/<slug>.md` (YAML frontmatter + markdown prompt template)
-- `fields` in YAML: JSON Schema validated with `jsonschema` library
-- Auth: Bearer token from `WEBHOOK_SECRET` env var, constant-time comparison
-- Payload: validated against declared `fields` schema via `Draft7Validator` (additional properties accepted unless spec author sets `additionalProperties: false`)
-- 4-layer input security: JSON Schema validation, content fencing in prompt, Haiku screening of strings, operational limits (10KB payload, 500-char default maxLength, 20 properties max)
-- Lifecycle: opt-in via `WEBHOOK_PORT` + `WEBHOOK_SECRET` in `.env`; starts in `on_ready` after scheduler; binds to `127.0.0.1`
-- Dispatch: `asyncio.create_task(run_agent_background(...))` — same bg fork path as scheduler jobs
-- Prompt tag: `[webhook:<slug>]` follows `[routine-bg:X]` convention
-- `create_app(secret, agent, owner, process_fn)` — `process_fn` parameter enables testing without Agent SDK
+Spec format: `docs/webhook-spec.md`. Dispatch via `run_agent_background` (same bg fork path as scheduler).
 
 ## Skills
-- Reusable instruction sets in `~/.ollim-bot/skills/<name>/SKILL.md` (directory per skill)
-- `Skill` frozen dataclass: `name`, `description`, `message` (markdown body)
-- `list_skills()` walks `skills/*/SKILL.md`, `read_skill(name)` reads one by name
-- `_parse_skill()` returns `Skill | None` (no exceptions — None for invalid files)
-- SDK discovery: `~/.ollim-bot/.claude/skills/ → ../skills/` symlink; SDK loads skill descriptions via `setting_sources`
-- Interactive use: agent invokes skills via SDK's `Skill` tool (auto-discovered, no custom index)
-- Per-job injection (custom): routines/reminders reference skills by name; `build_skills_section()` loads, expands commands, and injects at fire time
-- Routine/Reminder `skills: list[str] | None` field — references skill names to auto-load
-- Preamble injection: `build_skills_section()` loads and injects `SKILL INSTRUCTIONS:` block
-- Injection works for both bg and fg prompts (before the message body)
-- Dynamic context: `!`command`` markers in skill messages are expanded to stdout at fire time (sync subprocess, 10s per-command / 30s total cap)
-- Chain propagation: `skills` field on `ChainContext`, forwarded via `follow_up_chain` → `--skills` CLI arg
-- Agent-created: agent uses Write to create `skills/<name>/SKILL.md`, Read to load them
-- Format reference: `~/.ollim-bot/skill-spec.md` (agent reads on demand)
-
-## Session history
-- `~/.ollim-bot/state/session_history.jsonl` -- append-only log of session lifecycle events
-- Events: `created`, `compacted`, `swapped`, `cleared`, `interactive_fork`, `bg_fork`, `isolated_bg`
-- `save_session_id()` auto-detects `created` (no prior ID) and `compacted` (ID changed)
-- `_swap_in_progress` flag prevents `save_session_id()` from logging `compacted` during `swap_client()`
-- Fork session IDs captured from first `StreamEvent` (interactive) or `ResultMessage` (bg)
-- Uses `storage.append_jsonl()` for writes (git auto-commit)
-
-## Permissions
-- Default mode is `dontAsk`: non-whitelisted tools denied (shown with strikethrough in response), no Discord prompt
-- `dontAsk` is our layer (`_dont_ask` flag in permissions.py); SDK stays at `default`
-- Other modes (`default`, `acceptEdits`, `bypassPermissions`) clear `_dont_ask` and pass through to SDK
-- Approval flow (when `dontAsk` is off): send message with tool label, add reactions (approve/deny/always), await Future (60s timeout, auto-deny)
-- `canUseTool` callback: bg forks → immediate deny; `dontAsk` → deny with strikethrough label (unless session-allowed); else → Discord approval
-- `_session_allowed` set: shared across main + interactive forks, reset on `/clear`
-- Permission mode is fork-scoped (only affects active client); `/model` is shared (affects both)
-- `cancel_pending()` called on interrupt, fork exit, and `/clear`
-
-## Reply-to-fork
-- Replying to a bg fork message starts an interactive fork that resumes from that bg fork's session
-- `sessions.py` tracks Discord message IDs → fork session IDs via `~/.ollim-bot/state/fork_messages.json` (7-day TTL)
-- Collector API: `start_message_collector()` / `track_message(msg_id)` / `flush_message_collector()` — contextvar-scoped
-- `streamer.py` and MCP tools (`ping_user`, `discord_embed`) call `track_message()` after sending
-- `run_agent_background` calls `start_message_collector()` before and `flush_message_collector()` after
-- `enter_interactive_fork(resume_session_id=)` overrides which session to fork from
-- Replying to a non-fork message prepends quoted context: plain text from `.content`, or title + description + fields from first embed (truncated to 500 chars)
+Spec format: `docs/skill-spec.md`. SDK discovers via `~/.ollim-bot/.claude/skills/` symlink. Per-job injection via `build_skills_section()`.
 
 ## Google integration
 - OAuth credentials: `~/.ollim-bot/state/credentials.json` (from Google Cloud Console)
 - Token: `~/.ollim-bot/state/token.json` (auto-generated on first auth)
 - Gmail is read-only (`gmail.readonly` scope), accessed via the gmail-reader subagent
 - Add new Google services: add scope to `google/auth.py`, create `google/*.py`, add commands to SYSTEM_PROMPT
-
-## Routines & reminders
-- Routines (recurring crons): `~/.ollim-bot/routines/<slug>.md` (YAML frontmatter + markdown body)
-- Reminders (one-shot, chainable): `~/.ollim-bot/reminders/<slug>.md` (YAML frontmatter + markdown body)
-- Each item is a separate .md file; filenames are human-readable slugs; `id` in YAML is authoritative
-- Agent has Glob/Read/Write/Edit access to `reminders/**` and `routines/**` -- creates and manages files directly (no CLI)
-- `~/.ollim-bot/` is a git repo; `storage.py` auto-commits on every add/remove
-- Scheduler polls both directories every 10s, registers/removes APScheduler jobs
-- Scheduler and streamer receive `owner: discord.User` (resolved once in bot.py `on_ready`)
-- Cron day-of-week: standard cron (0=Sun) converted to APScheduler names via `_convert_dow()`
-- CLI (`ollim-bot routine|reminder`) still works for human use and subagents
-- Prompt tags: `[routine:ID]`, `[routine-bg:ID]`, `[reminder:ID]`, `[reminder-bg:ID]`
-- Background mode: runs on forked session; text output discarded, agent uses `ping_user`/`discord_embed` to alert
-- Forked sessions: `run_agent_background` creates disposable forked client (`fork_session=True`)
-  - Isolated mode: `isolated: true` in YAML — `create_isolated_client` (no resume, no fork, no conversation history)
-  - Model override: `model: "haiku"` in YAML — passed to `create_isolated_client(model=)`; bg-only, ignored on non-bg jobs
-  - Thinking override: `thinking: true` (default) in YAML — passed to `create_isolated_client(thinking=)`; bg-only, `--no-thinking` CLI flag to disable
-  - Always discarded — `save_context` blocked in bg forks (only available in interactive forks)
-  - `report_updates(message)` MCP tool: persists summary to `~/.ollim-bot/state/pending_updates.json`
-  - Not called: fork silently discarded, zero context bloat
-  - Pending updates prepended to all interactions: main sessions pop (read + clear), forks peek (read-only)
-  - `update-main-session`: `always` (must report), `on_ping` (report if pinged, default), `freely` (optional), `blocked` (report_updates returns error)
-  - `allow-ping: false`: disables `ping_user`/`discord_embed` entirely — `critical=True` does NOT bypass (author intent wins)
-  - `BgForkConfig` frozen dataclass in `fork_state.py` holds config fields; contextvar propagated to bg fork tasks
-  - Tool restrictions: `allowed-tools` in YAML — uses SDK tool format (`Bash(ollim-bot gmail *)`, `mcp__discord__*`, etc.)
-  - `allowed-tools`: overrides SDK `allowed_tools` (only listed tools available); `Bash(ollim-bot help)` auto-included
-  - No `allowed-tools` declared → minimal default tools (report_updates, ping/embed, help) via `MINIMAL_BG_TOOLS`
-  - Orthogonal to `allow-ping` — ping/embed have their own rich behavior (critical bypass, budget, busy state)
-  - SDK enforcement via `apply_tool_restrictions()` in `tool_policy.py`: agent doesn't see restricted tools at all
-  - Preamble includes TOOL RESTRICTIONS section when active; chain reminders inherit restrictions via `ChainContext`
-  - Stop hook (`require_report_hook` in `agent_tools.py`) adapts to mode: `always` blocks without report, `on_ping` blocks with unreported output, `freely`/`blocked` never block
-- Quiet when busy: bg forks always run; when `agent.lock()` is held, `_busy` contextvar is set and non-critical `ping_user`/`discord_embed` return errors (agent uses `report_updates` instead). `critical=True` bypasses. Preamble also instructs the agent explicitly.
-- Bg forks run without `agent.lock()` — channel, chain context, in_fork, busy state, and bg_fork_config scoped via `contextvars`
-- Chain reminders: `max-chain: N` in YAML frontmatter enables follow-up chain; agent calls `follow_up_chain` MCP tool
-- Chain state: scheduler injects chain context into prompt; silence = chain ends
-
-## Interactive forks
-- `/fork [topic]` or `enter_fork(topic?, idle_timeout=10)` MCP tool starts interactive fork
-- Forks branch from main session (never nested); bg forks can run in parallel
-- Three exit strategies via MCP tools or buttons (default: `report_updates`):
-  - `report_updates(message)`: queue summary, discard fork
-  - `exit_fork`: clean discard, return to main session
-  - `save_context`: promote fork to main session — reserved for forks with context needed going forward (interactive only, via `swap_client`)
-- Fork state in `fork_state.py`: `_in_interactive_fork`, `_fork_exit_action`, `_fork_last_activity`, `_fork_prompted_at`
-- Agent routing: `stream_chat`/`chat` route to `_fork_client` when active; `_prepend_context(clear=False)` for forks
-- Post-stream transitions: `_check_fork_transitions()` in bot.py checks `enter_fork_requested()` and `pop_exit_action()`
-- Idle timeout: scheduler checks every 60s; prompts agent after `idle_timeout` minutes; escalates to "you MUST exit" after another timeout (agent always decides exit strategy)
-- Embed with buttons sent on fork entry (`_send_fork_enter`); exit embed sent on fork end (`_fork_exit_embed`)
-- Button handlers in views.py: `fork_save`, `fork_report`, `fork_exit`
 
 ## Dev commands
 ```bash
@@ -285,6 +169,14 @@ Optional env vars:
 - `OLLIM_TIMEZONE` — IANA timezone (default: auto-detected from system)
 - `WEBHOOK_PORT` — enable webhook server (e.g. `8420`)
 - `WEBHOOK_SECRET` — required if `WEBHOOK_PORT` is set
+
+## Auto-update
+- Config: `auto_update` (bool, default off), `auto_update_interval` (int minutes, default 60)
+- Scheduler polls every 5 min; actual check respects `auto_update_interval`
+- Flow: `git fetch` → compare HEAD vs tracking branch → `git pull --ff-only` → `uv sync` → DM owner → `os.execv`
+- Safety: deferred when `agent.lock()` held; `--ff-only` rejects diverged branches
+- `os.execv` replaces process in-place (same PID); PID file deleted before exec (atexit doesn't fire)
+- Logs `restarting` event to `session_history.jsonl` before restart
 
 ## Principles
 
