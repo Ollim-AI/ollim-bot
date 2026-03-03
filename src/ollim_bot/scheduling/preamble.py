@@ -207,9 +207,8 @@ def build_bg_preamble(
     # --- Ping instructions ---
     if config.allow_ping:
         ping_section = (
-            "Your text output will be discarded. Use `ping_user` (MCP tool) to send "
-            "a plain text alert, or `discord_embed` for structured data. Only alert "
-            "if something genuinely warrants attention.\n\n"
+            "Your text output will be discarded. Use `ping_user` to send "
+            "a plain text alert, or `discord_embed` for structured data.\n\n"
         )
     else:
         ping_section = (
@@ -233,9 +232,16 @@ def build_bg_preamble(
             "session on what happened -- or just finish without it.\n\n"
         )
     elif mode == "blocked":
-        update_section = (
-            "This runs on a forked session. This task runs silently -- no reporting to the main session.\n\n"
-        )
+        if config.allow_ping:
+            update_section = (
+                "This runs on a forked session. No summary is passed to the main "
+                "session (the main conversation won't know this task ran), but you "
+                "can still ping the user directly on Discord for time-sensitive items.\n\n"
+            )
+        else:
+            update_section = (
+                "This runs on a forked session. This task runs silently -- no reporting to the main session.\n\n"
+            )
     else:  # on_ping (default)
         update_section = (
             "This runs on a forked session -- by default everything is discarded.\n"
