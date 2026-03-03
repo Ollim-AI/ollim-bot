@@ -61,7 +61,7 @@ def fork_exit_embed(action: ForkExitAction, summary: str | None = None) -> disco
 def fork_enter_embed(topic: str | None = None) -> discord.Embed:
     return discord.Embed(
         title="Forked Session",
-        description=f"Topic: {topic}" if topic else "Open session",
+        description=f"Topic: {topic}" if topic else "branched conversation — changes stay separate from main.",
         color=discord.Color.purple(),
     )
 
