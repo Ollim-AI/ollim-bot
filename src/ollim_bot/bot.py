@@ -326,6 +326,7 @@ def create_bot() -> commands.Bot:
             fork_session_id = lookup_fork_session(ref.message_id)
             if fork_session_id and agent.in_fork:
                 fork_session_id = None
+                await message.channel.send("-# already in a fork — reply added as context instead.")
             if not fork_session_id:
                 try:
                     replied = ref.resolved or await message.channel.fetch_message(ref.message_id)
