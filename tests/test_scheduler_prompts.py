@@ -239,13 +239,23 @@ def test_bg_preamble_update_freely():
     assert "report_updates" in result
 
 
-def test_bg_preamble_update_blocked():
-    config = BgForkConfig(update_main_session="blocked")
+def test_bg_preamble_update_blocked_with_ping():
+    config = BgForkConfig(update_main_session="blocked", allow_ping=True)
+
+    result = build_bg_preamble([], bg_config=config)
+
+    assert "No summary is passed to the main session" in result
+    assert "can still ping" in result
+    assert "report_updates" not in result
+
+
+def test_bg_preamble_update_blocked_no_ping():
+    config = BgForkConfig(update_main_session="blocked", allow_ping=False)
 
     result = build_bg_preamble([], bg_config=config)
 
     assert "silently" in result.lower()
-    assert "report_updates" not in result.split("silently")[1]
+    assert "report_updates" not in result
 
 
 def test_bg_preamble_default_config_unchanged():

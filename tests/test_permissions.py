@@ -129,7 +129,7 @@ def test_handle_tool_permission_denies_bg_fork():
         result = _run(handle_tool_permission("Bash", {"command": "rm -rf /"}, ToolPermissionContext()))
 
         assert isinstance(result, PermissionResultDeny)
-        assert "not allowed" in result.message
+        assert "not available in background forks" in result.message
     finally:
         set_in_fork(False)
 
@@ -160,7 +160,7 @@ def test_dont_ask_denies_non_whitelisted():
         result = _run(handle_tool_permission("Bash", {"command": "ls"}, ToolPermissionContext()))
 
         assert isinstance(result, PermissionResultDeny)
-        assert "not allowed" in result.message
+        assert "requires permission" in result.message
     finally:
         set_dont_ask(True)
 
