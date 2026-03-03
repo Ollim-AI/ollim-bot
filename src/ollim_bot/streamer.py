@@ -12,7 +12,7 @@ from typing import Any, Literal
 
 import discord
 
-from ollim_bot.forks import enter_fork_requested
+from ollim_bot.fork_state import enter_fork_requested
 from ollim_bot.formatting import format_tool_label
 from ollim_bot.permissions import is_denied
 from ollim_bot.sessions import track_message

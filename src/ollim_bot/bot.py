@@ -9,11 +9,12 @@ from discord import app_commands
 from discord.ext import commands
 
 from ollim_bot import permissions, ping_budget, runtime_config, webhook
-from ollim_bot.agent import Agent, ModelName
+from ollim_bot.agent import Agent
+from ollim_bot.agent_context import ModelName
 from ollim_bot.channel import init_channel
 from ollim_bot.config import BOT_NAME, USER_NAME
 from ollim_bot.embeds import fork_enter_embed, fork_enter_view, fork_exit_embed
-from ollim_bot.forks import (
+from ollim_bot.fork_state import (
     clear_prompted,
     enter_fork_requested,
     in_interactive_fork,

@@ -85,7 +85,7 @@ def build_webhook_prompt(
     busy: bool = False,
 ) -> str:
     """Build tagged prompt with content fencing between data and instructions."""
-    from ollim_bot.forks import BgForkConfig
+    from ollim_bot.fork_state import BgForkConfig
     from ollim_bot.scheduling.preamble import (
         build_bg_preamble,
         build_upcoming_schedule,
@@ -182,7 +182,8 @@ async def _default_process(
     prompt: str,
 ) -> None:
     """Default processor: screen with Haiku, then dispatch bg fork."""
-    from ollim_bot.forks import BgForkConfig, run_agent_background
+    from ollim_bot.fork_state import BgForkConfig
+    from ollim_bot.forks import run_agent_background
 
     string_fields = extract_string_fields(spec, data)
     if string_fields:

@@ -13,14 +13,14 @@ from googleapiclient.errors import HttpError
 from ollim_bot import inquiries
 from ollim_bot.config import USER_NAME
 from ollim_bot.embeds import fork_enter_embed, fork_enter_view, fork_exit_embed
-from ollim_bot.forks import (
-    append_update,
+from ollim_bot.fork_state import (
     clear_prompted,
     enter_fork_requested,
     in_interactive_fork,
     pop_enter_fork,
     touch_activity,
 )
+from ollim_bot.forks import append_update
 from ollim_bot.google.calendar import delete_event
 from ollim_bot.google.tasks import complete_task, delete_task
 from ollim_bot.prompts import fork_bg_resume_prompt
@@ -152,7 +152,7 @@ async def _handle_dismiss(interaction: discord.Interaction, _data: str) -> None:
 
 
 async def _handle_fork_save(interaction: discord.Interaction, _data: str) -> None:
-    from ollim_bot.forks import ForkExitAction, in_interactive_fork
+    from ollim_bot.fork_state import ForkExitAction, in_interactive_fork
 
     if not in_interactive_fork():
         await interaction.response.send_message("no active fork.", ephemeral=True)
@@ -168,11 +168,8 @@ async def _handle_fork_save(interaction: discord.Interaction, _data: str) -> Non
 
 
 async def _handle_fork_report(interaction: discord.Interaction, _data: str) -> None:
-    from ollim_bot.forks import (
-        ForkExitAction,
-        in_interactive_fork,
-        peek_pending_updates,
-    )
+    from ollim_bot.fork_state import ForkExitAction, in_interactive_fork
+    from ollim_bot.forks import peek_pending_updates
 
     if not in_interactive_fork():
         await interaction.response.send_message("no active fork.", ephemeral=True)
@@ -204,7 +201,7 @@ async def _handle_fork_report(interaction: discord.Interaction, _data: str) -> N
 
 
 async def _handle_fork_exit(interaction: discord.Interaction, _data: str) -> None:
-    from ollim_bot.forks import ForkExitAction, in_interactive_fork
+    from ollim_bot.fork_state import ForkExitAction, in_interactive_fork
 
     if not in_interactive_fork():
         await interaction.response.send_message("no active fork.", ephemeral=True)

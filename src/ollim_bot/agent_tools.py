@@ -18,10 +18,8 @@ from ollim_bot.embeds import (
     build_embed,
     build_view,
 )
-from ollim_bot.forks import (
+from ollim_bot.fork_state import (
     ForkExitAction,
-    append_update,
-    clear_pending_updates,
     get_bg_fork_config,
     get_bg_tracking,
     in_bg_fork,
@@ -29,6 +27,10 @@ from ollim_bot.forks import (
     is_busy,
     request_enter_fork,
     set_exit_action,
+)
+from ollim_bot.forks import (
+    append_update,
+    clear_pending_updates,
 )
 from ollim_bot.sessions import track_message
 

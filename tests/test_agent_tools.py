@@ -18,18 +18,18 @@ from ollim_bot.agent_tools import (
     set_chain_context,
 )
 from ollim_bot.channel import init_channel
-from ollim_bot.forks import (
+from ollim_bot.fork_state import (
     BgForkConfig,
     ForkExitAction,
     init_bg_tracking,
     pop_enter_fork,
     pop_exit_action,
-    pop_pending_updates,
     set_bg_fork_config,
     set_busy,
     set_in_fork,
     set_interactive_fork,
 )
+from ollim_bot.forks import pop_pending_updates
 
 # @tool decorator wraps the function in SdkMcpTool; .handler is the raw async fn
 _follow_up = follow_up_chain.handler
@@ -367,7 +367,7 @@ def test_embed_footer_interactive_fork(data_dir):
 
 
 def test_bg_output_flag_set_on_ping(data_dir):
-    from ollim_bot.forks import get_bg_tracking
+    from ollim_bot.fork_state import get_bg_tracking
 
     ch = InMemoryChannel()
     init_channel(ch)
@@ -385,7 +385,7 @@ def test_bg_output_flag_set_on_ping(data_dir):
 
 
 def test_bg_output_flag_set_on_embed(data_dir):
-    from ollim_bot.forks import get_bg_tracking
+    from ollim_bot.fork_state import get_bg_tracking
 
     ch = InMemoryChannel()
     init_channel(ch)
@@ -403,7 +403,7 @@ def test_bg_output_flag_set_on_embed(data_dir):
 
 
 def test_bg_output_flag_cleared_on_report(data_dir):
-    from ollim_bot.forks import get_bg_tracking
+    from ollim_bot.fork_state import get_bg_tracking
 
     ch = InMemoryChannel()
     init_channel(ch)
@@ -699,7 +699,7 @@ def test_stop_hook_blocks_on_always_without_report():
 
 def test_stop_hook_allows_on_always_with_report():
     from ollim_bot.agent_tools import require_report_hook
-    from ollim_bot.forks import get_bg_tracking
+    from ollim_bot.fork_state import get_bg_tracking
 
     set_in_fork(True)
     init_bg_tracking()

@@ -3,7 +3,7 @@
 from datetime import datetime, timedelta
 
 from ollim_bot.config import TZ
-from ollim_bot.forks import BgForkConfig
+from ollim_bot.fork_state import BgForkConfig
 from ollim_bot.scheduling.preamble import (
     ScheduleEntry,
     _convert_dow,

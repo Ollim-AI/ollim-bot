@@ -8,7 +8,7 @@ import discord
 from discord.ui import Button, View
 
 from ollim_bot import inquiries
-from ollim_bot.forks import ForkExitAction
+from ollim_bot.fork_state import ForkExitAction
 
 ButtonStyle = Literal["primary", "secondary", "success", "danger"]
 EmbedColor = Literal["blue", "green", "red", "yellow", "purple"]

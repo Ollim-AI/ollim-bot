@@ -10,7 +10,7 @@ from claude_agent_sdk.types import (
     ToolPermissionContext,
 )
 
-from ollim_bot.forks import set_in_fork
+from ollim_bot.fork_state import set_in_fork
 from ollim_bot.permissions import (
     _is_protected_path,
     _PendingApproval,
