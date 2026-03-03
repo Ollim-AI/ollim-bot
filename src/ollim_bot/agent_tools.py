@@ -111,7 +111,7 @@ def _check_bg_budget(args: dict[str, Any]) -> dict[str, Any] | None:
 
 @tool(
     "discord_embed",
-    "Send a rich embed message with optional action buttons to the Discord channel. "
+    "Available in all contexts. Send a rich embed with optional action buttons to the Discord channel. "
     "Use for task lists, calendar views, email digests, or any structured data.",
     {
         "type": "object",
@@ -194,7 +194,7 @@ async def discord_embed(args: dict[str, Any]) -> dict[str, Any]:
 
 @tool(
     "ping_user",
-    f"Send a plain text message to {USER_NAME}. Use in background mode when something "
+    f"Background-fork-only. Send a plain text alert to {USER_NAME} when something "
     "needs attention but an embed isn't necessary.",
     {
         "type": "object",
