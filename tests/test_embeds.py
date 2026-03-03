@@ -22,7 +22,7 @@ def test_fork_enter_embed_no_topic():
     embed = fork_enter_embed()
 
     assert embed.title == "Forked Session"
-    assert embed.description == "Open session"
+    assert embed.description == "branched conversation — changes stay separate from main."
 
 
 def test_fork_enter_embed_with_topic():
