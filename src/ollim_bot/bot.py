@@ -437,7 +437,7 @@ def create_bot() -> commands.Bot:
             discord.app_commands.Choice(name="model.fork", value="model_fork"),
             discord.app_commands.Choice(name="thinking.main", value="thinking_main"),
             discord.app_commands.Choice(name="thinking.fork", value="thinking_fork"),
-            discord.app_commands.Choice(name="max_thinking_tokens", value="max_thinking_tokens"),
+            discord.app_commands.Choice(name="thinking.max_tokens", value="max_thinking_tokens"),
             discord.app_commands.Choice(name="bg_fork_timeout", value="bg_fork_timeout"),
             discord.app_commands.Choice(name="fork_idle_timeout", value="fork_idle_timeout"),
             discord.app_commands.Choice(name="permission_mode", value="permission_mode"),
