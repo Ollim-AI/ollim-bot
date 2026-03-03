@@ -26,6 +26,13 @@ def register(prompt: str) -> str:
     return uid
 
 
+def peek(uid: str) -> str | None:
+    """Check if an inquiry exists without consuming it."""
+    data = _read()
+    entry = data.get(uid)
+    return entry["prompt"] if entry else None
+
+
 def pop(uid: str) -> str | None:
     """Returns None for both expired and never-registered IDs."""
     data = _read()
