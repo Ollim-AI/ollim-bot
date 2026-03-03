@@ -19,11 +19,7 @@ from dotenv import load_dotenv
 if TYPE_CHECKING:
     from discord.ext.commands import Bot
 
-from ollim_bot.storage import DATA_DIR, STATE_DIR
-
-PROJECT_DIR = Path(__file__).resolve().parent.parent.parent
-PID_FILE = STATE_DIR / "bot.pid"
-
+from ollim_bot.storage import DATA_DIR, PID_FILE, PROJECT_DIR, STATE_DIR
 
 HELP = """\
 ollim-bot -- ADHD-friendly Discord assistant powered by Claude

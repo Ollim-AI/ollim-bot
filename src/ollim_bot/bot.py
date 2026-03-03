@@ -440,6 +440,8 @@ def create_bot() -> commands.Bot:
             discord.app_commands.Choice(name="bg_fork_timeout", value="bg_fork_timeout"),
             discord.app_commands.Choice(name="fork_idle_timeout", value="fork_idle_timeout"),
             discord.app_commands.Choice(name="permission_mode", value="permission_mode"),
+            discord.app_commands.Choice(name="auto_update", value="auto_update"),
+            discord.app_commands.Choice(name="auto_update_interval", value="auto_update_interval"),
         ]
     )
     @discord.app_commands.check(_owner_check)

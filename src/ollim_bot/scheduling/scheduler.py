@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import subprocess
+import time
 from dataclasses import replace
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
@@ -51,6 +53,7 @@ from ollim_bot.streamer import stream_to_channel
 
 if TYPE_CHECKING:
     from ollim_bot.agent import Agent
+    from ollim_bot.runtime_config import RuntimeConfig
 
 log = logging.getLogger(__name__)
 
@@ -318,5 +321,74 @@ def setup_scheduler(bot: discord.Client, agent: Agent, owner: discord.User) -> A
                 await dm.send(embed=fork_exit_embed(action, summary))
             else:
                 touch_activity()
+
+    _last_update_check = 0.0
+
+    @scheduler.scheduled_job(IntervalTrigger(minutes=5))
+    async def check_for_update() -> None:
+        nonlocal _last_update_check
+
+        from ollim_bot import runtime_config
+
+        cfg = runtime_config.load()
+        if not cfg.auto_update:
+            return
+
+        now = time.monotonic()
+        if now - _last_update_check < cfg.auto_update_interval * 60:
+            return
+
+        _last_update_check = now
+        await _do_update_check(cfg)
+
+    async def _do_update_check(cfg: RuntimeConfig) -> None:
+        from ollim_bot.fork_state import in_interactive_fork
+        from ollim_bot.sessions import load_session_id, log_session_event
+        from ollim_bot.storage import PROJECT_DIR
+        from ollim_bot.updater import (
+            apply_update,
+            check_for_updates,
+            format_error,
+            restart_process,
+        )
+
+        try:
+            status = await asyncio.to_thread(check_for_updates, PROJECT_DIR)
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
+            log.warning("auto-update: git fetch failed")
+            return
+
+        if not status.available:
+            return
+
+        if agent.lock().locked() or in_interactive_fork():
+            log.info("auto-update: deferred (agent busy)")
+            return
+
+        log.info(
+            "auto-update: %s -> %s",
+            status.local_sha[:8],
+            status.remote_sha[:8],
+        )
+        dm = await owner.create_dm()
+
+        try:
+            await asyncio.to_thread(apply_update, PROJECT_DIR)
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+            log.warning("auto-update: failed: %s", exc)
+            await dm.send(f"auto-update failed: {format_error(exc)}")
+            return
+
+        lines = status.commit_summary.splitlines()
+        summary = "\n".join(lines[:5])
+        if len(lines) > 5:
+            summary += f"\n... and {len(lines) - 5} more"
+        await dm.send(f"updating and restarting...\n```\n{summary}\n```")
+
+        session_id = load_session_id()
+        if session_id:
+            log_session_event(session_id, "restarting")
+
+        restart_process()
 
     return scheduler
