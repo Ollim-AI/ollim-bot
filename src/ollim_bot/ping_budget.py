@@ -100,13 +100,12 @@ def get_status() -> str:
     """Formatted budget status for preamble injection."""
     state = load()
     avail = int(state.available)
-    base = f"{avail}/{state.capacity} available (refills 1 every {state.refill_rate_minutes} min"
+    base = f"budget: {avail}/{state.capacity}"
     if state.available < state.capacity:
         minutes_to_next = math.ceil((1.0 - (state.available - int(state.available))) * state.refill_rate_minutes)
         if state.available == int(state.available):
             minutes_to_next = state.refill_rate_minutes
-        base += f", next in {minutes_to_next} min"
-    base += ")"
+        base += f" (next refill in {minutes_to_next} min)"
     return base
 
 
