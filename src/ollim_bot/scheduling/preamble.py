@@ -355,9 +355,13 @@ def build_reminder_prompt(
     busy: bool = False,
     bg_config: BgForkConfig | None = None,
     skills: list[Skill] | None = None,
+    overdue_at: datetime | None = None,
 ) -> str:
     tag = f"reminder-bg:{reminder.id}" if reminder.background else f"reminder:{reminder.id}"
     parts = [f"[{tag}]"]
+    if overdue_at is not None:
+        scheduled_str = overdue_at.strftime("%-I:%M %p")
+        parts.append(f"[late: was scheduled for {scheduled_str}, running now]")
 
     if reminder.background:
         schedule = build_upcoming_schedule(routines, reminders, current_id=reminder.id)

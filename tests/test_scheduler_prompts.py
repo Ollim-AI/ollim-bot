@@ -1,6 +1,6 @@
 """Tests for scheduler.py prompt-building and cron conversion."""
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from ollim_bot.config import TZ
 from ollim_bot.fork_state import BgForkConfig
@@ -618,3 +618,24 @@ def test_prompt_partial_skill_loading(data_dir):
     assert "### exists" in prompt
     assert "Real instructions" in prompt
     assert "missing" not in prompt.split("SKILL INSTRUCTIONS")[1]
+
+
+# --- Overdue reminder signal ---
+
+
+def test_reminder_prompt_overdue_injects_late_notice():
+    reminder = Reminder(id="r1", message="Call doctor", run_at="2026-02-16T15:00:00-08:00")
+    overdue_at = datetime(2026, 2, 16, 15, 0, 0, tzinfo=UTC)
+
+    prompt = build_reminder_prompt(reminder, reminders=[], routines=[], overdue_at=overdue_at)
+
+    assert "[late:" in prompt
+    assert "running now" in prompt
+
+
+def test_reminder_prompt_no_overdue_no_late_notice():
+    reminder = Reminder(id="r1", message="Call doctor", run_at="2026-02-16T15:00:00-08:00")
+
+    prompt = build_reminder_prompt(reminder, reminders=[], routines=[])
+
+    assert "[late:" not in prompt

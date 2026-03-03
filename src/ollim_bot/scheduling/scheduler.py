@@ -187,6 +187,7 @@ def _register_reminder(
             busy=busy,
             bg_config=bg_config,
             skills=skills,
+            overdue_at=overdue_at,
         )
         # follow_up_chain MCP tool reads this to schedule the next link
         chain_ctx = None
@@ -236,7 +237,9 @@ def _register_reminder(
 
     run_at = datetime.fromisoformat(reminder.run_at)
     now = datetime.now(TZ)
+    overdue_at: datetime | None = None
     if run_at < now:
+        overdue_at = run_at
         run_at = now + timedelta(seconds=5)
 
     scheduler.add_job(fire_oneshot, DateTrigger(run_date=run_at), id=f"rem_{reminder.id}")

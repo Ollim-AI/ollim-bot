@@ -83,7 +83,7 @@ async def _handle_task_done(interaction: discord.Interaction, task_id: str) -> N
     try:
         title = await asyncio.to_thread(complete_task, task_id)
     except HttpError as e:
-        await interaction.response.send_message(f"Error: {e.reason}", ephemeral=True)
+        await interaction.response.send_message(f"failed: {e.reason}", ephemeral=True)
         return
     await append_update(f'User completed task "{title}"')
     await interaction.response.send_message("done ✓", ephemeral=True)
@@ -93,7 +93,7 @@ async def _handle_task_delete(interaction: discord.Interaction, task_id: str) ->
     try:
         title = await asyncio.to_thread(delete_task, task_id)
     except HttpError as e:
-        await interaction.response.send_message(f"Error: {e.reason}", ephemeral=True)
+        await interaction.response.send_message(f"failed: {e.reason}", ephemeral=True)
         return
     await append_update(f'User deleted task "{title}"')
     await interaction.response.send_message("deleted", ephemeral=True)
@@ -103,7 +103,7 @@ async def _handle_event_delete(interaction: discord.Interaction, event_id: str) 
     try:
         summary = await asyncio.to_thread(delete_event, event_id)
     except HttpError as e:
-        await interaction.response.send_message(f"Error: {e.reason}", ephemeral=True)
+        await interaction.response.send_message(f"failed: {e.reason}", ephemeral=True)
         return
     await append_update(f'User deleted calendar event "{summary}"')
     await interaction.response.send_message("deleted", ephemeral=True)
