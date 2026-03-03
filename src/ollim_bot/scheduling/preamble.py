@@ -386,8 +386,9 @@ def build_reminder_prompt(
             parts.append(
                 f"\nCHAIN CONTEXT: This is the FINAL check in this follow-up chain "
                 f"(check {check_num} of {total}). `follow_up_chain` is NOT available "
-                f"-- this is your last chance to act on this reminder. If the task "
-                f"needs attention, ping the user now."
+                f"-- this is your last chance to act on this reminder. If still "
+                f"unresolved AND the user would regret missing this, ping now. "
+                f"Otherwise call report_updates."
             )
 
     parts.append(f"\n{reminder.message}")
