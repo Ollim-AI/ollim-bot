@@ -5,7 +5,7 @@ import time
 from contextvars import ContextVar
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Literal, TypedDict
+from typing import Literal, NamedTuple, TypedDict
 
 from ollim_bot.config import TZ as _TZ
 from ollim_bot.storage import STATE_DIR, append_jsonl, atomic_write
@@ -156,29 +156,39 @@ def flush_message_collector(fork_session_id: str, parent_session_id: str | None)
     _write_fork_messages(records)
 
 
-def lookup_fork_session(message_id: int) -> str | None:
-    """Return the fork session ID for a Discord message, or None."""
-    for record in _read_fork_messages():
-        if record["message_id"] == message_id:
-            return record["fork_session_id"]
-    return None
+class ForkLookup(NamedTuple):
+    """Result of looking up a fork session by Discord message ID."""
+
+    session_id: str | None
+    expired: bool
 
 
-def is_expired_fork_message(message_id: int) -> bool:
-    """True if message_id was tracked as a fork message but has expired past TTL."""
-    if not FORK_MESSAGES_FILE.exists():
-        return False
-    data: list[_ForkMessageRecord] = json.loads(FORK_MESSAGES_FILE.read_text())
+def lookup_fork_session(message_id: int) -> ForkLookup:
+    """Look up a fork session by Discord message ID.
+
+    Returns (session_id, expired=False) for live records,
+    (None, expired=True) for TTL-expired records,
+    (None, expired=False) for unknown message IDs.
+    """
+    all_records = _read_all_fork_messages()
     cutoff = time.time() - _MAX_AGE
-    return any(r["message_id"] == message_id and r["ts"] <= cutoff for r in data)
+    for record in all_records:
+        if record["message_id"] == message_id:
+            if record["ts"] > cutoff:
+                return ForkLookup(record["fork_session_id"], expired=False)
+            return ForkLookup(None, expired=True)
+    return ForkLookup(None, expired=False)
 
 
 def _read_fork_messages() -> list[_ForkMessageRecord]:
+    cutoff = time.time() - _MAX_AGE
+    return [r for r in _read_all_fork_messages() if r["ts"] > cutoff]
+
+
+def _read_all_fork_messages() -> list[_ForkMessageRecord]:
     if not FORK_MESSAGES_FILE.exists():
         return []
-    data: list[_ForkMessageRecord] = json.loads(FORK_MESSAGES_FILE.read_text())
-    cutoff = time.time() - _MAX_AGE
-    return [r for r in data if r["ts"] > cutoff]
+    return json.loads(FORK_MESSAGES_FILE.read_text())
 
 
 def _write_fork_messages(records: list[_ForkMessageRecord]) -> None:
