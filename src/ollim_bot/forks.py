@@ -9,6 +9,9 @@ import logging
 from datetime import datetime
 from typing import TYPE_CHECKING, NamedTuple
 
+if TYPE_CHECKING:
+    from ollim_bot.agent_tools import ChainContext
+
 from ollim_bot.channel import get_channel
 from ollim_bot.config import TZ
 from ollim_bot.fork_state import (
@@ -222,11 +225,16 @@ async def run_agent_background(
 async def send_agent_dm(
     agent: Agent,
     prompt: str,
+    *,
+    chain_ctx: ChainContext | None = None,
 ) -> None:
     """Inject a prompt into the agent session and stream the response as a DM."""
+    from ollim_bot.agent_tools import set_chain_context
     from ollim_bot.streamer import stream_to_channel
 
     dm = get_channel()
     async with agent.lock():
+        if chain_ctx:
+            set_chain_context(chain_ctx)
         await dm.typing()
         await stream_to_channel(dm, agent.stream_chat(prompt))
