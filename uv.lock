@@ -407,6 +407,11 @@ wheels = [
 ]
 
 [[package]]
+name = "claude-history"
+version = "0.1.0"
+source = { git = "https://github.com/Ollim-AI/claude-history.git#b05df0abbb2efd7101534cac3ba09dd95103e1e8" }
+
+[[package]]
 name = "click"
 version = "8.3.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1090,6 +1095,7 @@ dependencies = [
     { name = "aiohttp" },
     { name = "apscheduler" },
     { name = "claude-agent-sdk" },
+    { name = "claude-history" },
     { name = "discord-py" },
     { name = "google-api-python-client" },
     { name = "google-auth" },
@@ -1114,6 +1120,7 @@ requires-dist = [
     { name = "aiohttp", specifier = ">=3.13.3" },
     { name = "apscheduler", specifier = ">=3.11.2" },
     { name = "claude-agent-sdk", specifier = ">=0.1.44" },
+    { name = "claude-history", git = "https://github.com/Ollim-AI/claude-history.git" },
     { name = "discord-py", specifier = ">=2.6.4" },
     { name = "google-api-python-client", specifier = ">=2.190.0" },
     { name = "google-auth", specifier = ">=2.48.0" },

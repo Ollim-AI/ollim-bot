@@ -260,8 +260,7 @@ Never write working data into the source repo or source code into `~/.ollim-bot/
 ## Dev commands
 ```bash
 uv sync                    # Install deps
-uv tool install --editable . # Install/update global `ollim-bot` command (editable = picks up uv sync changes)
-uv tool install <path-to-claude-history> # Required by history-reviewer subagent (separate repo)
+uv tool install --editable . # Install/update global `ollim-bot` + `claude-history` commands (editable = picks up uv sync changes)
 uv run ollim-bot           # Run the bot
 uv run pytest              # Run tests
 uv run ruff check          # Lint

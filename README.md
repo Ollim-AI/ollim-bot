@@ -34,13 +34,12 @@ Requires Python 3.11+ and [uv](https://docs.astral.sh/uv/).
 git clone https://github.com/Ollim-AI/ollim-bot.git
 cd ollim-bot
 uv tool install --editable .
-uv tool install claude-history@git+https://github.com/Ollim-AI/claude-history.git
 ```
 
-The `--editable` install makes `ollim-bot` available as a global command that
-tracks your local source.
-[claude-history](https://github.com/Ollim-AI/claude-history) is a CLI tool the
-bot's subagents use to review conversation history.
+The `--editable` install makes `ollim-bot` and
+[claude-history](https://github.com/Ollim-AI/claude-history) available as
+global commands. `claude-history` is a CLI tool the bot's subagents use to
+review conversation history.
 
 Create a `.env` file:
 

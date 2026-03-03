@@ -27,6 +27,7 @@ dependencies = [
     "pyyaml>=6.0.3",
     "aiohttp>=3.13.3",
     "jsonschema>=4.26.0",
+    "claude-history @ git+https://github.com/Ollim-AI/claude-history.git",
 ]
 
 [project.urls]
@@ -36,10 +37,14 @@ Issues = "https://github.com/Ollim-AI/ollim-bot/issues"
 
 [project.scripts]
 ollim-bot = "ollim_bot.main:main"
+claude-history = "claude_history.cli:main"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [dependency-groups]
 dev = [
