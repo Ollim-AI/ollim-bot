@@ -110,11 +110,6 @@ async def _handle_event_delete(interaction: discord.Interaction, event_id: str) 
 
 
 async def _handle_agent_inquiry(interaction: discord.Interaction, inquiry_id: str) -> None:
-    prompt = inquiries.peek(inquiry_id)
-    if not prompt:
-        await interaction.response.send_message("this button has expired.", ephemeral=True)
-        return
-
     assert _agent is not None
     channel = interaction.channel
     assert isinstance(channel, discord.abc.Messageable)
@@ -126,7 +121,10 @@ async def _handle_agent_inquiry(interaction: discord.Interaction, inquiry_id: st
         await interaction.response.send_message("already in a fork.", ephemeral=True)
         return
 
-    inquiries.pop(inquiry_id)
+    prompt = inquiries.pop(inquiry_id)
+    if not prompt:
+        await interaction.response.send_message("this option has expired — ask again to revisit.", ephemeral=True)
+        return
 
     await interaction.response.defer()
     if _agent.lock().locked():
