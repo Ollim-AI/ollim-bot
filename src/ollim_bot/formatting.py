@@ -1,6 +1,7 @@
 """Tool-label formatting helpers shared by agent and permissions."""
 
 import json
+import re
 
 # Tool name → input key(s) to extract for informative labels.
 TOOL_LABEL_KEYS: dict[str, str | tuple[str, ...]] = {
@@ -27,10 +28,13 @@ def _escape_md(s: str) -> str:
     return s.replace("*", "\\*").replace("_", "\\_")
 
 
+_MCP_PREFIX_RE = re.compile(r"^mcp__[^_]+__")
+
+
 def format_tool_label(name: str, input_json: str) -> str:
     """Build a descriptive tool-use label like ``Write(reminders/foo.md)``."""
-    if name.startswith("mcp__discord__"):
-        return name.removeprefix("mcp__discord__")
+    if _MCP_PREFIX_RE.match(name):
+        return _MCP_PREFIX_RE.sub("", name)
 
     try:
         inp = json.loads(input_json) if input_json else {}
