@@ -380,7 +380,9 @@ def build_reminder_prompt(
                 f"(check {check_num} of {total}). You have `follow_up_chain` "
                 f"available -- call follow_up_chain(minutes_from_now=N) to schedule "
                 f"another check. If the task is done or no longer needs follow-up, "
-                f"simply don't call it and the chain ends."
+                f"simply don't call it and the chain ends. When pinging, briefly "
+                f"acknowledge the follow-up nature (e.g. 'checking in again' or "
+                f"'follow-up on earlier') so the user knows it's intentional."
             )
         else:
             parts.append(
