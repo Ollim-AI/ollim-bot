@@ -9,6 +9,7 @@ from ollim_bot.sessions import (
     SessionEvent,
     delete_session_id,
     flush_message_collector,
+    is_expired_fork_message,
     log_session_event,
     lookup_fork_session,
     save_session_id,
@@ -189,3 +190,35 @@ def test_expired_records_pruned(fork_messages):
     )
 
     assert lookup_fork_session(100) is None
+
+
+def test_is_expired_fork_message_true_for_old_record(fork_messages):
+    import time
+
+    old_ts = time.time() - (8 * 24 * 3600)
+    fork_messages.write_text(
+        json.dumps(
+            [
+                {
+                    "message_id": 100,
+                    "fork_session_id": "old-fork",
+                    "parent_session_id": None,
+                    "ts": old_ts,
+                }
+            ]
+        )
+    )
+
+    assert is_expired_fork_message(100)
+
+
+def test_is_expired_fork_message_false_for_live_record(fork_messages):
+    start_message_collector()
+    track_message(200)
+    flush_message_collector("fork-abc", None)
+
+    assert not is_expired_fork_message(200)
+
+
+def test_is_expired_fork_message_false_for_unknown(fork_messages):
+    assert not is_expired_fork_message(999)
