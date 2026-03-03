@@ -18,7 +18,7 @@ from claude_agent_sdk import (
     SystemMessage,
     TextBlock,
 )
-from claude_agent_sdk.types import StreamEvent
+from claude_agent_sdk.types import StreamEvent, ThinkingConfig
 
 from ollim_bot import runtime_config, tool_policy
 from ollim_bot.agent_tools import agent_server, require_report_hook
@@ -137,6 +137,13 @@ def _apply_tool_restrictions(
     return opts
 
 
+def _thinking(enabled: bool, budget: int = 10_000) -> ThinkingConfig:
+    """Build a ThinkingConfig from a boolean toggle and token budget."""
+    if enabled:
+        return {"type": "enabled", "budget_tokens": budget}
+    return {"type": "disabled"}
+
+
 class Agent:
     def __init__(self) -> None:
         all_skills = list_skills()
@@ -161,7 +168,7 @@ class Agent:
         if cfg.model_main:
             self.options = replace(self.options, model=cfg.model_main)
         if cfg.thinking_main:
-            self.options = replace(self.options, max_thinking_tokens=cfg.max_thinking_tokens)
+            self.options = replace(self.options, thinking=_thinking(True, cfg.max_thinking_tokens))
 
         self._client: ClaudeSDKClient | None = None
         self._fork_client: ClaudeSDKClient | None = None
@@ -217,8 +224,7 @@ class Agent:
 
     async def set_thinking(self, enabled: bool) -> None:
         """Toggle extended thinking. Drops clients to apply (no live setter)."""
-        tokens = runtime_config.load().max_thinking_tokens if enabled else None
-        self.options = replace(self.options, max_thinking_tokens=tokens)
+        self.options = replace(self.options, thinking=_thinking(enabled, runtime_config.load().max_thinking_tokens))
         await self._drop_client()
         if self._fork_client:
             cancel_pending()
@@ -255,13 +261,13 @@ class Agent:
             if self._fork_client and model:
                 await self._fork_client.set_model(model)
         elif key == "thinking_main":
-            tokens = cfg.max_thinking_tokens if cfg.thinking_main else None
-            self.options = replace(self.options, max_thinking_tokens=tokens)
+            self.options = replace(self.options, thinking=_thinking(cfg.thinking_main, cfg.max_thinking_tokens))
         elif key in ("thinking_fork", "bg_fork_timeout", "fork_idle_timeout"):
             pass  # takes effect on next fork
         elif key == "max_thinking_tokens":
-            if self.options.max_thinking_tokens is not None:
-                self.options = replace(self.options, max_thinking_tokens=cfg.max_thinking_tokens)
+            cur = self.options.thinking
+            if cur and cur["type"] == "enabled":
+                self.options = replace(self.options, thinking=_thinking(True, cfg.max_thinking_tokens))
         elif key == "permission_mode":
             permissions.set_dont_ask(cfg.permission_mode == "dontAsk")
             mode = "default" if cfg.permission_mode == "dontAsk" else cfg.permission_mode
@@ -373,8 +379,7 @@ class Agent:
         if model:
             opts = replace(opts, model=model)
         if thinking is not None:
-            tokens = runtime_config.load().max_thinking_tokens if thinking else None
-            opts = replace(opts, max_thinking_tokens=tokens)
+            opts = replace(opts, thinking=_thinking(thinking, runtime_config.load().max_thinking_tokens))
         opts = _apply_tool_restrictions(opts, allowed_tools)
         client = ClaudeSDKClient(opts)
         await client.connect()
@@ -391,8 +396,7 @@ class Agent:
         opts = self.options
         if model:
             opts = replace(opts, model=model)
-        thinking_tokens = runtime_config.load().max_thinking_tokens if thinking else None
-        opts = replace(opts, max_thinking_tokens=thinking_tokens)
+        opts = replace(opts, thinking=_thinking(thinking, runtime_config.load().max_thinking_tokens))
         opts = _apply_tool_restrictions(opts, allowed_tools)
         client = ClaudeSDKClient(opts)
         await client.connect()
