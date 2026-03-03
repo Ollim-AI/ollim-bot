@@ -115,7 +115,7 @@ async def _handle_agent_inquiry(interaction: discord.Interaction, inquiry_id: st
     assert isinstance(channel, discord.abc.Messageable)
 
     assert interaction.message is not None
-    fork_session_id = lookup_fork_session(interaction.message.id)
+    fork_session_id = lookup_fork_session(interaction.message.id).session_id
 
     if fork_session_id and in_interactive_fork():
         await interaction.response.send_message("already in a fork.", ephemeral=True)
