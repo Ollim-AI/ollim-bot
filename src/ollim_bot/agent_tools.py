@@ -140,7 +140,10 @@ def _check_bg_budget(args: dict[str, Any]) -> dict[str, Any] | None:
                 "items": {
                     "type": "object",
                     "properties": {
-                        "label": {"type": "string"},
+                        "label": {
+                            "type": "string",
+                            "description": "Button label. Use 'Close' not 'Dismiss' for delete-message buttons.",
+                        },
                         "style": {
                             "type": "string",
                             "description": "success, danger, primary, or secondary",
