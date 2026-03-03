@@ -107,6 +107,10 @@ Never write working data into the source repo or source code into `~/.ollim-bot/
 - `_drop_client()`: set `_client = None` first, then interrupt + disconnect; suppresses `CLIConnectionError` on interrupt (subprocess may have exited)
 - `swap_client(client, session_id)`: promotes forked client to main (avoids reconnect); drops old client
 - Race guard: `save_session_id` skipped if `self._client is not client` (client was dropped mid-stream by `/clear` or `/model`)
+- Auto-compaction: CLI sends `compact_boundary` + `ResultMessage` then **waits for a new `query()`** — it does NOT auto-continue. Code must re-send the message after compaction.
+- `_compacting` flag on Agent: set during post-compaction re-send; `bot.py` skips interrupt when True (interrupt during compaction kills the response)
+- `thinking: ThinkingConfig` preferred over deprecated `max_thinking_tokens`; `_thinking(enabled, budget)` helper in `agent.py`
+- `ThinkingConfig` imported from `claude_agent_sdk.types` — TypedDicts: `{"type": "enabled", "budget_tokens": N}`, `{"type": "disabled"}`, `{"type": "adaptive"}`
 
 ## Discord slash commands
 - `/clear` -- reset conversation (drop client + delete session ID)
@@ -121,7 +125,7 @@ Never write working data into the source repo or source code into `~/.ollim-bot/
 - `/config [key] [value]` -- view or set persistent runtime config (model/thinking per context, timeouts, permission mode)
 - `Agent.slash()` -- generic method routing SDK slash commands, captures SystemMessage + AssistantMessage + ResultMessage
 - `Agent.set_model()` -- uses `dataclasses.replace()` on shared options + updates live client
-- `Agent.set_thinking()` -- updates `max_thinking_tokens` on shared options + drops client (no live setter)
+- `Agent.set_thinking()` -- updates `thinking: ThinkingConfig` on shared options + drops client (no live setter)
 - `Agent.set_permission_mode()` -- fork-scoped: only updates active client (differs from `/model`)
 - Synced via `bot.tree.sync()` in `on_ready`
 
