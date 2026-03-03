@@ -225,5 +225,6 @@ def test_get_status_shows_daily_used(data_dir):
 
     status = ping_budget.get_full_status()
 
-    assert "3 used today" in status
-    assert "1 critical" in status
+    assert "used today: 3" in status
+    assert "critical bypasses: 1" in status
+    assert "not deducted from budget" in status

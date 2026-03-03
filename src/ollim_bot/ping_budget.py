@@ -116,10 +116,10 @@ def get_full_status() -> str:
     status = get_status()
     parts = [status]
     if state.daily_used:
-        parts.append(f"{state.daily_used} used today")
+        parts.append(f"used today: {state.daily_used}")
     if state.critical_used:
-        parts.append(f"{state.critical_used} critical")
-    return ", ".join(parts) if len(parts) > 1 else status
+        parts.append(f"critical bypasses: {state.critical_used} (urgent overrides, not deducted from budget)")
+    return ". ".join(parts) + "." if len(parts) > 1 else status
 
 
 def set_capacity(capacity: int) -> None:
