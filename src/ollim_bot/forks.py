@@ -207,7 +207,8 @@ async def run_agent_background(
                     None if isolated else main_session_id,
                 )
             finally:
-                await client.disconnect()
+                with contextlib.suppress(RuntimeError):
+                    await client.disconnect()
         log.info("bg fork completed: %s", tag)
     except TimeoutError:
         log.warning("bg fork timed out after %ds: %s", bg_timeout, tag)
