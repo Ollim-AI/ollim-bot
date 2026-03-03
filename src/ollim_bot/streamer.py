@@ -183,24 +183,41 @@ async def stream_to_channel(
 
     # Response message management ----------------------------------------------
 
+    def _split_point(start: int) -> int:
+        """Find a natural split point within MAX_MSG_LEN from start.
+
+        Prefers the last newline, then last space, then hard boundary.
+        """
+        end = start + MAX_MSG_LEN
+        split = buf.rfind("\n", start, end)
+        if split == -1:
+            split = buf.rfind(" ", start, end)
+        if split == -1:
+            split = end
+        else:
+            split += 1  # include the newline/space in the current message
+        return split
+
     async def flush() -> None:
         nonlocal msg, msg_start, stale
         chunk = buf[msg_start:]
         if not chunk or not stale:
             return
+        split = _split_point(msg_start)
         if msg is None:
-            msg = await channel.send(chunk[:MAX_MSG_LEN])
+            msg = await channel.send(buf[msg_start:split])
             track_message(msg.id)
         else:
-            await msg.edit(content=chunk[:MAX_MSG_LEN])
+            await msg.edit(content=buf[msg_start:split])
         if len(chunk) <= MAX_MSG_LEN:
             stale = False
             return
         while len(buf) - msg_start > MAX_MSG_LEN:
-            msg_start += MAX_MSG_LEN
-            remaining = buf[msg_start:]
+            msg_start = split
+            split = _split_point(msg_start)
+            remaining = buf[msg_start:split]
             if remaining:
-                msg = await channel.send(remaining[:MAX_MSG_LEN])
+                msg = await channel.send(remaining)
                 track_message(msg.id)
         stale = False
 
