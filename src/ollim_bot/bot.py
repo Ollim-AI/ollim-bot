@@ -320,6 +320,10 @@ def create_bot() -> commands.Bot:
         images = await _read_images(message.attachments)
 
         # Reply handling: fork-from-reply or quote context
+        # Gap: lookup_fork_session returns None for both "never tracked" and "expired
+        # after 7 days" — we can't distinguish them without sessions.py exposing
+        # expired-entry detection. A TTL-expired reply silently degrades to quoted
+        # context with no signal (#5).
         ref = message.reference
         fork_session_id: str | None = None
         if ref and ref.message_id:
