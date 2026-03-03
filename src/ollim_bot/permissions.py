@@ -188,12 +188,12 @@ async def handle_tool_permission(
             message=f"{tool_name} to state/ is blocked — system files are write-protected",
         )
     if in_bg_fork():
-        return PermissionResultDeny(message=f"{tool_name} is not allowed")
+        return PermissionResultDeny(message=f"{tool_name} is not available in background forks")
     if _dont_ask:
         if is_session_allowed(tool_name):
             return PermissionResultAllow()
         _denied_labels.add(format_tool_label(tool_name, json.dumps(input_data)))
-        return PermissionResultDeny(message=f"{tool_name} is not allowed")
+        return PermissionResultDeny(message=f"{tool_name} requires permission — denied silently in current mode")
     result = await request_approval(tool_name, input_data)
     if isinstance(result, PermissionResultDeny):
         _denied_labels.add(format_tool_label(tool_name, json.dumps(input_data)))
