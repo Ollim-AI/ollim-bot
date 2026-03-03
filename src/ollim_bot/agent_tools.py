@@ -251,7 +251,10 @@ async def follow_up_chain(args: dict[str, Any]) -> dict[str, Any]:
     if ctx is None:
         return _resp("Error: no active reminder context")
     if ctx.chain_depth >= ctx.max_chain:
-        return _resp("Error: follow-up limit reached")
+        return _resp(
+            "Error: follow-up limit reached — this was the last check. "
+            "If the task still needs attention, ping the user now."
+        )
 
     minutes = args["minutes_from_now"]
     cmd = [
@@ -408,7 +411,7 @@ async def require_report_hook(
     if mode == "always" and (not tracking or not tracking.reported):
         return SyncHookJSONOutput(
             systemMessage=(
-                "You haven't called report_updates yet. Call it now to update the main session on what happened."
+                "You haven't called report_updates yet. Summarize what you found or did to update the main session."
             ),
         )
     if mode == "on_ping" and tracking and tracking.output_sent:
