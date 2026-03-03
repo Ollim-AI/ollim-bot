@@ -11,9 +11,9 @@ import pytest
 @pytest.fixture(autouse=True)
 def _reset_bg_tracking():
     """Reset bg fork tracking between tests (production gets per-task ContextVar scope)."""
-    import ollim_bot.forks as forks_mod
+    import ollim_bot.fork_state as fork_state_mod
 
-    forks_mod._bg_tracking.set(None)
+    fork_state_mod._bg_tracking.set(None)
 
 
 @pytest.fixture()

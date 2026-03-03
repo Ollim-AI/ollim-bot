@@ -12,8 +12,10 @@ import functools
 import logging
 import re
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Literal
+
+from claude_agent_sdk import ClaudeAgentOptions
 
 if TYPE_CHECKING:
     from ollim_bot.skills import Skill
@@ -194,12 +196,14 @@ MAIN_SESSION_TOOLS: list[str] = [
 # Minimal bg fork tools — default when a job declares no tool restrictions
 # ---------------------------------------------------------------------------
 
+_HELP_TOOL = "Bash(ollim-bot help)"
+
 MINIMAL_BG_TOOLS: list[str] = [
     "mcp__discord__report_updates",
     "mcp__discord__ping_user",
     "mcp__discord__discord_embed",
     "mcp__discord__follow_up_chain",
-    "Bash(ollim-bot help)",
+    _HELP_TOOL,
 ]
 
 
@@ -246,6 +250,22 @@ def collect_all_tool_sets(
             tool_sets[f"webhook:{webhook.id}"] = webhook.allowed_tools
 
     return tool_sets
+
+
+def apply_tool_restrictions(
+    opts: ClaudeAgentOptions,
+    allowed: list[str] | None,
+) -> ClaudeAgentOptions:
+    """Apply per-job tool restrictions to agent options.
+
+    Strips Write/Edit patterns that could reach the protected ``state/`` directory.
+    """
+    if allowed is not None:
+        tools = strip_state_dir_writes(allowed)
+        if _HELP_TOOL not in tools:
+            tools = [_HELP_TOOL, *tools]
+        return replace(opts, allowed_tools=tools)
+    return opts
 
 
 def strip_state_dir_writes(tools: list[str]) -> list[str]:

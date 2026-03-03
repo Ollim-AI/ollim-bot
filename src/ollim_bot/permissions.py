@@ -19,7 +19,7 @@ from claude_agent_sdk.types import (
 
 from ollim_bot import storage
 from ollim_bot.channel import get_channel
-from ollim_bot.forks import in_bg_fork
+from ollim_bot.fork_state import in_bg_fork
 from ollim_bot.formatting import format_tool_label
 from ollim_bot.tool_policy import FILE_WRITE_TOOLS
 

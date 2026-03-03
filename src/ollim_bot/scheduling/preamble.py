@@ -9,7 +9,7 @@ from apscheduler.triggers.cron import CronTrigger
 
 from ollim_bot import ping_budget
 from ollim_bot.config import TZ
-from ollim_bot.forks import BgForkConfig
+from ollim_bot.fork_state import BgForkConfig
 from ollim_bot.scheduling.reminders import Reminder
 from ollim_bot.scheduling.routines import Routine
 from ollim_bot.skills import Skill, build_skills_section

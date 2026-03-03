@@ -4,11 +4,9 @@ import asyncio
 import time
 from unittest.mock import AsyncMock, MagicMock
 
-from ollim_bot.forks import (
+from ollim_bot.fork_state import (
     BgForkConfig,
     ForkExitAction,
-    append_update,
-    clear_pending_updates,
     get_bg_fork_config,
     get_bg_tracking,
     idle_timeout,
@@ -16,13 +14,10 @@ from ollim_bot.forks import (
     init_bg_tracking,
     is_busy,
     is_idle,
-    peek_pending_updates,
     pop_enter_fork,
     pop_exit_action,
-    pop_pending_updates,
     prompted_at,
     request_enter_fork,
-    run_agent_background,
     set_bg_fork_config,
     set_busy,
     set_exit_action,
@@ -30,6 +25,13 @@ from ollim_bot.forks import (
     set_prompted_at,
     should_auto_exit,
     touch_activity,
+)
+from ollim_bot.forks import (
+    append_update,
+    clear_pending_updates,
+    peek_pending_updates,
+    pop_pending_updates,
+    run_agent_background,
 )
 
 # --- Pending updates ---
@@ -168,10 +170,10 @@ def test_not_idle_when_recently_active():
 
 
 def test_idle_after_timeout():
-    import ollim_bot.forks as forks_mod
+    import ollim_bot.fork_state as fork_state_mod
 
     set_interactive_fork(True, idle_timeout=10)
-    forks_mod._fork_last_activity = time.monotonic() - 601
+    fork_state_mod._fork_last_activity = time.monotonic() - 601
 
     assert is_idle() is True
 
@@ -194,7 +196,7 @@ def test_prompted_default_none():
 
 
 def test_set_and_clear_prompted():
-    from ollim_bot.forks import clear_prompted
+    from ollim_bot.fork_state import clear_prompted
 
     set_interactive_fork(True, idle_timeout=10)
     set_prompted_at()
@@ -218,10 +220,10 @@ def test_should_auto_exit_false_when_recently_prompted():
 
 
 def test_should_auto_exit_true_after_timeout():
-    import ollim_bot.forks as forks_mod
+    import ollim_bot.fork_state as fork_state_mod
 
     set_interactive_fork(True, idle_timeout=10)
-    forks_mod._fork_prompted_at = time.monotonic() - 601
+    fork_state_mod._fork_prompted_at = time.monotonic() - 601
 
     assert should_auto_exit() is True
 

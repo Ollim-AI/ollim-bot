@@ -2,9 +2,9 @@
 
 from claude_agent_sdk import ClaudeAgentOptions
 
-from ollim_bot.agent import _HELP_TOOL, _apply_tool_restrictions
-from ollim_bot.forks import BgForkConfig
+from ollim_bot.fork_state import BgForkConfig
 from ollim_bot.scheduling.scheduler import _apply_ping_restrictions
+from ollim_bot.tool_policy import _HELP_TOOL, apply_tool_restrictions
 
 
 def _opts(allowed: list[str] | None = None) -> ClaudeAgentOptions:
@@ -14,7 +14,7 @@ def _opts(allowed: list[str] | None = None) -> ClaudeAgentOptions:
 def test_no_restrictions_returns_unchanged():
     opts = _opts()
 
-    result = _apply_tool_restrictions(opts, allowed=None)
+    result = apply_tool_restrictions(opts, allowed=None)
 
     assert result is opts
 
@@ -22,7 +22,7 @@ def test_no_restrictions_returns_unchanged():
 def test_allowed_tools_overrides_list():
     opts = _opts(["Read", "Write", "Bash", "WebFetch"])
 
-    result = _apply_tool_restrictions(opts, allowed=["Bash(ollim-bot gmail *)"])
+    result = apply_tool_restrictions(opts, allowed=["Bash(ollim-bot gmail *)"])
 
     assert _HELP_TOOL in result.allowed_tools
     assert "Bash(ollim-bot gmail *)" in result.allowed_tools
@@ -32,7 +32,7 @@ def test_allowed_tools_overrides_list():
 def test_allowed_tools_preserves_help_if_present():
     opts = _opts()
 
-    result = _apply_tool_restrictions(opts, allowed=[_HELP_TOOL, "Bash(ollim-bot tasks *)"])
+    result = apply_tool_restrictions(opts, allowed=[_HELP_TOOL, "Bash(ollim-bot tasks *)"])
 
     assert result.allowed_tools.count(_HELP_TOOL) == 1
     assert "Bash(ollim-bot tasks *)" in result.allowed_tools

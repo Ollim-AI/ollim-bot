@@ -3,10 +3,8 @@
 import asyncio
 import contextlib
 import logging
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Callable
 from dataclasses import replace
-from datetime import datetime
-from typing import Literal
 
 from claude_agent_sdk import (
     AssistantMessage,
@@ -18,20 +16,26 @@ from claude_agent_sdk import (
     SystemMessage,
     TextBlock,
 )
-from claude_agent_sdk.types import StreamEvent, ThinkingConfig
 
 from ollim_bot import runtime_config, tool_policy
+from ollim_bot.agent_context import (
+    ModelName,
+    format_compact_stats,
+    prepend_context,
+    timestamp,
+)
+from ollim_bot.agent_context import (
+    thinking as _thinking,
+)
+from ollim_bot.agent_streaming import stream_response
 from ollim_bot.agent_tools import agent_server, require_report_hook
-from ollim_bot.config import TZ as _TZ
-from ollim_bot.forks import (
+from ollim_bot.fork_state import (
     ForkExitAction,
-    enter_fork_requested,
-    peek_pending_updates,
     pop_exit_action,
-    pop_pending_updates,
     set_interactive_fork,
     touch_activity,
 )
+from ollim_bot.forks import peek_pending_updates
 from ollim_bot.permissions import (
     cancel_pending,
     handle_tool_permission,
@@ -45,103 +49,13 @@ from ollim_bot.sessions import (
     load_session_id,
     log_session_event,
     save_session_id,
-    session_start_time,
     set_swap_in_progress,
 )
 from ollim_bot.skills import list_skills
 from ollim_bot.storage import DATA_DIR
-from ollim_bot.streamer import StreamParser, StreamStatus
+from ollim_bot.streamer import StreamStatus
 
 log = logging.getLogger(__name__)
-
-ModelName = Literal["opus", "sonnet", "haiku"]
-
-
-def _format_duration(seconds: float) -> str:
-    """Format seconds as '3h 12m', '45m', or '< 1m'."""
-    minutes = int(seconds // 60)
-    if minutes < 1:
-        return "< 1m"
-    hours, mins = divmod(minutes, 60)
-    if hours:
-        return f"{hours}h {mins}m" if mins else f"{hours}h"
-    return f"{mins}m"
-
-
-def _format_compact_stats(result: ResultMessage | None, pre_tokens: int | None) -> str:
-    """Format compaction result as productivity stats."""
-    parts: list[str] = []
-    if result:
-        parts.append(f"{result.num_turns} turns")
-    start = session_start_time()
-    if start:
-        age = (datetime.now(_TZ) - start).total_seconds()
-        parts.append(_format_duration(age))
-    if pre_tokens is not None:
-        k = pre_tokens / 1000
-        parts.append(f"{k:.0f}k tokens compacted")
-    return " · ".join(parts)
-
-
-def _timestamp() -> str:
-    return datetime.now(_TZ).strftime("[%Y-%m-%d %a %I:%M %p PT]")
-
-
-def _relative_time(iso_ts: str) -> str:
-    """Format an ISO timestamp as relative time (e.g. '2h ago')."""
-    delta = datetime.now(_TZ) - datetime.fromisoformat(iso_ts)
-    seconds = int(delta.total_seconds())
-    if seconds < 60:
-        return "just now"
-    if seconds < 3600:
-        return f"{seconds // 60}m ago"
-    if seconds < 86400:
-        return f"{seconds // 3600}h ago"
-    return f"{seconds // 86400}d ago"
-
-
-async def _prepend_context(message: str, *, clear: bool = True) -> str:
-    """Prepend timestamp and any pending background updates to a user message.
-
-    clear=True (default): pops updates (main session clears the file).
-    clear=False: peeks updates (fork reads without clearing).
-    """
-    ts = _timestamp()
-    updates = (await pop_pending_updates()) if clear else peek_pending_updates()
-    if updates:
-        lines = [f"- ({_relative_time(u.ts)}) {u.message}" for u in updates]
-        header = "RECENT BACKGROUND UPDATES:\n" + "\n".join(lines)
-        assembled = f"{ts} {header}\n\n{message}"
-    else:
-        assembled = f"{ts} {message}" if message else ts
-    log.debug("assembled context: %.500s", assembled)
-    return assembled
-
-
-_HELP_TOOL = "Bash(ollim-bot help)"
-
-
-def _apply_tool_restrictions(
-    opts: ClaudeAgentOptions,
-    allowed: list[str] | None,
-) -> ClaudeAgentOptions:
-    """Apply per-job tool restrictions to agent options.
-
-    Strips Write/Edit patterns that could reach the protected ``state/`` directory.
-    """
-    if allowed is not None:
-        tools = tool_policy.strip_state_dir_writes(allowed)
-        if _HELP_TOOL not in tools:
-            tools = [_HELP_TOOL, *tools]
-        return replace(opts, allowed_tools=tools)
-    return opts
-
-
-def _thinking(enabled: bool, budget: int = 10_000) -> ThinkingConfig:
-    """Build a ThinkingConfig from a boolean toggle and token budget."""
-    if enabled:
-        return {"type": "enabled", "budget_tokens": budget}
-    return {"type": "disabled"}
 
 
 class Agent:
@@ -380,7 +294,7 @@ class Agent:
             opts = replace(opts, model=model)
         if thinking is not None:
             opts = replace(opts, thinking=_thinking(thinking, runtime_config.load().max_thinking_tokens))
-        opts = _apply_tool_restrictions(opts, allowed_tools)
+        opts = tool_policy.apply_tool_restrictions(opts, allowed_tools)
         client = ClaudeSDKClient(opts)
         await client.connect()
         return client
@@ -397,7 +311,7 @@ class Agent:
         if model:
             opts = replace(opts, model=model)
         opts = replace(opts, thinking=_thinking(thinking, runtime_config.load().max_thinking_tokens))
-        opts = _apply_tool_restrictions(opts, allowed_tools)
+        opts = tool_policy.apply_tool_restrictions(opts, allowed_tools)
         client = ClaudeSDKClient(opts)
         await client.connect()
         return client
@@ -405,9 +319,9 @@ class Agent:
     async def run_on_client(self, client: ClaudeSDKClient, message: str, *, prepend_updates: bool = True) -> str:
         """Send a message on an explicit client, discard output, return session_id."""
         if prepend_updates:
-            message = await _prepend_context(message, clear=False)
+            message = await prepend_context(message, clear=False)
         else:
-            message = f"{_timestamp()} {message}"
+            message = f"{timestamp()} {message}"
         log.debug("run_on_client prompt: %.500s", message)
         await client.query(message)
 
@@ -451,7 +365,7 @@ class Agent:
                     if compacted:
                         log_session_event(msg.session_id, "compacted")
 
-        return _format_compact_stats(result_msg, pre_tokens)
+        return format_compact_stats(result_msg, pre_tokens)
 
     async def _run_slash(self, client: ClaudeSDKClient, command: str) -> tuple[list[str], ResultMessage | None]:
         """Send a slash command, return (text parts, ResultMessage)."""
@@ -489,24 +403,31 @@ class Agent:
     async def _resolve_client(self, message: str) -> tuple[ClaudeSDKClient, str]:
         """Pick the active client (fork or main) and prepend context."""
         if self._fork_client is not None:
-            message = await _prepend_context(message, clear=False)
+            message = await prepend_context(message, clear=False)
             return self._fork_client, message
-        message = await _prepend_context(message)
+        message = await prepend_context(message)
         client = await self._get_client()
         return client, message
+
+    def _try_capture_fork_session(self, session_id: str) -> None:
+        """Capture fork session ID idempotently (first call wins)."""
+        if self._fork_session_id is not None:
+            return
+        self._fork_session_id = session_id
+        log_session_event(session_id, "interactive_fork", parent_session_id=load_session_id())
 
     def _save_result_session(self, client: ClaudeSDKClient, msg: ResultMessage) -> None:
         """Save session ID from a ResultMessage."""
         if self._fork_client is not None and client is self._fork_client:
-            if self._fork_session_id is None:
-                self._fork_session_id = msg.session_id
-                log_session_event(
-                    msg.session_id,
-                    "interactive_fork",
-                    parent_session_id=load_session_id(),
-                )
+            self._try_capture_fork_session(msg.session_id)
         elif self._client is client:
             save_session_id(msg.session_id)
+
+    def _capture_fork_session(self, client: ClaudeSDKClient) -> Callable[[str], None] | None:
+        """Return a callback for fork session capture, or None if not in a fork."""
+        if self._fork_client is None or client is not self._fork_client:
+            return None
+        return self._try_capture_fork_session
 
     async def stream_chat(
         self,
@@ -514,140 +435,18 @@ class Agent:
         *,
         images: list[dict[str, str]] | None = None,
     ) -> AsyncGenerator[str | StreamStatus, None]:
-        """Yield text deltas and StreamStatus signals for live progress display.
-
-        Falls back to AssistantMessage text blocks if no StreamEvent arrives,
-        then to ResultMessage.result. Saves session ID on completion.
-
-        Detects mid-turn auto-compaction (context overflow) and transparently
-        retries ``receive_response()`` so the post-compaction response streams
-        through normally.
-        """
+        """Yield text deltas and StreamStatus signals for live progress display."""
         client, message = await self._resolve_client(message)
-
-        if images:
-            # SDK has no ImageBlock type -- images go through the raw
-            # streaming dict interface (AsyncIterable[dict]).  Content
-            # blocks use the Anthropic Messages API image format.
-            blocks: list[dict] = [
-                {
-                    "type": "image",
-                    "source": {
-                        "type": "base64",
-                        "media_type": img["media_type"],
-                        "data": img["data"],
-                    },
-                }
-                for img in images
-            ]
-            if message:
-                blocks.append({"type": "text", "text": message})
-
-            # query() accepts AsyncIterable[dict] -- yield a full user
-            # message envelope so the SDK forwards it as-is.
-            async def _user_message():
-                yield {
-                    "type": "user",
-                    "message": {"role": "user", "content": blocks},
-                    "parent_tool_use_id": None,
-                }
-
-            await client.query(_user_message())
-        else:
-            await client.query(message)
-
-        streamed = False
-        fallback_parts: list[str] = []
-        result_text: str | None = None
-        fork_interrupted = False
-        parser = StreamParser()
-        compacted = False
-        compact_tokens: int | None = None
-
-        async def _consume(response):
-            """Process messages from one receive_response() call."""
-            nonlocal streamed, fork_interrupted, result_text, compacted, compact_tokens
-
-            try:
-                async for msg in response:
-                    if isinstance(msg, SystemMessage):
-                        if msg.subtype == "compact_boundary":
-                            compacted = True
-                            meta = msg.data.get("compact_metadata", {})
-                            compact_tokens = meta.get("pre_tokens")
-                            log.warning("auto-compaction detected mid-turn")
-                        continue
-
-                    if isinstance(msg, StreamEvent):
-                        # Interrupt once when enter_fork tool fires; suppress
-                        # remaining StreamEvents but let the loop end naturally
-                        # so ResultMessage still saves the session ID.
-                        if not fork_interrupted and enter_fork_requested():
-                            fork_interrupted = True
-                            with contextlib.suppress(CLIConnectionError):
-                                await client.interrupt()
-                            continue
-                        if fork_interrupted:
-                            continue
-
-                        # Capture fork session ID from first StreamEvent
-                        if (
-                            self._fork_client is not None
-                            and client is self._fork_client
-                            and self._fork_session_id is None
-                        ):
-                            self._fork_session_id = msg.session_id
-                            log_session_event(
-                                msg.session_id,
-                                "interactive_fork",
-                                parent_session_id=load_session_id(),
-                            )
-
-                        async for item in parser.feed(msg.event):
-                            streamed = True
-                            yield item
-
-                    elif isinstance(msg, AssistantMessage) and not streamed:
-                        for block in msg.content:
-                            if isinstance(block, TextBlock):
-                                fallback_parts.append(block.text)
-                    elif isinstance(msg, ResultMessage):
-                        if msg.result:
-                            result_text = msg.result
-                        self._save_result_session(client, msg)
-            except CLIConnectionError:
-                if not fork_interrupted:
-                    raise
-
-            # Drain any active status (e.g. tool as last action in a pure-tool turn)
-            async for item in parser.drain():
-                streamed = True
+        try:
+            async for item in stream_response(
+                client,
+                message,
+                images=images,
+                on_fork_session=self._capture_fork_session(client),
+                on_result_session=self._save_result_session,
+            ):
+                if isinstance(item, StreamStatus) and item.kind == "compact_start":
+                    self._compacting = True
                 yield item
-
-        # First pass
-        async for item in _consume(client.receive_response()):
-            yield item
-
-        # Auto-compaction: when context overflows mid-turn, the SDK emits
-        # SystemMessage(subtype="compact_boundary") then ends the stream.
-        # The CLI waits for a new query — re-send the message so the agent
-        # responds against the freshly compacted context.
-        if compacted:
-            log.info("re-sending query after auto-compaction")
-            label = "Auto-compacting"
-            if compact_tokens is not None:
-                label += f" {compact_tokens / 1000:.0f}k tokens"
-            self._compacting = True
-            try:
-                yield StreamStatus(kind="compact_start", label=label, compact_tokens=compact_tokens)
-                await client.query(message)
-                async for item in _consume(client.receive_response()):
-                    yield item
-            finally:
-                self._compacting = False
-
-        if not streamed:
-            if fallback_parts:
-                yield "\n".join(fallback_parts)
-            elif result_text:
-                yield result_text
+        finally:
+            self._compacting = False

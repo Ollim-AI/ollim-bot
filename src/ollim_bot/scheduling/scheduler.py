@@ -26,16 +26,18 @@ from ollim_bot.agent_tools import (
 )
 from ollim_bot.config import TZ, USER_NAME
 from ollim_bot.embeds import fork_exit_embed
-from ollim_bot.forks import (
+from ollim_bot.fork_state import (
     BgForkConfig,
     idle_timeout,
     in_interactive_fork,
     is_idle,
-    run_agent_background,
-    send_agent_dm,
     set_prompted_at,
     should_auto_exit,
     touch_activity,
+)
+from ollim_bot.forks import (
+    run_agent_background,
+    send_agent_dm,
 )
 from ollim_bot.scheduling.preamble import (
     _convert_dow,
