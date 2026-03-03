@@ -239,8 +239,11 @@ class Agent:
         set_interactive_fork(True, idle_timeout=idle_timeout)
         touch_activity()
 
-    async def exit_interactive_fork(self, action: ForkExitAction) -> None:
-        """Exit interactive fork: promote (SAVE), report (REPORT), or discard (EXIT)."""
+    async def exit_interactive_fork(self, action: ForkExitAction) -> bool:
+        """Exit interactive fork: promote (SAVE), report (REPORT), or discard (EXIT).
+
+        Returns True if SAVE successfully promoted the fork to main session.
+        """
         cancel_pending()
         client = self._fork_client
         session_id = self._fork_session_id
@@ -249,15 +252,17 @@ class Agent:
         set_interactive_fork(False)
 
         if client is None:
-            return
+            return False
 
         if action is ForkExitAction.SAVE and session_id is not None:
             await self.swap_client(client, session_id)
-        else:
-            with contextlib.suppress(CLIConnectionError):
-                await client.interrupt()
-            with contextlib.suppress(RuntimeError):
-                await client.disconnect()
+            return True
+
+        with contextlib.suppress(CLIConnectionError):
+            await client.interrupt()
+        with contextlib.suppress(RuntimeError):
+            await client.disconnect()
+        return False
 
     async def pop_fork_exit(self) -> tuple[ForkExitAction, str | None] | None:
         """Pop pending exit action, exit the fork, return (action, summary) or None."""

@@ -165,8 +165,10 @@ async def _handle_fork_save(interaction: discord.Interaction, _data: str) -> Non
         if not in_interactive_fork():
             await interaction.followup.send("fork already ended.", ephemeral=True)
             return
-        await _agent.exit_interactive_fork(ForkExitAction.SAVE)
-    await interaction.followup.send(embed=fork_exit_embed(ForkExitAction.SAVE, "context saved"))
+        saved = await _agent.exit_interactive_fork(ForkExitAction.SAVE)
+    summary = "context saved" if saved else "fork discarded (no session to save)"
+    action = ForkExitAction.SAVE if saved else ForkExitAction.EXIT
+    await interaction.followup.send(embed=fork_exit_embed(action, summary))
 
 
 async def _handle_fork_report(interaction: discord.Interaction, _data: str) -> None:
