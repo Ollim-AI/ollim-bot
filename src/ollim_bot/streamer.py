@@ -203,19 +203,19 @@ async def stream_to_channel(
         chunk = buf[msg_start:]
         if not chunk or not stale:
             return
-        split = _split_point(msg_start)
+        end = _split_point(msg_start) if len(chunk) > MAX_MSG_LEN else len(buf)
         if msg is None:
-            msg = await channel.send(buf[msg_start:split])
+            msg = await channel.send(buf[msg_start:end])
             track_message(msg.id)
         else:
-            await msg.edit(content=buf[msg_start:split])
+            await msg.edit(content=buf[msg_start:end])
         if len(chunk) <= MAX_MSG_LEN:
             stale = False
             return
         while len(buf) - msg_start > MAX_MSG_LEN:
-            msg_start = split
-            split = _split_point(msg_start)
-            remaining = buf[msg_start:split]
+            msg_start = end
+            end = _split_point(msg_start)
+            remaining = buf[msg_start:end]
             if remaining:
                 msg = await channel.send(remaining)
                 track_message(msg.id)
