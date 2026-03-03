@@ -43,10 +43,16 @@ _FORK_EXIT_COLORS: dict[ForkExitAction, discord.Color] = {
     ForkExitAction.EXIT: discord.Color.greyple(),
 }
 
+_FORK_EXIT_TITLES: dict[ForkExitAction, str] = {
+    ForkExitAction.SAVE: "Fork Ended — saved to main",
+    ForkExitAction.REPORT: "Fork Ended — summary queued",
+    ForkExitAction.EXIT: "Fork Ended — discarded",
+}
+
 
 def fork_exit_embed(action: ForkExitAction, summary: str | None = None) -> discord.Embed:
     return discord.Embed(
-        title="Fork Ended",
+        title=_FORK_EXIT_TITLES[action],
         description=summary,
         color=_FORK_EXIT_COLORS[action],
     )
