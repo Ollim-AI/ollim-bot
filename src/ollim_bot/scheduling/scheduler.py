@@ -225,9 +225,7 @@ def _register_reminder(
                         "Reminder %s: model/isolated only apply to background reminders",
                         reminder.id,
                     )
-                if chain_ctx:
-                    set_chain_context(chain_ctx)
-                await send_agent_dm(agent, prompt)
+                await send_agent_dm(agent, prompt, chain_ctx=chain_ctx)
         except Exception:
             log.exception("Reminder %s failed", reminder.id)
             raise
