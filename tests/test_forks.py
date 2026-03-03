@@ -393,7 +393,11 @@ def test_concurrent_append_and_clear(data_dir):
 
 
 def test_many_concurrent_appends(data_dir):
-    """Stress test: 20 concurrent append_update calls — capped at MAX_PENDING_UPDATES."""
+    """Stress test: 20 concurrent append_update calls — capped at MAX_PENDING_UPDATES.
+
+    When the cap is exceeded a sentinel entry is prepended, so the result
+    contains at most MAX_PENDING_UPDATES entries (real updates + one sentinel).
+    """
 
     async def _scenario():
         tasks = [asyncio.create_task(append_update(f"update-{i}")) for i in range(20)]
@@ -401,9 +405,13 @@ def test_many_concurrent_appends(data_dir):
 
         result = await pop_pending_updates()
         assert len(result) == MAX_PENDING_UPDATES
-        # All messages must be from the original set (no corruption)
+        real = [u for u in result if not u.message.startswith("(")]
+        sentinels = [u for u in result if u.message.startswith("(")]
+        # At most one sentinel in the final list
+        assert len(sentinels) <= 1
+        # All real messages must be from the original set (no corruption)
         all_expected = {f"update-{i}" for i in range(20)}
-        assert all(u.message in all_expected for u in result)
+        assert all(u.message in all_expected for u in real)
 
     _run(_scenario())
 
