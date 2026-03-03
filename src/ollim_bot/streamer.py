@@ -291,5 +291,5 @@ async def stream_to_channel(
 
     if not buf and not enter_fork_requested() and not was_compacted:
         log.error("empty agent response — no text or tool output received")
-        msg = await channel.send("error: empty response from agent.")
+        msg = await channel.send("no response — try again.")
         track_message(msg.id)
