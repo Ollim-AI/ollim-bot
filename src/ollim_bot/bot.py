@@ -471,9 +471,12 @@ def create_bot() -> commands.Bot:
             if not interaction.response.is_done():
                 await interaction.response.send_message("not authorized", ephemeral=True)
             return
-        log.error("Slash command error: %s", error)
+        log.exception("slash command error", exc_info=error)
         if not interaction.response.is_done():
             await interaction.response.send_message("something went wrong.", ephemeral=True)
+        else:
+            with contextlib.suppress(discord.NotFound, discord.HTTPException):
+                await interaction.followup.send("something went wrong.", ephemeral=True)
         raise error
 
     return bot

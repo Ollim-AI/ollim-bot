@@ -187,16 +187,18 @@ async def stream_to_channel(
         """Find a natural split point within MAX_MSG_LEN from start.
 
         Prefers the last newline, then last space, then hard boundary.
+        Only accepts a natural break if it falls within the last 200 chars
+        of the window — splitting too early wastes message capacity.
         """
         end = start + MAX_MSG_LEN
+        threshold = end - 200
         split = buf.rfind("\n", start, end)
-        if split == -1:
-            split = buf.rfind(" ", start, end)
-        if split == -1:
-            split = end
-        else:
-            split += 1  # include the newline/space in the current message
-        return split
+        if split >= threshold:
+            return split + 1  # include the newline in the current message
+        split = buf.rfind(" ", start, end)
+        if split >= threshold:
+            return split + 1  # include the space in the current message
+        return end
 
     async def flush() -> None:
         nonlocal msg, msg_start, stale
