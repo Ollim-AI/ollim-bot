@@ -184,9 +184,8 @@ def test_get_status_at_capacity(data_dir):
 
     status = ping_budget.get_status()
 
-    assert "5/5 available" in status
-    assert "refills 1 every 90 min" in status
-    assert "next in" not in status  # at capacity, no refill line
+    assert "budget: 5/5" in status
+    assert "next refill" not in status  # at capacity, no refill line
 
 
 def test_get_status_below_capacity(data_dir):
@@ -205,8 +204,8 @@ def test_get_status_below_capacity(data_dir):
 
     status = ping_budget.get_status()
 
-    assert "3/5 available" in status
-    assert "next in" in status
+    assert "budget: 3/5" in status
+    assert "next refill in" in status
 
 
 def test_get_status_shows_daily_used(data_dir):

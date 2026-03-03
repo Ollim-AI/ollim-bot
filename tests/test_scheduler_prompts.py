@@ -114,8 +114,8 @@ def test_bg_routine_prompt_includes_budget(data_dir):
 
     prompt = build_routine_prompt(routine, reminders=[], routines=[routine])
 
-    assert "available" in prompt
     assert "Ping budget" in prompt
+    assert "budget:" in prompt
 
 
 def test_bg_reminder_prompt_includes_budget(data_dir):
@@ -128,8 +128,8 @@ def test_bg_reminder_prompt_includes_budget(data_dir):
 
     prompt = build_reminder_prompt(reminder, reminders=[reminder], routines=[])
 
-    assert "available" in prompt
     assert "Ping budget" in prompt
+    assert "budget:" in prompt
 
 
 def test_fg_routine_prompt_unchanged(data_dir):
