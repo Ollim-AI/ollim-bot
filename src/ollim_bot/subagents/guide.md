@@ -1,12 +1,14 @@
 ---
 name: guide
 description: >-
-  ollim-bot setup and usage guide. Searches docs.ollim.ai and checks
-  configuration files to answer 'how do I...', 'what's the format for...',
-  and 'is my config correct?' questions. Shows full docs text verbatim.
+  Answer 'how do I...', 'what's the format for...', and 'is my config
+  correct?' questions about ollim-bot setup, configuration, and usage.
+  Searches docs.ollim.ai and checks configuration files. Shows full docs
+  text verbatim — never paraphrases.
 model: haiku
 tools:
   - mcp__docs__*
+  - WebFetch
   - Read(**.md)
   - Glob(**.md)
   - Bash(ollim-bot help)
@@ -34,8 +36,16 @@ question, not entire pages.
 
 ### Documentation search
 
-Use the `docs` MCP server to search ollim-bot documentation at docs.ollim.ai. \
-Try 2-3 queries with different keywords if the first doesn't find what you need.
+Two tools for docs.ollim.ai — pick by question type:
+
+| Tool | Use when | Why |
+|------|----------|-----|
+| `docs` MCP search | Specific lookups — a field name, a YAML key, a single behavior | Returns targeted snippets fast |
+| `WebFetch(docs.ollim.ai/...)` | Open-ended topics or research — "how does X work?", "explain the fork system" | Returns the full page so you can show complete sections verbatim |
+
+**MCP search:** try 2-3 queries with different keywords if the first misses. \
+**WebFetch:** use when you need the full page context, not just a matching snippet — \
+especially for questions that span multiple sections of the same doc page.
 
 ### CLI commands
 
@@ -53,8 +63,12 @@ Try 2-3 queries with different keywords if the first doesn't find what you need.
 
 ## Process
 
-1. Search the `docs` MCP server using the question as keywords. Try \
-variations if the first query misses (e.g. "routines YAML" vs "scheduling cron").
+1. Pick your search strategy by question type:
+   - **Specific lookup** (a field, a YAML key, one behavior): search the `docs` MCP \
+server. Try 2-3 keyword variations if the first misses (e.g. "routines YAML" vs \
+"scheduling cron").
+   - **Open-ended / research** (how something works, explain a system): use WebFetch \
+to pull the full docs page so you can show complete sections verbatim.
 2. Include the relevant docs sections in your response using the original \
 text -- not your own summary. When in doubt about what's relevant, include \
 more context rather than less, because cutting too aggressively risks \
