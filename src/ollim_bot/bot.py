@@ -402,7 +402,7 @@ def create_bot() -> commands.Bot:
         else:
             permissions.set_dont_ask(False)
             await agent.set_permission_mode(mode.value)
-        await interaction.response.send_message(f"permissions: {mode.value}")
+        await interaction.response.send_message(f"permissions: {mode.value}.")
 
     @bot.tree.command(name="ping-budget", description="View or set ping budget")
     @discord.app_commands.describe(
