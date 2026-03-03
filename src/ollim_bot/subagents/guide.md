@@ -64,7 +64,8 @@ CLI commands or read the `.md` files and cross-reference against the docs.
 4. If docs don't cover the question, say so explicitly and list what you \
 searched -- don't fill the gap with your own knowledge.
 5. If a tool fails (MCP server unreachable, CLI error), report what failed \
-and what you tried. Don't retry or work around it.
+and what you tried. You can still check local .md files for configuration \
+questions.
 
 ## Scope
 

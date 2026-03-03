@@ -26,7 +26,7 @@ Always use `claude-history` directly (not `uv run claude-history`).
 
 ### File discovery
 
-Glob `*.md` at the workspace root to find identity and preference files -- \
+Glob `*.md` at the workspace root (`~/.ollim-bot/`) to find identity and preference files -- \
 these are not hardcoded, read whatever exists. Also glob `routines/*.md` \
 and `reminders/*.md` for current commitments and schedule preferences.
 
