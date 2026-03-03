@@ -109,14 +109,29 @@ def _extract_prompt_tag(prompt: str) -> str:
     return "bg fork"
 
 
+def _tag_to_human_name(tag: str) -> str:
+    """Convert a raw prompt tag to a human-readable task name.
+
+    '[routine-bg:morning-checkin]' → 'morning checkin'
+    'bg fork' → 'background task'
+    """
+    inner = tag.strip("[]")
+    if ":" in inner:
+        slug = inner.split(":", 1)[1]
+    else:
+        slug = inner
+    return slug.replace("-", " ")
+
+
 async def _notify_fork_failure(
     channel: discord.abc.Messageable, tag: str, *, timed_out: bool = False, timeout_seconds: int = 0
 ) -> None:
     """Best-effort DM notification when a bg fork fails or times out."""
+    name = _tag_to_human_name(tag)
     if timed_out:
-        msg = f"Background task timed out after {timeout_seconds // 60} minutes: `{tag}`"
+        msg = f"{name} timed out after {timeout_seconds // 60} minutes."
     else:
-        msg = f"Background task failed: `{tag}` -- check logs for details."
+        msg = f"{name} couldn't complete."
     with contextlib.suppress(Exception):
         await channel.send(msg)
 
