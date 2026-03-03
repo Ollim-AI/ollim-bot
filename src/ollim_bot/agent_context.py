@@ -76,7 +76,11 @@ async def prepend_context(message: str, *, clear: bool = True) -> str:
     updates = (await pop_pending_updates()) if clear else peek_pending_updates()
     if updates:
         lines = [f"- ({_relative_time(u.ts)}) {u.message}" for u in updates]
-        header = "RECENT BACKGROUND UPDATES:\n" + "\n".join(lines)
+        if clear:
+            label = "RECENT BACKGROUND UPDATES (mention key findings in your response)"
+        else:
+            label = "RECENT BACKGROUND UPDATES (read-only — main session will also see these)"
+        header = f"{label}:\n" + "\n".join(lines)
         assembled = f"{ts} {header}\n\n{message}"
     else:
         assembled = f"{ts} {message}" if message else ts
