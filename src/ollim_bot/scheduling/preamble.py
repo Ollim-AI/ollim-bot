@@ -229,7 +229,9 @@ def build_bg_preamble(
         update_section = (
             "This runs on a forked session -- by default everything is discarded.\n"
             "You may optionally call `report_updates(message)` to update the main "
-            "session on what happened -- or just finish without it.\n\n"
+            "session on what happened -- or just finish without it.\n"
+            "If you pinged the user, also call `report_updates` so the main "
+            "session has context for your outreach.\n\n"
         )
     elif mode == "blocked":
         if config.allow_ping:

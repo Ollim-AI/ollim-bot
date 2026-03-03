@@ -17,6 +17,7 @@ from ollim_bot.channel import init_channel
 from ollim_bot.config import BOT_NAME, USER_NAME
 from ollim_bot.embeds import fork_enter_embed, fork_enter_view, fork_exit_embed
 from ollim_bot.fork_state import (
+    ForkExitAction,
     clear_prompted,
     enter_fork_requested,
     in_interactive_fork,
@@ -177,8 +178,15 @@ def create_bot() -> commands.Bot:
     @bot.tree.command(name="clear", description="Clear conversation and start fresh")
     @discord.app_commands.check(_owner_check)
     async def slash_clear(interaction: discord.Interaction):
+        was_in_fork = agent.in_fork
         await agent.clear()
-        await interaction.response.send_message("conversation cleared. fresh start.")
+        if was_in_fork:
+            channel = interaction.channel
+            assert isinstance(channel, discord.abc.Messageable)
+            await channel.send(embed=fork_exit_embed(ForkExitAction.EXIT, None))
+            await interaction.response.send_message("fork discarded, conversation cleared.", ephemeral=True)
+        else:
+            await interaction.response.send_message("conversation cleared. fresh start.", ephemeral=True)
 
     @bot.tree.command(name="compact", description="Compress conversation context")
     @discord.app_commands.describe(instructions="Optional focus for the summary")
