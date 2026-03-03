@@ -9,6 +9,7 @@ import hmac
 import json as json_mod
 import logging
 import os
+import string
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
@@ -52,6 +53,14 @@ def load_webhook(slug: str) -> WebhookSpec | None:
         if spec.id == slug:
             return spec
     return None
+
+
+_FORMATTER = string.Formatter()
+
+
+def _missing_template_fields(template: str, data: dict[str, Any]) -> list[str]:
+    """Return template field names not present in data."""
+    return [name for _, name, _, _ in _FORMATTER.parse(template) if name is not None and name not in data]
 
 
 _DEFAULT_MAX_LENGTH = 500
@@ -254,6 +263,12 @@ async def _handle_webhook(request: web.Request) -> web.Response:
     if agent:
         busy = agent.lock().locked()
 
+    missing = _missing_template_fields(spec.message, data)
+    if missing:
+        return web.json_response(
+            {"error": f"payload missing fields referenced in template: {missing}"},
+            status=400,
+        )
     prompt = build_webhook_prompt(spec, data, busy=busy)
     process_fn: Callable = request.app[_KEY_PROCESS_FN]
     owner = request.app.get(_KEY_OWNER)
