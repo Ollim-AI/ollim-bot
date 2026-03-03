@@ -25,7 +25,7 @@ from ollim_bot.fork_state import (
     touch_activity,
 )
 from ollim_bot.scheduling import setup_scheduler
-from ollim_bot.sessions import load_session_id, lookup_fork_session
+from ollim_bot.sessions import is_expired_fork_message, load_session_id, lookup_fork_session
 from ollim_bot.streamer import stream_to_channel
 from ollim_bot.views import ActionButton
 from ollim_bot.views import init as init_views
@@ -320,10 +320,6 @@ def create_bot() -> commands.Bot:
         images = await _read_images(message.attachments)
 
         # Reply handling: fork-from-reply or quote context
-        # Gap: lookup_fork_session returns None for both "never tracked" and "expired
-        # after 7 days" — we can't distinguish them without sessions.py exposing
-        # expired-entry detection. A TTL-expired reply silently degrades to quoted
-        # context with no signal (#5).
         ref = message.reference
         fork_session_id: str | None = None
         if ref and ref.message_id:
@@ -332,6 +328,8 @@ def create_bot() -> commands.Bot:
                 fork_session_id = None
                 await message.channel.send("-# already in a fork — reply added as context instead.")
             if not fork_session_id:
+                if is_expired_fork_message(ref.message_id):
+                    await message.channel.send("-# this session has expired — starting fresh with quoted context.")
                 try:
                     replied = ref.resolved or await message.channel.fetch_message(ref.message_id)
                     if isinstance(replied, discord.Message):

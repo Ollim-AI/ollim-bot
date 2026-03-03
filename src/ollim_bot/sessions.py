@@ -164,6 +164,15 @@ def lookup_fork_session(message_id: int) -> str | None:
     return None
 
 
+def is_expired_fork_message(message_id: int) -> bool:
+    """True if message_id was tracked as a fork message but has expired past TTL."""
+    if not FORK_MESSAGES_FILE.exists():
+        return False
+    data: list[_ForkMessageRecord] = json.loads(FORK_MESSAGES_FILE.read_text())
+    cutoff = time.time() - _MAX_AGE
+    return any(r["message_id"] == message_id and r["ts"] <= cutoff for r in data)
+
+
 def _read_fork_messages() -> list[_ForkMessageRecord]:
     if not FORK_MESSAGES_FILE.exists():
         return []
