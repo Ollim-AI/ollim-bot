@@ -14,6 +14,7 @@ import urllib.request
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import discord
 from dotenv import load_dotenv
 
 if TYPE_CHECKING:
@@ -167,6 +168,14 @@ async def _run(bot: Bot, token: str) -> None:
         await bot.start(token)
     except asyncio.CancelledError:
         pass  # Signal handler already notified and closed
+    except discord.LoginFailure:
+        print("Invalid Discord token. Check DISCORD_TOKEN in .env", file=sys.stderr)
+        print("Get a new token: Discord Developer Portal > Bot > Reset Token", file=sys.stderr)
+        raise SystemExit(1) from None
+    except discord.PrivilegedIntentsRequired:
+        print("Message Content Intent is not enabled.", file=sys.stderr)
+        print("Enable it: Discord Developer Portal > Bot > Privileged Gateway Intents", file=sys.stderr)
+        raise SystemExit(1) from None
     except Exception as e:
         await _notify_exit(bot, f"{type(e).__name__}: {e}")
         raise
