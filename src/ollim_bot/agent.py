@@ -37,6 +37,7 @@ from ollim_bot.fork_state import (
     touch_activity,
 )
 from ollim_bot.forks import peek_pending_updates
+from ollim_bot.hooks import auto_commit_hook
 from ollim_bot.permissions import (
     cancel_pending,
     handle_tool_permission,
@@ -76,7 +77,10 @@ class Agent:
             },
             allowed_tools=tool_policy.build_superset(tool_sets),
             permission_mode="default",
-            hooks={"Stop": [HookMatcher(hooks=[require_report_hook])]},
+            hooks={
+                "Stop": [HookMatcher(hooks=[require_report_hook])],
+                "PostToolUse": [HookMatcher(matcher="Write|Edit", hooks=[auto_commit_hook])],
+            },
         )
 
         cfg = runtime_config.load()
