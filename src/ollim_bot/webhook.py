@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, Any
 from aiohttp import web
 from jsonschema import Draft7Validator
 
+from ollim_bot.agent_context import thinking_mode
 from ollim_bot.storage import DATA_DIR, read_md_dir
 
 if TYPE_CHECKING:
@@ -206,7 +207,7 @@ async def _default_process(
         agent,
         prompt,
         model=spec.model,
-        thinking=spec.thinking,
+        thinking=thinking_mode(spec.thinking),
         isolated=spec.isolated,
         bg_config=bg_config,
     )
@@ -217,7 +218,7 @@ async def _screen_with_haiku(agent: Agent, string_fields: dict[str, str]) -> lis
     from claude_agent_sdk import AssistantMessage, ResultMessage, TextBlock
 
     prompt = build_screening_prompt(string_fields)
-    client = await agent.create_isolated_client(model="haiku", thinking=False)
+    client = await agent.create_isolated_client(model="haiku", thinking="off")
     try:
         await client.query(prompt)
         text = ""

@@ -15,15 +15,15 @@ _MODELS = {"opus", "sonnet", "haiku"}
 _PERMISSION_MODES = {"dontAsk", "default", "acceptEdits", "bypassPermissions"}
 _BOOL_TRUE = {"on", "true", "1", "yes"}
 _BOOL_FALSE = {"off", "false", "0", "no"}
+_THINKING_NAMED = {"off", "adaptive"}
 
 
 @dataclass(frozen=True, slots=True)
 class RuntimeConfig:
     model_main: str | None = None  # None = SDK default
     model_fork: str | None = None  # None = inherit from model_main
-    thinking_main: bool = False
-    thinking_fork: bool = True
-    max_thinking_tokens: int = 10_000
+    thinking_main: str = "off"  # "off" | "adaptive" | str(budget_tokens int)
+    thinking_fork: str = "adaptive"
     bg_fork_timeout: int = 1800  # seconds
     fork_idle_timeout: int = 10  # minutes
     permission_mode: str = "dontAsk"
@@ -44,9 +44,8 @@ class _KeyMeta(NamedTuple):
 _KEY_META: dict[str, _KeyMeta] = {
     "model_main": _KeyMeta("model.main", "Default model for main session", "model"),
     "model_fork": _KeyMeta("model.fork", "Default model for interactive forks", "model"),
-    "thinking_main": _KeyMeta("thinking.main", "Extended thinking for main session", "bool"),
-    "thinking_fork": _KeyMeta("thinking.fork", "Extended thinking for interactive forks", "bool"),
-    "max_thinking_tokens": _KeyMeta("thinking.max_tokens", "Token budget when thinking is on", "int"),
+    "thinking_main": _KeyMeta("thinking.main", "Extended thinking for main session", "thinking"),
+    "thinking_fork": _KeyMeta("thinking.fork", "Extended thinking for interactive forks", "thinking"),
     "bg_fork_timeout": _KeyMeta("bg_fork_timeout", "Max background fork runtime (seconds)", "int"),
     "fork_idle_timeout": _KeyMeta("fork_idle_timeout", "Interactive fork idle timeout (minutes)", "int"),
     "permission_mode": _KeyMeta("permission_mode", "Default permission mode", "permission_mode"),
@@ -58,13 +57,26 @@ _KEY_META: dict[str, _KeyMeta] = {
 VALID_KEYS = frozenset(_KEY_META)
 
 
+def _migrate_thinking(value: object) -> str:
+    """Convert legacy bool thinking values to string mode."""
+    if value is True:
+        return "adaptive"
+    if value is False:
+        return "off"
+    return str(value)
+
+
 def load() -> RuntimeConfig:
     """Read config from disk; return defaults if missing."""
     if not CONFIG_FILE.exists():
         return _DEFAULTS
     data = json.loads(CONFIG_FILE.read_text())
     known = {f.name for f in fields(RuntimeConfig)}
-    return RuntimeConfig(**{k: v for k, v in data.items() if k in known})
+    filtered = {k: v for k, v in data.items() if k in known}
+    for key in ("thinking_main", "thinking_fork"):
+        if key in filtered and isinstance(filtered[key], bool):
+            filtered[key] = _migrate_thinking(filtered[key])
+    return RuntimeConfig(**filtered)
 
 
 def save(config: RuntimeConfig) -> None:
@@ -89,6 +101,13 @@ def _parse_value(key: str, raw: str) -> str | int | bool | None:
         if lowered in _BOOL_FALSE:
             return False
         raise ValueError("must be on/off")
+    if meta.kind == "thinking":
+        lowered = raw.lower().strip()
+        if lowered in _THINKING_NAMED:
+            return lowered
+        if lowered.isdigit() and int(lowered) > 0:
+            return lowered
+        raise ValueError("must be 'off', 'adaptive', or a positive integer (budget tokens)")
     if meta.kind == "int":
         stripped = raw.strip()
         if not stripped.isdigit():
@@ -141,6 +160,11 @@ def _format_value(key: str, value: str | int | bool | None) -> str:
 
     if meta.kind == "bool":
         label = "on" if value else "off"
+        return f"{label} (default)" if is_default else label
+
+    if meta.kind == "thinking":
+        s = str(value)
+        label = f"{int(s) // 1000}k budget" if s.isdigit() else s
         return f"{label} (default)" if is_default else label
 
     if key == "bg_fork_timeout":

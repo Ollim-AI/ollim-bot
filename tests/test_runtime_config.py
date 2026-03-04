@@ -23,12 +23,22 @@ def test_load_returns_defaults_when_no_file(data_dir):
 
 
 def test_save_and_load_round_trip(data_dir):
-    cfg = RuntimeConfig(model_main="opus", thinking_fork=False)
+    cfg = RuntimeConfig(model_main="opus", thinking_fork="off")
     save(cfg)
 
     loaded = load()
     assert loaded.model_main == "opus"
-    assert loaded.thinking_fork is False
+    assert loaded.thinking_fork == "off"
+
+
+def test_load_migrates_legacy_bool_thinking(data_dir):
+    cfg_file = runtime_config_mod.CONFIG_FILE
+    cfg_file.parent.mkdir(parents=True, exist_ok=True)
+    cfg_file.write_text('{"thinking_main": false, "thinking_fork": true}')
+
+    cfg = load()
+    assert cfg.thinking_main == "off"
+    assert cfg.thinking_fork == "adaptive"
 
 
 def test_load_ignores_unknown_keys(data_dir):
@@ -54,12 +64,11 @@ def test_load_ignores_unknown_keys(data_dir):
         ("model_main", "", None),
         ("model_fork", "haiku", "haiku"),
         ("model_fork", "null", None),
-        ("thinking_main", "on", True),
-        ("thinking_main", "off", False),
-        ("thinking_main", "true", True),
-        ("thinking_main", "false", False),
-        ("thinking_fork", "off", False),
-        ("max_thinking_tokens", "20000", 20000),
+        ("thinking_main", "off", "off"),
+        ("thinking_main", "adaptive", "adaptive"),
+        ("thinking_main", "8000", "8000"),
+        ("thinking_fork", "off", "off"),
+        ("thinking_fork", "32000", "32000"),
         ("bg_fork_timeout", "3600", 3600),
         ("fork_idle_timeout", "5", 5),
         ("permission_mode", "default", "default"),
@@ -79,10 +88,8 @@ def test_set_value_valid(data_dir, key, raw, expected):
     [
         ("model_main", "gpt4"),
         ("thinking_main", "maybe"),
-        ("max_thinking_tokens", "-1"),
-        ("max_thinking_tokens", "abc"),
-        ("max_thinking_tokens", "0"),
-        ("max_thinking_tokens", "00"),
+        ("thinking_main", "0"),
+        ("thinking_main", "-1"),
         ("bg_fork_timeout", "0"),
         ("fork_idle_timeout", "0"),
         ("permission_mode", "admin"),

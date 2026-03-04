@@ -88,8 +88,18 @@ async def prepend_context(message: str, *, clear: bool = True) -> str:
     return assembled
 
 
-def thinking(enabled: bool, budget: int = 10_000) -> ThinkingConfig:
-    """Build a ThinkingConfig from a boolean toggle and token budget."""
-    if enabled:
-        return {"type": "enabled", "budget_tokens": budget}
-    return {"type": "disabled"}
+def thinking_mode(enabled: bool) -> str:
+    """Convert a bool thinking flag to a mode string."""
+    return "adaptive" if enabled else "off"
+
+
+def thinking(mode: str) -> ThinkingConfig:
+    """Build a ThinkingConfig from a mode string.
+
+    mode: "off" → disabled, "adaptive" → adaptive, digit string → enabled with that budget.
+    """
+    if mode == "off":
+        return {"type": "disabled"}
+    if mode == "adaptive":
+        return {"type": "adaptive"}
+    return {"type": "enabled", "budget_tokens": int(mode)}

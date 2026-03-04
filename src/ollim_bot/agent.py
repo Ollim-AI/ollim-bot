@@ -60,6 +60,11 @@ from ollim_bot.streamer import StreamStatus
 log = logging.getLogger(__name__)
 
 
+def _with_thinking(opts: ClaudeAgentOptions, mode: str) -> ClaudeAgentOptions:
+    """Apply a thinking mode string to options."""
+    return replace(opts, thinking=_thinking(mode))
+
+
 class Agent:
     def __init__(self) -> None:
         all_skills = list_skills()
@@ -86,8 +91,7 @@ class Agent:
         cfg = runtime_config.load()
         if cfg.model_main:
             self.options = replace(self.options, model=cfg.model_main)
-        if cfg.thinking_main:
-            self.options = replace(self.options, thinking=_thinking(True, cfg.max_thinking_tokens))
+        self.options = _with_thinking(self.options, cfg.thinking_main)
 
         self._client: ClaudeSDKClient | None = None
         self._fork_client: ClaudeSDKClient | None = None
@@ -141,9 +145,9 @@ class Agent:
         if self._fork_client:
             await self._fork_client.set_model(model)
 
-    async def set_thinking(self, enabled: bool) -> None:
-        """Toggle extended thinking. Drops clients to apply (no live setter)."""
-        self.options = replace(self.options, thinking=_thinking(enabled, runtime_config.load().max_thinking_tokens))
+    async def set_thinking(self, mode: str) -> None:
+        """Set thinking mode. Drops clients to apply (no live setter)."""
+        self.options = _with_thinking(self.options, mode)
         await self._drop_client()
         if self._fork_client:
             cancel_pending()
@@ -180,7 +184,8 @@ class Agent:
             if self._fork_client and model:
                 await self._fork_client.set_model(model)
         elif key == "thinking_main":
-            self.options = replace(self.options, thinking=_thinking(cfg.thinking_main, cfg.max_thinking_tokens))
+            self.options = _with_thinking(self.options, cfg.thinking_main)
+            await self._drop_client()
         elif key in (
             "thinking_fork",
             "bg_fork_timeout",
@@ -190,10 +195,6 @@ class Agent:
             "auto_update_hour",
         ):
             pass  # takes effect on next cycle / next fork
-        elif key == "max_thinking_tokens":
-            cur = self.options.thinking
-            if cur and cur["type"] == "enabled":
-                self.options = replace(self.options, thinking=_thinking(True, cfg.max_thinking_tokens))
         elif key == "permission_mode":
             permissions.set_dont_ask(cfg.permission_mode == "dontAsk")
             mode = "default" if cfg.permission_mode == "dontAsk" else cfg.permission_mode
@@ -291,7 +292,7 @@ class Agent:
         session_id: str | None = None,
         *,
         fork: bool = True,
-        thinking: bool | None = None,
+        thinking: str | None = None,
         model: str | None = None,
         allowed_tools: list[str] | None = None,
     ) -> ClaudeSDKClient:
@@ -310,7 +311,7 @@ class Agent:
         if model:
             opts = replace(opts, model=model)
         if thinking is not None:
-            opts = replace(opts, thinking=_thinking(thinking, runtime_config.load().max_thinking_tokens))
+            opts = _with_thinking(opts, thinking)
         opts = tool_policy.apply_tool_restrictions(opts, allowed_tools)
         client = ClaudeSDKClient(opts)
         await client.connect()
@@ -320,14 +321,14 @@ class Agent:
         self,
         *,
         model: str | None = None,
-        thinking: bool = True,
+        thinking: str = "adaptive",
         allowed_tools: list[str] | None = None,
     ) -> ClaudeSDKClient:
         """Create a standalone client with no conversation history."""
         opts = self.options
         if model:
             opts = replace(opts, model=model)
-        opts = replace(opts, thinking=_thinking(thinking, runtime_config.load().max_thinking_tokens))
+        opts = _with_thinking(opts, thinking)
         opts = tool_policy.apply_tool_restrictions(opts, allowed_tools)
         client = ClaudeSDKClient(opts)
         await client.connect()
