@@ -10,6 +10,7 @@ import logging
 import os
 import signal
 import sys
+import urllib.error
 import urllib.request
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -185,8 +186,16 @@ def _discord_api(token: str, method: str, path: str, body: dict | None = None) -
     headers = {"Authorization": f"Bot {token}", "Content-Type": "application/json"}
     data = json.dumps(body).encode() if body else None
     req = urllib.request.Request(url, data=data, headers=headers, method=method)
-    with urllib.request.urlopen(req) as resp:
-        return json.loads(resp.read())
+    try:
+        with urllib.request.urlopen(req) as resp:
+            return json.loads(resp.read())
+    except urllib.error.HTTPError as e:
+        if e.code == 401:
+            print("Discord API returned 401 — DISCORD_TOKEN appears invalid.", file=sys.stderr)
+            print("Check that DISCORD_TOKEN in .env matches the token from", file=sys.stderr)
+            print("Discord Developer Portal > Bot > Reset Token.", file=sys.stderr)
+            raise SystemExit(1) from e
+        raise
 
 
 def _dm_owner(token: str, message: str) -> None:
