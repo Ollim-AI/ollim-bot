@@ -26,6 +26,7 @@ from ollim_bot.agent_tools import (
     set_chain_context,
     set_fork_chain_context,
 )
+from ollim_bot.channel import get_channel
 from ollim_bot.config import TZ, USER_NAME
 from ollim_bot.embeds import fork_exit_embed
 from ollim_bot.fork_state import (
@@ -41,6 +42,7 @@ from ollim_bot.forks import (
     run_agent_background,
     send_agent_dm,
 )
+from ollim_bot.google.auth import check_and_clear_revoked
 from ollim_bot.scheduling.preamble import (
     _convert_dow,
     build_reminder_prompt,
@@ -273,6 +275,10 @@ def setup_scheduler(bot: discord.Client, agent: Agent, owner: discord.User) -> A
             if job:
                 job.remove()
             _registered_reminders.discard(stale_id)
+
+        _ch = get_channel()
+        if _ch and check_and_clear_revoked():
+            await _ch.send("-# google auth revoked — use /google-auth to reconnect.")
 
     # max_instances=2 prevents APScheduler from refusing to schedule a second
     # invocation (which logs a warning). _fork_check_busy is the real guard:

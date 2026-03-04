@@ -4,7 +4,9 @@ import asyncio
 import base64
 import contextlib
 import logging
+from collections.abc import Callable
 from typing import Literal, cast
+from urllib.parse import urlparse
 
 import discord
 from claude_agent_sdk import CLIConnectionError
@@ -123,6 +125,8 @@ def create_bot() -> commands.Bot:
     )
     agent = Agent()
     _ready_fired = False
+    _google_auth_tasks: set[asyncio.Task] = set()
+    _pending_auth: dict[str, Callable[[str], None] | None] = {"complete": None}
 
     async def _dispatch(
         channel: discord.abc.Messageable,
@@ -322,6 +326,14 @@ def create_bot() -> commands.Bot:
 
         await message.add_reaction("\N{EYES}")
 
+        # Cross-device OAuth: user pastes the redirect URL that failed on their device
+        if _pending_auth["complete"] is not None and content.startswith("http://127.0.0.1:") and "code=" in content:
+            _pending_auth["complete"](urlparse(content).query)
+            with contextlib.suppress(discord.NotFound):
+                if bot.user:
+                    await message.remove_reaction("\N{EYES}", bot.user)
+            return
+
         images = await _read_images(message.attachments)
 
         # Reply handling: fork-from-reply or quote context
@@ -513,6 +525,47 @@ def create_bot() -> commands.Bot:
 
         await interaction.response.send_message("restarting...")
         log_and_restart()
+
+    @bot.tree.command(name="google-auth", description="Connect Google account via OAuth")
+    @discord.app_commands.check(_owner_check)
+    async def slash_google_auth(interaction: discord.Interaction) -> None:
+        from ollim_bot.channel import get_channel
+        from ollim_bot.google.auth import CREDENTIALS_FILE, is_google_connected, start_google_auth_flow
+
+        if not CREDENTIALS_FILE.exists():
+            await interaction.response.send_message(
+                f"google credentials not found at `{CREDENTIALS_FILE}`.\n"
+                "set up OAuth credentials (desktop app type) at console.cloud.google.com first.",
+                ephemeral=True,
+            )
+            return
+
+        if is_google_connected():
+            await interaction.response.send_message("google already connected.", ephemeral=True)
+            return
+
+        auth_url, complete_from_paste, future = await start_google_auth_flow()
+        _pending_auth["complete"] = complete_from_paste
+        await interaction.response.send_message(
+            f"click to connect google:\n{auth_url}\n-# on another device? paste the redirect url here · 5 min timeout",
+            ephemeral=True,
+        )
+
+        async def _on_done() -> None:
+            channel = get_channel()
+            (result,) = await asyncio.gather(future, return_exceptions=True)
+            _pending_auth["complete"] = None
+            if isinstance(result, TimeoutError):
+                pass  # user didn't complete auth; no notification needed
+            elif isinstance(result, BaseException):
+                log.exception("google auth error", exc_info=result)
+                await channel.send("google auth failed.")
+            else:
+                await channel.send("google connected.")
+
+        task = asyncio.create_task(_on_done())
+        task.add_done_callback(_google_auth_tasks.discard)
+        _google_auth_tasks.add(task)
 
     @bot.tree.error
     async def on_app_command_error(
