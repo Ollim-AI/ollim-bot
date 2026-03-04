@@ -1,7 +1,6 @@
 """Agent SDK hooks for auto-committing file changes."""
 
 import asyncio
-import logging
 from pathlib import Path
 from typing import cast
 
@@ -13,8 +12,6 @@ from claude_agent_sdk.types import (
 )
 
 from ollim_bot.storage import DATA_DIR, git_commit
-
-log = logging.getLogger(__name__)
 
 
 async def auto_commit_hook(
@@ -37,10 +34,11 @@ async def auto_commit_hook(
         file_path = cwd / file_path
 
     # Only auto-commit files within DATA_DIR.
-    if not file_path.is_relative_to(DATA_DIR):
+    resolved = file_path.resolve()
+    if not resolved.is_relative_to(DATA_DIR.resolve()):
         return {}
 
-    rel = file_path.relative_to(DATA_DIR)
+    rel = resolved.relative_to(DATA_DIR.resolve())
     message = f"auto: {tool_name.lower()} {rel}"
     await asyncio.to_thread(git_commit, file_path, message)
     return {}
