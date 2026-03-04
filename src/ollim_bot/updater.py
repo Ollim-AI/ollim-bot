@@ -127,6 +127,25 @@ def format_error(exc: subprocess.CalledProcessError | subprocess.TimeoutExpired)
     return f"`{cmd}` returned {exc.returncode}"
 
 
+def format_commit_summary(commit_summary: str, *, max_lines: int = 5) -> str:
+    """Truncate a multi-line commit log for display."""
+    lines = commit_summary.splitlines()
+    summary = "\n".join(lines[:max_lines])
+    if len(lines) > max_lines:
+        summary += f"\n... and {len(lines) - max_lines} more"
+    return summary
+
+
+def log_and_restart() -> None:
+    """Log a restarting event (if session exists) and replace the process."""
+    from ollim_bot.sessions import load_session_id, log_session_event
+
+    session_id = load_session_id()
+    if session_id:
+        log_session_event(session_id, "restarting")
+    restart_process()
+
+
 def restart_process() -> None:
     """Replace the current process with a fresh one via os.execv.
 

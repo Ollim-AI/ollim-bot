@@ -1,5 +1,6 @@
 """Discord bot that talks to Claude Agent SDK."""
 
+import asyncio
 import base64
 import contextlib
 import logging
@@ -442,6 +443,7 @@ def create_bot() -> commands.Bot:
             discord.app_commands.Choice(name="permission_mode", value="permission_mode"),
             discord.app_commands.Choice(name="auto_update", value="auto_update"),
             discord.app_commands.Choice(name="auto_update_interval", value="auto_update_interval"),
+            discord.app_commands.Choice(name="auto_update_hour", value="auto_update_hour"),
         ]
     )
     @discord.app_commands.check(_owner_check)
@@ -463,6 +465,50 @@ def create_bot() -> commands.Bot:
             return
         await agent.apply_config(key.value)
         await interaction.response.send_message(runtime_config.format_one(key.value))
+
+    @bot.tree.command(name="update", description="Check for updates and apply immediately")
+    @discord.app_commands.check(_owner_check)
+    async def slash_update(interaction: discord.Interaction):
+        import subprocess
+
+        from ollim_bot.storage import PROJECT_DIR
+        from ollim_bot.updater import (
+            apply_update,
+            check_for_updates,
+            format_commit_summary,
+            format_error,
+            log_and_restart,
+        )
+
+        await interaction.response.defer()
+        try:
+            status = await asyncio.to_thread(check_for_updates, PROJECT_DIR)
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+            await interaction.followup.send(f"git fetch failed: {format_error(exc)}")
+            return
+
+        if not status.available:
+            await interaction.followup.send("already up to date.")
+            return
+
+        try:
+            await asyncio.to_thread(apply_update, PROJECT_DIR)
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+            await interaction.followup.send(f"update failed: {format_error(exc)}")
+            return
+
+        summary = format_commit_summary(status.commit_summary)
+        await interaction.followup.send(f"updating and restarting...\n```\n{summary}\n```")
+
+        log_and_restart()
+
+    @bot.tree.command(name="restart", description="Restart the bot process")
+    @discord.app_commands.check(_owner_check)
+    async def slash_restart(interaction: discord.Interaction):
+        from ollim_bot.updater import log_and_restart
+
+        await interaction.response.send_message("restarting...")
+        log_and_restart()
 
     @bot.tree.error
     async def on_app_command_error(

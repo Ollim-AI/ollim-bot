@@ -29,6 +29,7 @@ class RuntimeConfig:
     permission_mode: str = "dontAsk"
     auto_update: bool = False
     auto_update_interval: int = 60  # minutes
+    auto_update_hour: int = 6  # 0-23, hour when updates are applied
 
 
 _DEFAULTS = RuntimeConfig()
@@ -51,6 +52,7 @@ _KEY_META: dict[str, _KeyMeta] = {
     "permission_mode": _KeyMeta("permission_mode", "Default permission mode", "permission_mode"),
     "auto_update": _KeyMeta("auto_update", "Auto-pull and restart on new commits", "bool"),
     "auto_update_interval": _KeyMeta("auto_update_interval", "Update check interval (minutes)", "int"),
+    "auto_update_hour": _KeyMeta("auto_update_hour", "Hour to apply updates (0-23)", "hour"),
 }
 
 VALID_KEYS = frozenset(_KEY_META)
@@ -94,6 +96,14 @@ def _parse_value(key: str, raw: str) -> str | int | bool | None:
         val = int(stripped)
         if val <= 0:
             raise ValueError("must be a positive integer")
+        return val
+    if meta.kind == "hour":
+        stripped = raw.strip()
+        if not stripped.isdigit():
+            raise ValueError("must be an integer 0-23")
+        val = int(stripped)
+        if val > 23:
+            raise ValueError("must be an integer 0-23")
         return val
     if meta.kind == "permission_mode":
         stripped = raw.strip()
@@ -139,6 +149,10 @@ def _format_value(key: str, value: str | int | bool | None) -> str:
 
     if key in ("fork_idle_timeout", "auto_update_interval"):
         label = f"{value}m"
+        return f"{label} (default)" if is_default else label
+
+    if meta.kind == "hour":
+        label = f"{value}:00"
         return f"{label} (default)" if is_default else label
 
     label = str(value)
