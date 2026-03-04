@@ -301,7 +301,11 @@ def create_bot() -> commands.Bot:
         if resumed:
             await dm.send("hey, i'm back. picking up where we left off.")
         else:
-            await dm.send(f"hey {USER_NAME.lower()}, {BOT_NAME} is online. what's on your plate today?")
+            await dm.send(
+                f"hey {USER_NAME.lower()}, {BOT_NAME} is online. i can set up morning check-ins, "
+                "manage your tasks and calendar, and remind you about things before they slip. "
+                "what's on your plate today?"
+            )
 
     @bot.event
     async def on_message(message: discord.Message):
