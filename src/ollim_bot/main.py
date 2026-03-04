@@ -91,14 +91,35 @@ def _ensure_sdk_layout() -> None:
             target.symlink_to(source)
 
 
+def _is_bot_running(pid: int) -> bool:
+    """Check if a process is alive, with Linux-specific name verification."""
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        pass  # Process exists but we can't signal it — check name below
+
+    # On Linux, verify it's actually ollim-bot (not a recycled PID)
+    proc_cmdline = Path(f"/proc/{pid}/cmdline")
+    if proc_cmdline.exists():
+        return "ollim-bot" in proc_cmdline.read_bytes().decode(errors="replace")
+
+    # Non-Linux: process exists (os.kill didn't raise ProcessLookupError)
+    return True
+
+
 def _check_already_running() -> None:
     STATE_DIR.mkdir(parents=True, exist_ok=True)
     if PID_FILE.exists():
-        pid = int(PID_FILE.read_text().strip())
-        proc_cmdline = Path(f"/proc/{pid}/cmdline")
-        if proc_cmdline.exists() and "ollim-bot" in proc_cmdline.read_bytes().decode(errors="replace"):
-            print(f"ollim-bot is already running (pid {pid})")
-            raise SystemExit(1)
+        try:
+            pid = int(PID_FILE.read_text().strip())
+        except (ValueError, OSError):
+            pass  # Corrupted PID file — overwrite below
+        else:
+            if _is_bot_running(pid):
+                print(f"ollim-bot is already running (pid {pid})")
+                raise SystemExit(1)
     PID_FILE.write_text(str(os.getpid()))
     atexit.register(PID_FILE.unlink, missing_ok=True)
 
