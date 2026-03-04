@@ -39,6 +39,7 @@ Never write working data into the source repo or source code into `~/.ollim-bot/
 - `prompts.py` -- System prompt for the main agent and fork prompt helpers
 - `subagents.py` -- Bundled agent installation (`install_agents`) and tool-set extraction (`load_agent_tool_sets`) for policy validation; specs in `subagents/*.md`
 - `agent_tools.py` -- MCP tools: `discord_embed`, `ping_user`, `follow_up_chain`, `save_context`, `report_updates`, `enter_fork`, `exit_fork`
+- `hooks.py` -- Agent SDK hooks: `auto_commit_hook` (PostToolUse — auto-commits .md file changes in DATA_DIR)
 - `channel.py` -- DM channel reference, set once at startup (`init_channel`/`get_channel`)
 - `webhook.py` -- Webhook HTTP server for external triggers (aiohttp, auth, validation, Haiku screening, dispatch)
 - `fork_state.py` -- Pure fork state: enums (`ForkExitAction`), dataclasses (`BgForkConfig`), contextvars, accessors (zero internal imports — leaf dependency)
