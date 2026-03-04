@@ -46,7 +46,7 @@ _KEY_META: dict[str, _KeyMeta] = {
     "model_fork": _KeyMeta("model.fork", "Default model for interactive forks", "model"),
     "thinking_main": _KeyMeta("thinking.main", "Extended thinking for main session", "bool"),
     "thinking_fork": _KeyMeta("thinking.fork", "Extended thinking for interactive forks", "bool"),
-    "max_thinking_tokens": _KeyMeta("max_thinking_tokens", "Token budget when thinking is on", "int"),
+    "max_thinking_tokens": _KeyMeta("thinking.max_tokens", "Token budget when thinking is on", "int"),
     "bg_fork_timeout": _KeyMeta("bg_fork_timeout", "Max background fork runtime (seconds)", "int"),
     "fork_idle_timeout": _KeyMeta("fork_idle_timeout", "Interactive fork idle timeout (minutes)", "int"),
     "permission_mode": _KeyMeta("permission_mode", "Default permission mode", "permission_mode"),
