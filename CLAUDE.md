@@ -99,6 +99,8 @@ Never write working data into the source repo or source code into `~/.ollim-bot/
 - `/permissions <dontAsk|default|acceptEdits|bypassPermissions>` -- switch permission mode (fork-scoped)
 - `/ping-budget [capacity] [refill_rate]` -- view or configure ping budget
 - `/config [key] [value]` -- view or set persistent runtime config
+- `/update` -- check for updates and apply immediately (ignores hour window)
+- `/restart` -- restart the bot process immediately
 - Synced via `bot.tree.sync()` in `on_ready`
 
 ## Discord embeds & buttons
@@ -171,9 +173,10 @@ Optional env vars:
 - `WEBHOOK_SECRET` — required if `WEBHOOK_PORT` is set
 
 ## Auto-update
-- Config: `auto_update` (bool, default off), `auto_update_interval` (int minutes, default 60)
-- Scheduler polls every 5 min; actual check respects `auto_update_interval`
-- Flow: `git fetch` → compare HEAD vs tracking branch → `git pull --ff-only` → `uv sync` → DM owner → `os.execv`
+- Config: `auto_update` (bool, default off), `auto_update_interval` (int minutes, default 60), `auto_update_hour` (int 0-23, default 6)
+- Scheduler polls every 5 min; actual check respects `auto_update_interval`; apply gated on `auto_update_hour` match
+- Flow: `git fetch` → compare HEAD vs tracking branch → wait for hour window → `git pull --ff-only` → `uv sync` → DM owner → `os.execv`
+- `/update` bypasses the hour gate and applies immediately; `/restart` restarts without updating
 - Safety: deferred when `agent.lock()` held; `--ff-only` rejects diverged branches
 - `os.execv` replaces process in-place (same PID); PID file deleted before exec (atexit doesn't fire)
 - Logs `restarting` event to `session_history.jsonl` before restart

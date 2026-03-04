@@ -177,7 +177,14 @@ class Agent:
                 await self._fork_client.set_model(model)
         elif key == "thinking_main":
             self.options = replace(self.options, thinking=_thinking(cfg.thinking_main, cfg.max_thinking_tokens))
-        elif key in ("thinking_fork", "bg_fork_timeout", "fork_idle_timeout", "auto_update", "auto_update_interval"):
+        elif key in (
+            "thinking_fork",
+            "bg_fork_timeout",
+            "fork_idle_timeout",
+            "auto_update",
+            "auto_update_interval",
+            "auto_update_hour",
+        ):
             pass  # takes effect on next cycle / next fork
         elif key == "max_thinking_tokens":
             cur = self.options.thinking
