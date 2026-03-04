@@ -270,13 +270,25 @@ async def stream_to_channel(
                     await _set_status("")
                 elif item.kind == "tool_start":
                     await _set_status(item.label)
-                else:  # phase_end
-                    await _clear_status()
+                else:  # phase_end — defer clear until text arrives to avoid blank gap
+                    pass
             else:
                 if in_compact:
                     await _finalize_compact()
                 elif status_label is not None:
-                    await _clear_status()
+                    if msg is None and status_msg is not None:
+                        # Promote status message to text message: edit in-place
+                        # instead of delete → blank → new send.
+                        msg = status_msg
+                        status_msg = None
+                        status_label = None
+                        track_message(msg.id)
+                        buf += item
+                        stale = True
+                        await flush()
+                        continue
+                    else:
+                        await _clear_status()
                 buf += item
                 stale = True
     finally:

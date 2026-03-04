@@ -128,23 +128,20 @@ async def test_mid_response_compaction_produces_three_messages():
         ),
     )
 
-    # 4 messages: initial status (deleted by first text), pre-compact text,
+    # 3 messages: initial status promoted to pre-compact text (no blank gap),
     # compaction annotation, post-compact text.
-    assert len(ch.messages) == 4
+    assert len(ch.messages) == 3
 
-    initial = ch.messages[0]
-    assert initial.deleted  # initial "Thinking..." cleared by text arrival
-
-    pre = ch.messages[1]
+    pre = ch.messages[0]
     assert pre.content == "before compaction"
-    assert not pre.deleted
+    assert not pre.deleted  # status promoted in-place, not deleted
 
-    annotation = ch.messages[2]
+    annotation = ch.messages[1]
     assert "auto-compacted" in annotation.content
     assert "30k tokens" in annotation.content
     assert not annotation.deleted
 
-    post = ch.messages[3]
+    post = ch.messages[2]
     assert post.content == "after compaction"
 
 
@@ -170,12 +167,10 @@ async def test_compact_finalized_by_thinking_start():
     assert "auto-compacted" in annotation.content
     assert not annotation.deleted
 
-    # Thinking status was created then deleted
-    thinking = ch.messages[1]
-    assert thinking.deleted
-
-    response = ch.messages[2]
+    # Thinking status promoted in-place to text message (no blank gap)
+    response = ch.messages[1]
     assert response.content == "response text"
+    assert not response.deleted
 
 
 @pytest.mark.asyncio
@@ -226,8 +221,8 @@ async def test_compact_finalized_at_cleanup_when_no_content_follows():
 
 
 @pytest.mark.asyncio
-async def test_normal_status_still_deleted():
-    """Regular thinking/tool status messages are still deleted (not finalized)."""
+async def test_status_promoted_to_text_message():
+    """Status message is promoted in-place to text message — no blank gap, no deletion."""
     ch = FakeChannel()
 
     await _stream(
@@ -239,8 +234,8 @@ async def test_normal_status_still_deleted():
         ),
     )
 
-    status = ch.messages[0]
-    assert status.deleted
-
-    response = ch.messages[1]
-    assert response.content == "response"
+    # Only one message: former status promoted and edited with actual content
+    assert len(ch.messages) == 1
+    msg = ch.messages[0]
+    assert not msg.deleted
+    assert msg.content == "response"
