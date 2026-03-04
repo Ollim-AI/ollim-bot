@@ -218,10 +218,20 @@ def main() -> None:
 
     load_dotenv(PROJECT_DIR / ".env")
 
-    token = os.environ.get("DISCORD_TOKEN")
-    if not token:
-        print("Set DISCORD_TOKEN in .env")
+    missing: list[str] = []
+    if not os.environ.get("DISCORD_TOKEN"):
+        missing.append("DISCORD_TOKEN    (bot token from Discord Developer Portal)")
+    if not os.environ.get("OLLIM_USER_NAME"):
+        missing.append("OLLIM_USER_NAME  (your first name — the bot will call you this)")
+    if not os.environ.get("OLLIM_BOT_NAME"):
+        missing.append("OLLIM_BOT_NAME   (your bot's name, e.g. Ollim)")
+    if missing:
+        print("Missing required env vars in .env:", file=sys.stderr)
+        for m in missing:
+            print(f"  {m}", file=sys.stderr)
         raise SystemExit(1)
+
+    token = os.environ["DISCORD_TOKEN"]
 
     from ollim_bot.auth import is_authenticated
 
