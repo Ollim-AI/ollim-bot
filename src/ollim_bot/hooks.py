@@ -33,9 +33,9 @@ async def auto_commit_hook(
     if not file_path.is_absolute():
         file_path = cwd / file_path
 
-    # Only auto-commit files within DATA_DIR.
+    # Only auto-commit markdown files within DATA_DIR.
     resolved = file_path.resolve()
-    if not resolved.is_relative_to(DATA_DIR.resolve()):
+    if resolved.suffix != ".md" or not resolved.is_relative_to(DATA_DIR.resolve()):
         return {}
 
     rel = resolved.relative_to(DATA_DIR.resolve())
