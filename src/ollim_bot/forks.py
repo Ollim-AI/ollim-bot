@@ -149,7 +149,7 @@ async def run_agent_background(
     prompt: str,
     *,
     model: str | None = None,
-    thinking: bool = True,
+    thinking: str = "adaptive",
     isolated: bool = False,
     bg_config: BgForkConfig | None = None,
 ) -> None:

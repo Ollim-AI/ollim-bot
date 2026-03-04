@@ -247,21 +247,24 @@ def create_bot() -> commands.Bot:
         await agent.set_model(cast(ModelName, name.value))
         await interaction.response.send_message(f"switched to {name.value}.")
 
-    @bot.tree.command(name="thinking", description="Toggle extended thinking")
-    @discord.app_commands.describe(enabled="Turn thinking on or off")
+    @bot.tree.command(name="thinking", description="Set thinking mode")
+    @discord.app_commands.describe(mode="off, adaptive, or a token budget (e.g. 8000)")
     @discord.app_commands.check(_owner_check)
     @discord.app_commands.choices(
-        enabled=[
-            discord.app_commands.Choice(name="on", value="on"),
+        mode=[
             discord.app_commands.Choice(name="off", value="off"),
+            discord.app_commands.Choice(name="adaptive", value="adaptive"),
+            discord.app_commands.Choice(name="8k budget", value="8000"),
+            discord.app_commands.Choice(name="32k budget", value="32000"),
+            discord.app_commands.Choice(name="64k budget", value="64000"),
         ]
     )
-    async def slash_thinking(interaction: discord.Interaction, enabled: discord.app_commands.Choice[str]):
+    async def slash_thinking(interaction: discord.Interaction, mode: discord.app_commands.Choice[str]):
         if agent.in_fork:
             await interaction.response.send_message("exit fork first.", ephemeral=True)
             return
-        await agent.set_thinking(enabled.value == "on")
-        await interaction.response.send_message(f"thinking: {enabled.value}.")
+        await agent.set_thinking(mode.value)
+        await interaction.response.send_message(f"thinking: {mode.name}.")
 
     @bot.event
     async def on_ready():
@@ -453,7 +456,6 @@ def create_bot() -> commands.Bot:
             discord.app_commands.Choice(name="model.fork", value="model_fork"),
             discord.app_commands.Choice(name="thinking.main", value="thinking_main"),
             discord.app_commands.Choice(name="thinking.fork", value="thinking_fork"),
-            discord.app_commands.Choice(name="thinking.max_tokens", value="max_thinking_tokens"),
             discord.app_commands.Choice(name="bg_fork_timeout", value="bg_fork_timeout"),
             discord.app_commands.Choice(name="fork_idle_timeout", value="fork_idle_timeout"),
             discord.app_commands.Choice(name="permission_mode", value="permission_mode"),

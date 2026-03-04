@@ -21,6 +21,7 @@ from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
+from ollim_bot.agent_context import thinking_mode
 from ollim_bot.agent_tools import (
     ChainContext,
     set_chain_context,
@@ -131,7 +132,7 @@ def _register_routine(
                     agent,
                     prompt,
                     model=routine.model,
-                    thinking=routine.thinking,
+                    thinking=thinking_mode(routine.thinking),
                     isolated=routine.isolated,
                     bg_config=bg_config,
                 )
@@ -221,7 +222,7 @@ def _register_reminder(
                     agent,
                     prompt,
                     model=reminder.model,
-                    thinking=reminder.thinking,
+                    thinking=thinking_mode(reminder.thinking),
                     isolated=reminder.isolated,
                     bg_config=bg_config,
                 )
