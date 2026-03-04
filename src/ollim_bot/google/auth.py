@@ -4,6 +4,8 @@ Add new scopes to SCOPES when integrating additional Google services.
 After adding scopes, delete ~/.ollim-bot/state/token.json to re-consent.
 """
 
+import sys
+
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -36,10 +38,13 @@ def get_credentials() -> Credentials:
         TOKEN_FILE.write_text(creds.to_json())
         return creds
 
-    assert CREDENTIALS_FILE.exists(), (
-        f"Missing {CREDENTIALS_FILE} -- download OAuth client credentials "
-        "from Google Cloud Console and save at that path"
-    )
+    if not CREDENTIALS_FILE.exists():
+        print(f"Google credentials not found at {CREDENTIALS_FILE}", file=sys.stderr)
+        print("To set up Google integration:", file=sys.stderr)
+        print("  1. Go to https://console.cloud.google.com/", file=sys.stderr)
+        print("  2. Create OAuth credentials (Desktop application type)", file=sys.stderr)
+        print(f"  3. Save the JSON file to {CREDENTIALS_FILE}", file=sys.stderr)
+        raise SystemExit(1)
     flow = InstalledAppFlow.from_client_secrets_file(str(CREDENTIALS_FILE), SCOPES)
     creds = flow.run_local_server(port=0, bind_addr="127.0.0.1")
     STATE_DIR.mkdir(parents=True, exist_ok=True)
