@@ -9,6 +9,7 @@ import json
 import logging
 import os
 import signal
+import subprocess
 import sys
 import urllib.request
 from pathlib import Path
@@ -69,6 +70,11 @@ def _ensure_sdk_layout() -> None:
     from ollim_bot.subagents import install_agents
 
     DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+    # Auto-init git for versioned backups
+    if not (DATA_DIR / ".git").exists():
+        subprocess.run(["git", "init"], cwd=DATA_DIR, capture_output=True)
+        print(f"Initialized git tracking in {DATA_DIR}")
 
     # Bundled agents → .claude/agents/
     install_agents()
