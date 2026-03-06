@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import time
 from contextvars import ContextVar
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import Enum
 from typing import Any
 
@@ -88,19 +88,49 @@ class BgForkConfig:
     def from_item(cls, item: Any) -> BgForkConfig:
         """Build from a Routine, Reminder, or WebhookSpec.
 
-        When allowed_tools is not declared, applies MINIMAL_BG_TOOLS as the
-        default (principle of least privilege).
+        MINIMAL_BG_TOOLS are always present — they form the communication channel
+        back to the user. User-declared tools are merged in after them. Duplicates
+        are dropped so declaring a system tool explicitly has no effect.
         """
         from ollim_bot.tool_policy import MINIMAL_BG_TOOLS
 
-        allowed = item.allowed_tools
-        if allowed is None:
-            allowed = list(MINIMAL_BG_TOOLS)
+        base = list(MINIMAL_BG_TOOLS)
+        declared = item.allowed_tools
+        allowed = base if declared is None else base + [t for t in declared if t not in base]
         return cls(
             update_main_session=item.update_main_session,
             allow_ping=item.allow_ping,
             allowed_tools=allowed,
         )
+
+
+# ---------------------------------------------------------------------------
+# BgForkConfig restriction helpers — applied in scheduler and webhook dispatch
+# ---------------------------------------------------------------------------
+
+_PING_TOOLS = ["mcp__discord__ping_user", "mcp__discord__discord_embed"]
+_REPORTING_TOOLS = ["mcp__discord__report_updates", "mcp__discord__follow_up_chain"]
+
+
+def apply_ping_restrictions(config: BgForkConfig) -> BgForkConfig:
+    """Strip ping/embed tools from SDK when allow_ping is false."""
+    if config.allow_ping:
+        return config
+    filtered = [t for t in (config.allowed_tools or []) if t not in _PING_TOOLS]
+    return replace(config, allowed_tools=filtered)
+
+
+def apply_reporting_restrictions(config: BgForkConfig) -> BgForkConfig:
+    """Strip report_updates/follow_up_chain from SDK when update_main_session is blocked.
+
+    Upgrades from a runtime-only check to a proper SDK-level permission gate,
+    consistent with apply_ping_restrictions(). The runtime check in report_updates
+    is retained as defense-in-depth.
+    """
+    if config.update_main_session != "blocked":
+        return config
+    filtered = [t for t in (config.allowed_tools or []) if t not in _REPORTING_TOOLS]
+    return replace(config, allowed_tools=filtered)
 
 
 _bg_fork_config_var: ContextVar[BgForkConfig] = ContextVar(

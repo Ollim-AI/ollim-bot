@@ -32,6 +32,8 @@ from ollim_bot.config import TZ, USER_NAME
 from ollim_bot.embeds import fork_exit_embed
 from ollim_bot.fork_state import (
     BgForkConfig,
+    apply_ping_restrictions,
+    apply_reporting_restrictions,
     idle_timeout,
     in_interactive_fork,
     is_idle,
@@ -63,8 +65,6 @@ log = logging.getLogger(__name__)
 _registered_routines: set[str] = set()
 _registered_reminders: set[str] = set()
 
-_PING_TOOLS = ["mcp__discord__ping_user", "mcp__discord__discord_embed"]
-
 
 def _merge_skill_tools(config: BgForkConfig, skills: list[Skill]) -> BgForkConfig:
     """Merge tool dependencies from pre-loaded skills into the config.
@@ -80,17 +80,6 @@ def _merge_skill_tools(config: BgForkConfig, skills: list[Skill]) -> BgForkConfi
         if tool not in merged:
             merged.append(tool)
     return replace(config, allowed_tools=merged)
-
-
-def _apply_ping_restrictions(config: BgForkConfig) -> BgForkConfig:
-    """Hide ping/embed tools from SDK when allow_ping is false.
-
-    BgForkConfig.from_item always sets allowed_tools, so we filter directly.
-    """
-    if config.allow_ping:
-        return config
-    filtered = [t for t in (config.allowed_tools or []) if t not in _PING_TOOLS]
-    return replace(config, allowed_tools=filtered)
 
 
 def _register_routine(
@@ -112,7 +101,8 @@ def _register_routine(
         if routine.background:
             bg_config = BgForkConfig.from_item(routine)
             bg_config = _merge_skill_tools(bg_config, skills)
-            bg_config = _apply_ping_restrictions(bg_config)
+            bg_config = apply_ping_restrictions(bg_config)
+            bg_config = apply_reporting_restrictions(bg_config)
             reminders = list_reminders()
             routines = list_routines()
         # build_routine_prompt runs _expand_commands (sync subprocess, up to 30s)
@@ -180,7 +170,8 @@ def _register_reminder(
         if reminder.background:
             bg_config = BgForkConfig.from_item(reminder)
             bg_config = _merge_skill_tools(bg_config, skills)
-            bg_config = _apply_ping_restrictions(bg_config)
+            bg_config = apply_ping_restrictions(bg_config)
+            bg_config = apply_reporting_restrictions(bg_config)
             all_reminders = list_reminders()
             all_routines = list_routines()
         # build_reminder_prompt runs _expand_commands (sync subprocess, up to 30s)

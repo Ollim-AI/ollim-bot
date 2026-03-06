@@ -538,9 +538,11 @@ def test_bg_fork_config_from_item_applies_minimal_default():
     assert config.allowed_tools == MINIMAL_BG_TOOLS
 
 
-def test_bg_fork_config_from_item_explicit_tools_preserved():
-    """Explicit allowed_tools in item → not overridden by minimal default."""
+def test_bg_fork_config_from_item_explicit_tools_merged_with_minimal():
+    """Explicit allowed_tools are merged with MINIMAL_BG_TOOLS, not replaced."""
     from typing import ClassVar
+
+    from ollim_bot.tool_policy import MINIMAL_BG_TOOLS
 
     class FakeItem:
         update_main_session = "on_ping"
@@ -549,7 +551,28 @@ def test_bg_fork_config_from_item_explicit_tools_preserved():
 
     config = BgForkConfig.from_item(FakeItem())
 
-    assert config.allowed_tools == ["Bash(ollim-bot tasks *)", "Read(**.md)"]
+    assert config.allowed_tools is not None
+    for tool in MINIMAL_BG_TOOLS:
+        assert tool in config.allowed_tools
+    assert "Bash(ollim-bot tasks *)" in config.allowed_tools
+    assert "Read(**.md)" in config.allowed_tools
+    # system tools come first
+    assert config.allowed_tools[: len(MINIMAL_BG_TOOLS)] == list(MINIMAL_BG_TOOLS)
+
+
+def test_bg_fork_config_from_item_deduplicates_system_tools():
+    """Declaring a system MCP tool explicitly doesn't duplicate it."""
+    from typing import ClassVar
+
+    class FakeItem:
+        update_main_session = "on_ping"
+        allow_ping = True
+        allowed_tools: ClassVar[list[str]] = ["mcp__discord__ping_user", "Read"]
+
+    config = BgForkConfig.from_item(FakeItem())
+
+    assert config.allowed_tools is not None
+    assert config.allowed_tools.count("mcp__discord__ping_user") == 1
 
 
 # --- BgForkTracking ---

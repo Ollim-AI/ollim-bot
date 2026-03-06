@@ -95,7 +95,7 @@ def build_webhook_prompt(
     busy: bool = False,
 ) -> str:
     """Build tagged prompt with content fencing between data and instructions."""
-    from ollim_bot.fork_state import BgForkConfig
+    from ollim_bot.fork_state import BgForkConfig, apply_ping_restrictions, apply_reporting_restrictions
     from ollim_bot.scheduling.preamble import (
         build_bg_preamble,
         build_upcoming_schedule,
@@ -104,6 +104,8 @@ def build_webhook_prompt(
     from ollim_bot.scheduling.routines import list_routines
 
     bg_config = BgForkConfig.from_item(spec)
+    bg_config = apply_ping_restrictions(bg_config)
+    bg_config = apply_reporting_restrictions(bg_config)
     schedule = build_upcoming_schedule(list_routines(), list_reminders(), current_id=spec.id)
     preamble = build_bg_preamble(schedule, busy=busy, bg_config=bg_config)
 
@@ -192,7 +194,7 @@ async def _default_process(
     prompt: str,
 ) -> None:
     """Default processor: screen with Haiku, then dispatch bg fork."""
-    from ollim_bot.fork_state import BgForkConfig
+    from ollim_bot.fork_state import BgForkConfig, apply_ping_restrictions, apply_reporting_restrictions
     from ollim_bot.forks import run_agent_background
 
     string_fields = extract_string_fields(spec, data)
@@ -203,6 +205,8 @@ async def _default_process(
             return
 
     bg_config = BgForkConfig.from_item(spec)
+    bg_config = apply_ping_restrictions(bg_config)
+    bg_config = apply_reporting_restrictions(bg_config)
     await run_agent_background(
         agent,
         prompt,
