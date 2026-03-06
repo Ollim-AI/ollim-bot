@@ -117,6 +117,13 @@ def apply_update(project_dir: Path) -> None:
         check=True,
         timeout=_UV_SYNC_TIMEOUT,
     )
+    subprocess.run(
+        ["uv", "tool", "install", "--editable", "."],
+        cwd=project_dir,
+        capture_output=True,
+        check=True,
+        timeout=_UV_SYNC_TIMEOUT,
+    )
 
 
 def format_error(exc: subprocess.CalledProcessError | subprocess.TimeoutExpired) -> str:
