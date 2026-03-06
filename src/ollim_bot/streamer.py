@@ -54,10 +54,11 @@ class StreamParser:
 
         if etype == "content_block_start":
             block = event["content_block"]
-            is_tool = block["type"] == "tool_use"
+            btype = block["type"]
+            is_tool = btype == "tool_use"
             async for item in self._drain(defer=is_tool):
                 yield item
-            if block["type"] == "thinking":
+            if btype in ("thinking", "redacted_thinking"):
                 yield StreamStatus(kind="thinking_start")
                 self._status_active = True
             elif is_tool:
@@ -66,8 +67,11 @@ class StreamParser:
 
         elif etype == "content_block_delta":
             delta = event["delta"]
-            if delta.get("type") == "input_json_delta":
+            dtype = delta.get("type", "")
+            if dtype == "input_json_delta":
                 self._tool_input_buf += delta.get("partial_json", "")
+            elif dtype in ("thinking_delta", "redacted_thinking_delta"):
+                pass  # thinking content hidden — timer shown instead
             elif text := delta.get("text", ""):
                 async for item in self._drain(defer=False):
                     yield item

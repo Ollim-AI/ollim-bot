@@ -1,4 +1,4 @@
-"""Tests for StreamParser — tool label rendering and denial marking."""
+"""Tests for StreamParser — tool label rendering, denial marking, and thinking suppression."""
 
 import pytest
 
@@ -16,6 +16,10 @@ def _block_stop() -> dict:
 
 def _text_delta(text: str) -> dict:
     return {"type": "content_block_delta", "delta": {"type": "text_delta", "text": text}}
+
+
+def _thinking_delta(thinking: str) -> dict:
+    return {"type": "content_block_delta", "delta": {"type": "thinking_delta", "thinking": thinking}}
 
 
 def _input_delta(json_fragment: str) -> dict:
@@ -162,3 +166,88 @@ def test_is_denied_returns_false_for_unknown():
     reset()
 
     assert is_denied("Read(foo.md)") is False
+
+
+# --- Thinking block suppression ---
+
+
+@pytest.mark.asyncio
+async def test_thinking_block_yields_status_not_text():
+    """Thinking blocks yield thinking_start/phase_end signals, never text content."""
+    parser = StreamParser()
+
+    items = await _collect(parser, _block_start("thinking"))
+    assert items == [StreamStatus(kind="thinking_start")]
+
+    items = await _collect(parser, _thinking_delta("Let me reason about this..."))
+    assert items == []
+
+    items = await _collect(parser, _thinking_delta("The answer should be..."))
+    assert items == []
+
+    items = await _collect(parser, _block_stop())
+    assert items == [StreamStatus(kind="phase_end")]
+
+
+@pytest.mark.asyncio
+async def test_thinking_delta_with_text_field_still_hidden():
+    """Even if a thinking delta has a 'text' field, it must not leak through."""
+    parser = StreamParser()
+
+    await _collect(parser, _block_start("thinking"))
+
+    # Simulate a thinking delta that also carries a text field
+    event = {
+        "type": "content_block_delta",
+        "delta": {"type": "thinking_delta", "thinking": "secret thought", "text": "secret thought"},
+    }
+    items = await _collect(parser, event)
+    assert items == []
+
+    await _collect(parser, _block_stop())
+
+
+@pytest.mark.asyncio
+async def test_redacted_thinking_block_yields_status():
+    """Redacted thinking blocks are treated the same as regular thinking."""
+    parser = StreamParser()
+
+    items = await _collect(parser, _block_start("redacted_thinking"))
+    assert items == [StreamStatus(kind="thinking_start")]
+
+    event = {
+        "type": "content_block_delta",
+        "delta": {"type": "redacted_thinking_delta", "data": "opaque"},
+    }
+    items = await _collect(parser, event)
+    assert items == []
+
+    items = await _collect(parser, _block_stop())
+    assert items == [StreamStatus(kind="phase_end")]
+
+
+@pytest.mark.asyncio
+async def test_interleaved_thinking_and_text():
+    """Interleaved thinking/text blocks: thinking hidden, text shown."""
+    parser = StreamParser()
+
+    # Thinking block
+    await _collect(parser, _block_start("thinking"))
+    await _collect(parser, _thinking_delta("Planning my response..."))
+    await _collect(parser, _block_stop())
+
+    # Text block
+    await _collect(parser, _block_start("text"))
+    items = await _collect(parser, _text_delta("Hello!"))
+    assert items == ["Hello!"]
+    await _collect(parser, _block_stop())
+
+    # Second thinking block
+    await _collect(parser, _block_start("thinking"))
+    await _collect(parser, _thinking_delta("Let me think more..."))
+    await _collect(parser, _block_stop())
+
+    # Second text block
+    await _collect(parser, _block_start("text"))
+    items = await _collect(parser, _text_delta("Here's more."))
+    assert items == ["Here's more."]
