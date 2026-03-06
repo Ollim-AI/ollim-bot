@@ -207,6 +207,7 @@ Before proposing the plan (ExitPlanMode), load the `python-principles` skill and
 - `SearchOllimBot` MCP tool — search `docs.ollim.ai` for architecture, conventions, and integration patterns. Use for "how does X work" or "how to add Y" questions; use code exploration for implementation details and debugging.
 
 ## Useful skills
+- `/claude-api` -- Claude API & Agent SDK reference (load when working on SDK integration: agent, streaming, sessions, hooks, MCP, subagents)
 - `/feature-development` -- guided feature dev: explore, clarify, architect, implement, review
 - `/systematic-debugging` -- root-cause debugging: investigate, analyze, hypothesize, fix
 - `/code-review` -- two-stage review: project compliance + code quality (confidence >= 80)
