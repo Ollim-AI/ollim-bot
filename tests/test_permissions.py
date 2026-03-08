@@ -10,9 +10,8 @@ from claude_agent_sdk.types import (
     ToolPermissionContext,
 )
 
-from ollim_bot.fork_state import set_in_fork
+from ollim_bot.fork_state import BgForkConfig, set_bg_fork_config, set_in_fork
 from ollim_bot.permissions import (
-    _is_protected_path,
     _PendingApproval,
     cancel_pending,
     dont_ask,
@@ -192,81 +191,54 @@ def test_dont_ask_off_reaches_approval_flow():
         set_dont_ask(True)
 
 
-# --- state-dir write protection ---
+# --- bg fork dynamic discord gating ---
 
 
-def test_is_protected_path_state_file(data_dir):
-    from ollim_bot.storage import STATE_DIR
-
-    STATE_DIR.mkdir(parents=True, exist_ok=True)
-
-    assert _is_protected_path(str(STATE_DIR / "config.json")) is True
-    assert _is_protected_path(str(STATE_DIR / "sessions.json")) is True
-    assert _is_protected_path(str(STATE_DIR / "sub" / "nested.json")) is True
-
-
-def test_is_protected_path_non_state(data_dir):
-    assert _is_protected_path(str(data_dir / "routines" / "foo.md")) is False
-    assert _is_protected_path(str(data_dir / "reminders" / "bar.md")) is False
-
-
-def test_is_protected_path_state_dir_itself(data_dir):
-    from ollim_bot.storage import STATE_DIR
-
-    assert _is_protected_path(str(STATE_DIR)) is True
-
-
-def test_handle_tool_permission_blocks_write_to_state(data_dir):
-    from ollim_bot.storage import STATE_DIR
-
-    STATE_DIR.mkdir(parents=True, exist_ok=True)
-    state_path = str(STATE_DIR / "config.json")
-
-    result = _run(handle_tool_permission("Write", {"file_path": state_path}, ToolPermissionContext()))
-
-    assert isinstance(result, PermissionResultDeny)
-    assert "write-protected" in result.message
-
-
-def test_handle_tool_permission_blocks_edit_to_state(data_dir):
-    from ollim_bot.storage import STATE_DIR
-
-    STATE_DIR.mkdir(parents=True, exist_ok=True)
-    state_path = str(STATE_DIR / "sessions.json")
-
-    result = _run(handle_tool_permission("Edit", {"file_path": state_path}, ToolPermissionContext()))
-
-    assert isinstance(result, PermissionResultDeny)
-    assert "write-protected" in result.message
-
-
-def test_handle_tool_permission_allows_write_outside_state(data_dir):
-    """Write to non-state path should not be blocked by state protection (may be blocked by dontAsk)."""
-    set_dont_ask(True)
-    non_state_path = str(data_dir / "routines" / "foo.md")
-
-    result = _run(handle_tool_permission("Write", {"file_path": non_state_path}, ToolPermissionContext()))
-
-    # dontAsk denies it, but the message should NOT mention write-protected
-    assert isinstance(result, PermissionResultDeny)
-    assert "write-protected" not in result.message
-
-
-def test_handle_tool_permission_state_guard_overrides_session_allowed(data_dir):
-    """State-dir guard takes priority even if the tool is session-allowed."""
-    from ollim_bot.storage import STATE_DIR
-
-    reset()
-    set_dont_ask(False)
-    session_allow("Write")
-    STATE_DIR.mkdir(parents=True, exist_ok=True)
-    state_path = str(STATE_DIR / "config.json")
-
+def test_bg_fork_allows_ping_when_enabled():
+    set_in_fork(True)
+    set_bg_fork_config(BgForkConfig(allow_ping=True))
     try:
-        result = _run(handle_tool_permission("Write", {"file_path": state_path}, ToolPermissionContext()))
+        result = _run(handle_tool_permission("mcp__discord__ping_user", {}, ToolPermissionContext()))
+
+        assert isinstance(result, PermissionResultAllow)
+    finally:
+        set_in_fork(False)
+        set_bg_fork_config(BgForkConfig())
+
+
+def test_bg_fork_denies_ping_when_disabled():
+    set_in_fork(True)
+    set_bg_fork_config(BgForkConfig(allow_ping=False))
+    try:
+        result = _run(handle_tool_permission("mcp__discord__ping_user", {}, ToolPermissionContext()))
 
         assert isinstance(result, PermissionResultDeny)
-        assert "write-protected" in result.message
+        assert "pings disabled" in result.message
     finally:
-        set_dont_ask(True)
-        reset()
+        set_in_fork(False)
+        set_bg_fork_config(BgForkConfig())
+
+
+def test_bg_fork_allows_report_when_not_blocked():
+    set_in_fork(True)
+    set_bg_fork_config(BgForkConfig(update_main_session="on_ping"))
+    try:
+        result = _run(handle_tool_permission("mcp__discord__report_updates", {}, ToolPermissionContext()))
+
+        assert isinstance(result, PermissionResultAllow)
+    finally:
+        set_in_fork(False)
+        set_bg_fork_config(BgForkConfig())
+
+
+def test_bg_fork_denies_report_when_blocked():
+    set_in_fork(True)
+    set_bg_fork_config(BgForkConfig(update_main_session="blocked"))
+    try:
+        result = _run(handle_tool_permission("mcp__discord__report_updates", {}, ToolPermissionContext()))
+
+        assert isinstance(result, PermissionResultDeny)
+        assert "reporting blocked" in result.message
+    finally:
+        set_in_fork(False)
+        set_bg_fork_config(BgForkConfig())

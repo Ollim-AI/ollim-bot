@@ -100,7 +100,7 @@ class StreamParser:
         if not defer and self._deferred_labels:
             for label in self._deferred_labels:
                 if is_denied(label):
-                    yield f"\n-# *~~{label}~~ — denied*\n"
+                    yield f"\n-# *~~{label}~~ — denied (use /permissions ask to approve)*\n"
                 else:
                     yield f"\n-# *{label}*\n"
             self._deferred_labels.clear()

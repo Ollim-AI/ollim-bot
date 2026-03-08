@@ -1,4 +1,4 @@
-"""Agent SDK hooks for auto-committing file changes."""
+"""Agent SDK hooks for state-dir write protection and auto-committing file changes."""
 
 import asyncio
 from pathlib import Path
@@ -8,10 +8,43 @@ from claude_agent_sdk.types import (
     HookContext,
     HookInput,
     PostToolUseHookInput,
+    PreToolUseHookInput,
     SyncHookJSONOutput,
 )
 
-from ollim_bot.storage import DATA_DIR, git_commit
+from ollim_bot import storage
+from ollim_bot.storage import git_commit
+
+
+def _resolve_tool_path(data: PreToolUseHookInput | PostToolUseHookInput) -> Path | None:
+    """Resolve ``file_path`` from tool input, returning None if absent."""
+    file_path_str: str = data["tool_input"].get("file_path", "")
+    if not file_path_str:
+        return None
+    cwd = Path(data["cwd"])
+    file_path = Path(file_path_str)
+    if not file_path.is_absolute():
+        file_path = cwd / file_path
+    return file_path.resolve()
+
+
+async def state_dir_guard(
+    input_data: HookInput,
+    tool_use_id: str | None,
+    context: HookContext,
+) -> SyncHookJSONOutput:
+    """Block Write/Edit to the protected state/ directory."""
+    data = cast(PreToolUseHookInput, input_data)
+    resolved = _resolve_tool_path(data)
+    if resolved is not None and resolved.is_relative_to(storage.STATE_DIR.resolve()):
+        return {
+            "hookSpecificOutput": {
+                "hookEventName": "PreToolUse",
+                "permissionDecision": "deny",
+                "permissionDecisionReason": "state/ is write-protected",
+            }
+        }
+    return {}
 
 
 async def auto_commit_hook(
@@ -21,24 +54,17 @@ async def auto_commit_hook(
 ) -> SyncHookJSONOutput:
     """Auto-commit files after Write/Edit tool calls in DATA_DIR."""
     data = cast(PostToolUseHookInput, input_data)
-    tool_name = data["tool_name"]
-    tool_input = data["tool_input"]
-
-    file_path_str: str = tool_input.get("file_path", "")
-    if not file_path_str:
+    resolved = _resolve_tool_path(data)
+    if resolved is None:
         return {}
-
-    cwd = Path(data["cwd"])
-    file_path = Path(file_path_str)
-    if not file_path.is_absolute():
-        file_path = cwd / file_path
 
     # Only auto-commit markdown files within DATA_DIR.
-    resolved = file_path.resolve()
-    if resolved.suffix != ".md" or not resolved.is_relative_to(DATA_DIR.resolve()):
+    data_dir_resolved = storage.DATA_DIR.resolve()
+    if resolved.suffix != ".md" or not resolved.is_relative_to(data_dir_resolved):
         return {}
 
-    rel = resolved.relative_to(DATA_DIR.resolve())
+    tool_name = data["tool_name"]
+    rel = resolved.relative_to(data_dir_resolved)
     message = f"auto: {tool_name.lower()} {rel}"
-    await asyncio.to_thread(git_commit, file_path, message)
+    await asyncio.to_thread(git_commit, resolved, message)
     return {}

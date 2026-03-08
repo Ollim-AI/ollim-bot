@@ -5,7 +5,6 @@ from __future__ import annotations
 import contextlib
 import json
 import logging
-from pathlib import Path
 from typing import Any, NamedTuple
 
 import anyio
@@ -17,18 +16,12 @@ from claude_agent_sdk.types import (
     ToolPermissionContext,
 )
 
-from ollim_bot import storage
 from ollim_bot.channel import get_channel
-from ollim_bot.fork_state import in_bg_fork
+from ollim_bot.fork_state import get_bg_fork_config, in_bg_fork
 from ollim_bot.formatting import format_tool_label
-from ollim_bot.tool_policy import FILE_WRITE_TOOLS
+from ollim_bot.tool_policy import PING_TOOLS, REPORTING_TOOLS
 
 log = logging.getLogger(__name__)
-
-
-def _is_protected_path(file_path: str) -> bool:
-    """Return True if *file_path* resolves under the protected ``state/`` directory."""
-    return Path(file_path).resolve().is_relative_to(storage.STATE_DIR.resolve())
 
 
 # ---------------------------------------------------------------------------
@@ -125,9 +118,6 @@ async def request_approval(tool_name: str, input_data: dict[str, Any]) -> Permis
     leave the anyio task in a broken state after resolution, causing the
     SDK's subsequent transport.write() to silently hang.
     """
-    if is_session_allowed(tool_name):
-        return PermissionResultAllow()
-
     channel = get_channel()
     assert channel is not None, "channel.init_channel() not called before approval"
 
@@ -182,16 +172,22 @@ async def handle_tool_permission(
     input_data: dict[str, Any],
     context: ToolPermissionContext,
 ) -> PermissionResult:
-    """canUseTool callback — bg forks: deny; dontAsk: silent deny; else: Discord approval."""
-    if tool_name in FILE_WRITE_TOOLS and _is_protected_path(input_data["file_path"]):
-        return PermissionResultDeny(
-            message=f"{tool_name} to state/ is blocked — system files are write-protected",
-        )
+    """canUseTool callback — bg forks: dynamic discord gating; dontAsk: silent deny; else: Discord approval."""
     if in_bg_fork():
-        return PermissionResultDeny(message=f"{tool_name} is not available in background forks")
-    if _dont_ask:
-        if is_session_allowed(tool_name):
+        if tool_name in PING_TOOLS:
+            config = get_bg_fork_config()
+            if not config.allow_ping:
+                return PermissionResultDeny(message="pings disabled for this job")
             return PermissionResultAllow()
+        if tool_name in REPORTING_TOOLS:
+            config = get_bg_fork_config()
+            if config.update_main_session == "blocked":
+                return PermissionResultDeny(message="reporting blocked for this job")
+            return PermissionResultAllow()
+        return PermissionResultDeny(message=f"{tool_name} is not available in background forks")
+    if is_session_allowed(tool_name):
+        return PermissionResultAllow()
+    if _dont_ask:
         _denied_labels.add(format_tool_label(tool_name, json.dumps(input_data)))
         return PermissionResultDeny(message=f"{tool_name} requires permission — denied silently in current mode")
     result = await request_approval(tool_name, input_data)
