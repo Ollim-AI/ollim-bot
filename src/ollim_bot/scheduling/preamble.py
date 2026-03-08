@@ -325,11 +325,19 @@ def build_bg_preamble(
     else:
         tools_section = ""
 
+    can_report = config.update_main_session != "blocked"
+    unavailable_hint = (
+        "If you cannot complete part of your task because a needed tool is unavailable, "
+        "mention this briefly in your report_updates message.\n\n"
+        if can_report
+        else ""
+    )
+
     # Only mention user-proxy when Task is available (not restricted out)
     can_use_task = config.allowed_tools is None or "Task" in config.allowed_tools
     proxy_line = "For preference decisions, spawn the user-proxy subagent (via Task tool).\n\n" if can_use_task else ""
 
-    return f"{ping_section}{update_section}{busy_line}{budget_section}{tools_section}{proxy_line}"
+    return f"{ping_section}{update_section}{busy_line}{budget_section}{tools_section}{unavailable_hint}{proxy_line}"
 
 
 def build_routine_prompt(

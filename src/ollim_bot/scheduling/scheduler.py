@@ -32,8 +32,6 @@ from ollim_bot.config import TZ, USER_NAME
 from ollim_bot.embeds import fork_exit_embed
 from ollim_bot.fork_state import (
     BgForkConfig,
-    apply_ping_restrictions,
-    apply_reporting_restrictions,
     idle_timeout,
     in_interactive_fork,
     is_idle,
@@ -99,10 +97,12 @@ def _register_routine(
         reminders: list[Reminder] = []
         routines: list[Routine] = []
         if routine.background:
+            from ollim_bot.tool_policy import validate_dispatch
+
             bg_config = BgForkConfig.from_item(routine)
             bg_config = _merge_skill_tools(bg_config, skills)
-            bg_config = apply_ping_restrictions(bg_config)
-            bg_config = apply_reporting_restrictions(bg_config)
+            if not validate_dispatch(bg_config.allowed_tools, source=routine.id):
+                return
             reminders = list_reminders()
             routines = list_routines()
         # build_routine_prompt runs _expand_commands (sync subprocess, up to 30s)
@@ -168,10 +168,12 @@ def _register_reminder(
         all_reminders: list[Reminder] = []
         all_routines: list[Routine] = []
         if reminder.background:
+            from ollim_bot.tool_policy import validate_dispatch
+
             bg_config = BgForkConfig.from_item(reminder)
             bg_config = _merge_skill_tools(bg_config, skills)
-            bg_config = apply_ping_restrictions(bg_config)
-            bg_config = apply_reporting_restrictions(bg_config)
+            if not validate_dispatch(bg_config.allowed_tools, source=reminder.id):
+                return
             all_reminders = list_reminders()
             all_routines = list_routines()
         # build_reminder_prompt runs _expand_commands (sync subprocess, up to 30s)

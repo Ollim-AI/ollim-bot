@@ -7,8 +7,6 @@ from ollim_bot.tool_policy import (
     ToolPatternError,
     _could_match_state_dir,
     _glob_to_regex,
-    build_superset,
-    collect_all_tool_sets,
     strip_state_dir_writes,
     validate_pattern,
     validate_tool_set,
@@ -160,46 +158,6 @@ def test_validate_tool_set_all_valid():
     assert results == []
 
 
-# --- build_superset ---
-
-
-def test_build_superset_deduplicates():
-    tool_sets = {
-        "main": ["Read(**.md)", "Write(**.md)", "Task"],
-        "subagent:guide": ["Read(**.md)", "Bash(ollim-bot help)"],
-    }
-
-    result = build_superset(tool_sets)
-
-    assert result == ["Read(**.md)", "Write(**.md)", "Task", "Bash(ollim-bot help)"]
-
-
-def test_build_superset_empty():
-    assert build_superset({}) == []
-
-
-# --- collect_all_tool_sets ---
-
-
-def test_collect_all_tool_sets_includes_main():
-    tool_sets = collect_all_tool_sets()
-
-    assert "main" in tool_sets
-    assert tool_sets["main"] == MAIN_SESSION_TOOLS
-
-
-def test_collect_all_tool_sets_includes_subagents(monkeypatch):
-    monkeypatch.setattr(
-        "ollim_bot.subagents.load_agent_tool_sets",
-        lambda: {"subagent:guide": ["mcp__docs__*"]},
-    )
-
-    tool_sets = collect_all_tool_sets()
-
-    assert "subagent:guide" in tool_sets
-    assert "mcp__docs__*" in tool_sets["subagent:guide"]
-
-
 def test_main_session_tools_includes_skill():
     assert "Skill" in MAIN_SESSION_TOOLS
 
@@ -305,24 +263,6 @@ def test_strip_state_dir_writes_keeps_safe():
     assert result == tools
 
 
-# --- build_superset: state-dir protection ---
-
-
-def test_build_superset_strips_state_writes():
-    tool_sets = {
-        "main": ["Write(**.md)", "Read(**.md)", "Task"],
-        "routine:bad": ["Write(**)", "Edit(**.json)"],
-    }
-
-    result = build_superset(tool_sets)
-
-    assert "Write(**.md)" in result
-    assert "Task" in result
-    assert "Read(**.md)" in result
-    assert "Write(**)" not in result
-    assert "Edit(**.json)" not in result
-
-
 # --- MAIN_SESSION_TOOLS is safe ---
 
 
@@ -331,3 +271,89 @@ def test_main_session_tools_pass_state_check():
     for tool in MAIN_SESSION_TOOLS:
         errors = validate_pattern(tool)
         assert not any("state/" in e for e in errors), f"{tool} failed: {errors}"
+
+
+# --- YAML tool config ---
+
+
+def test_yaml_config_missing_file_returns_defaults(data_dir):
+    from ollim_bot.tool_policy import (
+        DEFAULT_BG_TOOLS,
+        _yaml_config_path,
+        build_bg_tools,
+        build_main_tools,
+        load_yaml_config,
+        reset_yaml_cache,
+    )
+
+    reset_yaml_cache()
+
+    assert not _yaml_config_path().exists()
+    assert load_yaml_config() == {}
+    assert build_main_tools() == MAIN_SESSION_TOOLS
+    assert build_bg_tools() == DEFAULT_BG_TOOLS
+
+
+def test_yaml_config_additional_allowed_extends(data_dir):
+    import yaml
+
+    from ollim_bot.tool_policy import _yaml_config_path, build_main_tools, reset_yaml_cache
+
+    reset_yaml_cache()
+
+    path = _yaml_config_path()
+    path.write_text(yaml.dump({"main_session": {"additional_allowed": ["Bash(git status)"]}}))
+
+    result = build_main_tools()
+
+    assert "Bash(git status)" in result
+    assert result[: len(MAIN_SESSION_TOOLS)] == MAIN_SESSION_TOOLS
+
+
+def test_yaml_config_bg_override_replaces_defaults(data_dir):
+    import yaml
+
+    from ollim_bot.tool_policy import _yaml_config_path, build_bg_tools, reset_yaml_cache
+
+    reset_yaml_cache()
+
+    path = _yaml_config_path()
+    path.write_text(yaml.dump({"bg_forks": {"override": ["Read", "Bash(ollim-bot help)"]}}))
+
+    result = build_bg_tools()
+
+    assert result == ["Read", "Bash(ollim-bot help)"]
+
+
+def test_yaml_config_mtime_cache_avoids_reparse(data_dir):
+    import yaml
+
+    from ollim_bot.tool_policy import _yaml_config_path, load_yaml_config, reset_yaml_cache
+
+    reset_yaml_cache()
+
+    path = _yaml_config_path()
+    path.write_text(yaml.dump({"main_session": {"additional_allowed": ["WebFetch"]}}))
+
+    first = load_yaml_config()
+    second = load_yaml_config()
+
+    assert first is second
+
+
+def test_yaml_config_detects_new_file_after_missing(data_dir):
+    """File created after an initial missing-file cache hit is picked up."""
+    import yaml
+
+    from ollim_bot.tool_policy import _yaml_config_path, load_yaml_config, reset_yaml_cache
+
+    reset_yaml_cache()
+
+    assert load_yaml_config() == {}
+
+    path = _yaml_config_path()
+    path.write_text(yaml.dump({"main_session": {"additional_allowed": ["WebFetch"]}}))
+
+    result = load_yaml_config()
+
+    assert result.get("main_session", {}).get("additional_allowed") == ["WebFetch"]

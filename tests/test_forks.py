@@ -524,9 +524,9 @@ def test_bg_fork_config_with_allowed_tools():
     assert config.allowed_tools == ["Bash(ollim-bot gmail *)"]
 
 
-def test_bg_fork_config_from_item_applies_minimal_default():
-    """No allowed_tools → MINIMAL_BG_TOOLS applied."""
-    from ollim_bot.tool_policy import MINIMAL_BG_TOOLS
+def test_bg_fork_config_from_item_applies_default():
+    """No allowed_tools → DEFAULT_BG_TOOLS applied."""
+    from ollim_bot.tool_policy import DEFAULT_BG_TOOLS
 
     class FakeItem:
         update_main_session = "on_ping"
@@ -535,44 +535,46 @@ def test_bg_fork_config_from_item_applies_minimal_default():
 
     config = BgForkConfig.from_item(FakeItem())
 
-    assert config.allowed_tools == MINIMAL_BG_TOOLS
+    assert config.allowed_tools == DEFAULT_BG_TOOLS
 
 
-def test_bg_fork_config_from_item_explicit_tools_merged_with_minimal():
-    """Explicit allowed_tools are merged with MINIMAL_BG_TOOLS, not replaced."""
+def test_bg_fork_config_from_item_explicit_tools_merged_with_default():
+    """Explicit allowed_tools are merged with DEFAULT_BG_TOOLS, not replaced."""
     from typing import ClassVar
 
-    from ollim_bot.tool_policy import MINIMAL_BG_TOOLS
+    from ollim_bot.tool_policy import DEFAULT_BG_TOOLS
 
     class FakeItem:
         update_main_session = "on_ping"
         allow_ping = True
-        allowed_tools: ClassVar[list[str]] = ["Bash(ollim-bot tasks *)", "Read(**.md)"]
+        allowed_tools: ClassVar[list[str]] = ["WebFetch", "Read(skills/**)"]
 
     config = BgForkConfig.from_item(FakeItem())
 
     assert config.allowed_tools is not None
-    for tool in MINIMAL_BG_TOOLS:
+    for tool in DEFAULT_BG_TOOLS:
         assert tool in config.allowed_tools
-    assert "Bash(ollim-bot tasks *)" in config.allowed_tools
-    assert "Read(**.md)" in config.allowed_tools
+    assert "WebFetch" in config.allowed_tools
+    assert "Read(skills/**)" in config.allowed_tools
     # system tools come first
-    assert config.allowed_tools[: len(MINIMAL_BG_TOOLS)] == list(MINIMAL_BG_TOOLS)
+    assert config.allowed_tools[: len(DEFAULT_BG_TOOLS)] == list(DEFAULT_BG_TOOLS)
 
 
 def test_bg_fork_config_from_item_deduplicates_system_tools():
-    """Declaring a system MCP tool explicitly doesn't duplicate it."""
+    """Declaring a system tool explicitly doesn't duplicate it."""
     from typing import ClassVar
+
+    from ollim_bot.tool_policy import DEFAULT_BG_TOOLS
 
     class FakeItem:
         update_main_session = "on_ping"
         allow_ping = True
-        allowed_tools: ClassVar[list[str]] = ["mcp__discord__ping_user", "Read"]
+        allowed_tools: ClassVar[list[str]] = [DEFAULT_BG_TOOLS[0], "Read"]
 
     config = BgForkConfig.from_item(FakeItem())
 
     assert config.allowed_tools is not None
-    assert config.allowed_tools.count("mcp__discord__ping_user") == 1
+    assert config.allowed_tools.count(DEFAULT_BG_TOOLS[0]) == 1
 
 
 # --- BgForkTracking ---

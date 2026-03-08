@@ -37,7 +37,7 @@ from ollim_bot.fork_state import (
     touch_activity,
 )
 from ollim_bot.forks import peek_pending_updates
-from ollim_bot.hooks import auto_commit_hook
+from ollim_bot.hooks import auto_commit_hook, state_dir_guard
 from ollim_bot.permissions import (
     cancel_pending,
     handle_tool_permission,
@@ -53,7 +53,6 @@ from ollim_bot.sessions import (
     save_session_id,
     set_swap_in_progress,
 )
-from ollim_bot.skills import list_skills
 from ollim_bot.storage import DATA_DIR
 from ollim_bot.streamer import StreamStatus
 
@@ -67,8 +66,13 @@ def _with_thinking(opts: ClaudeAgentOptions, mode: str) -> ClaudeAgentOptions:
 
 class Agent:
     def __init__(self) -> None:
-        all_skills = list_skills()
-        tool_sets = tool_policy.collect_all_tool_sets(skills=all_skills)
+        from ollim_bot.subagents import load_agent_tool_sets
+
+        main_tools = tool_policy.build_main_tools()
+        tool_sets: dict[str, list[str]] = {
+            "main": list(main_tools),
+            **load_agent_tool_sets(),
+        }
         tool_policy.scan_all(tool_sets)
         self.options = ClaudeAgentOptions(
             cwd=DATA_DIR,
@@ -80,10 +84,11 @@ class Agent:
                 "discord": agent_server,
                 "docs": {"type": "http", "url": "https://docs.ollim.ai/mcp"},
             },
-            allowed_tools=tool_policy.build_superset(tool_sets),
+            allowed_tools=main_tools,
             permission_mode="default",
             hooks={
                 "Stop": [HookMatcher(hooks=[require_report_hook])],
+                "PreToolUse": [HookMatcher(matcher="Write|Edit", hooks=[state_dir_guard])],
                 "PostToolUse": [HookMatcher(matcher="Write|Edit", hooks=[auto_commit_hook])],
             },
         )

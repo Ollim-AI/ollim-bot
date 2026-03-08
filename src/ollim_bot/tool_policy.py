@@ -1,9 +1,8 @@
-"""Tool pattern validation, scanning, and superset construction.
+"""Tool pattern validation, scanning, and per-job tool restrictions.
 
 Validates tool patterns declared across routines, reminders, webhooks,
 subagents, and skills. Blocks dangerous patterns (Bash(*), bash chaining),
 warns on overly broad wildcards, and enforces write-protection on state/.
-Builds the dynamic SDK ceiling as the union of all declared tool sets.
 """
 
 from __future__ import annotations
@@ -11,14 +10,11 @@ from __future__ import annotations
 import functools
 import logging
 import re
-from collections.abc import Sequence
 from dataclasses import dataclass, replace
-from typing import TYPE_CHECKING, Literal
+from pathlib import Path
+from typing import Any, Literal
 
 from claude_agent_sdk import ClaudeAgentOptions
-
-if TYPE_CHECKING:
-    from ollim_bot.skills import Skill
 
 log = logging.getLogger(__name__)
 
@@ -47,6 +43,10 @@ _TOOL_WITH_ARGS_RE = re.compile(r"^(\w+)\((.+)\)$")
 
 # Tools that modify files on disk
 FILE_WRITE_TOOLS = frozenset(("Write", "Edit"))
+
+# Discord MCP tool classification — used for dynamic bg fork gating
+PING_TOOLS = frozenset(("mcp__discord__ping_user", "mcp__discord__discord_embed"))
+REPORTING_TOOLS = frozenset(("mcp__discord__report_updates", "mcp__discord__follow_up_chain"))
 
 
 # ---------------------------------------------------------------------------
@@ -143,10 +143,8 @@ def validate_tool_set(patterns: list[str], source: str) -> list[ToolPatternError
 # ---------------------------------------------------------------------------
 
 
-def scan_all(tool_sets: dict[str, list[str]] | None = None) -> list[ToolPatternError]:
-    """Validate all tool declarations. Accepts pre-collected tool_sets to avoid re-reading."""
-    if tool_sets is None:
-        tool_sets = collect_all_tool_sets()
+def scan_all(tool_sets: dict[str, list[str]]) -> list[ToolPatternError]:
+    """Validate all tool declarations."""
 
     errors: list[ToolPatternError] = []
     for source, tools in tool_sets.items():
@@ -172,11 +170,11 @@ MAIN_SESSION_TOOLS: list[str] = [
     "Bash(ollim-bot gmail *)",
     "Bash(ollim-bot help)",
     "Bash(claude-history *)",
-    "Read(**.md)",
-    "Write(**.md)",
-    "Edit(**.md)",
-    "Glob(**.md)",
-    "Grep(**.md)",
+    "Read(./**.md)",
+    "Write(./**.md)",
+    "Edit(./**.md)",
+    "Glob(./**.md)",
+    "Grep(./**.md)",
     "WebFetch",
     "WebSearch",
     "mcp__discord__discord_embed",
@@ -193,63 +191,31 @@ MAIN_SESSION_TOOLS: list[str] = [
 
 
 # ---------------------------------------------------------------------------
-# Minimal bg fork tools — default when a job declares no tool restrictions
+# Default bg fork tools — pre-approved when a job declares no tool restrictions.
+# Discord MCP tools are not listed here — they're dynamically gated via
+# canUseTool based on BgForkConfig (allow_ping, update_main_session).
 # ---------------------------------------------------------------------------
 
 _HELP_TOOL = "Bash(ollim-bot help)"
 
-MINIMAL_BG_TOOLS: list[str] = [
-    "mcp__discord__report_updates",
-    "mcp__discord__ping_user",
-    "mcp__discord__discord_embed",
-    "mcp__discord__follow_up_chain",
+DEFAULT_BG_TOOLS: list[str] = [
     _HELP_TOOL,
+    "Bash(ollim-bot tasks *)",
+    "Read(./**.md)",
+    "Glob(./**.md)",
+    "Grep(./**.md)",
 ]
 
 
-# ---------------------------------------------------------------------------
-# Dynamic superset construction
-# ---------------------------------------------------------------------------
-
-
-def collect_all_tool_sets(
-    skills: Sequence[Skill] | None = None,
-) -> dict[str, list[str]]:
-    """Collect tool sets from all sources.
-
-    Returns a mapping of source name -> tool list.
-    Imports are deferred to avoid circular dependencies.
-    """
-    from ollim_bot.scheduling.reminders import list_reminders
-    from ollim_bot.scheduling.routines import list_routines
-    from ollim_bot.subagents import load_agent_tool_sets
-    from ollim_bot.webhook import list_webhooks
-
-    tool_sets: dict[str, list[str]] = {"main": list(MAIN_SESSION_TOOLS)}
-
-    tool_sets.update(load_agent_tool_sets())
-
-    for routine in list_routines():
-        if routine.allowed_tools:
-            tool_sets[f"routine:{routine.id}"] = routine.allowed_tools
-
-    for reminder in list_reminders():
-        if reminder.allowed_tools:
-            tool_sets[f"reminder:{reminder.id}"] = reminder.allowed_tools
-
-    if skills is None:
-        from ollim_bot.skills import list_skills
-
-        skills = list_skills()
-    for skill in skills:
-        if skill.allowed_tools:
-            tool_sets[f"skill:{skill.name}"] = skill.allowed_tools
-
-    for webhook in list_webhooks():
-        if webhook.allowed_tools:
-            tool_sets[f"webhook:{webhook.id}"] = webhook.allowed_tools
-
-    return tool_sets
+def validate_dispatch(allowed_tools: list[str] | None, source: str) -> bool:
+    """Validate tool patterns before bg fork dispatch. Returns True if valid."""
+    if allowed_tools is None:
+        return True
+    errors = validate_tool_set(allowed_tools, source=source)
+    if any(e.severity == "error" for e in errors):
+        log.error("Skipping %s: invalid tool patterns", source)
+        return False
+    return True
 
 
 def apply_tool_restrictions(
@@ -286,16 +252,74 @@ def strip_state_dir_writes(tools: list[str]) -> list[str]:
     return result
 
 
-def build_superset(tool_sets: dict[str, list[str]]) -> list[str]:
-    """Deduplicated union of all tool sets.
+# ---------------------------------------------------------------------------
+# YAML tool config — user-managed tool policy overrides
+# ---------------------------------------------------------------------------
 
-    Strips Write/Edit patterns that could reach the protected ``state/`` directory.
+_yaml_cache_mtime: float = 0.0
+_yaml_cache_data: dict[str, Any] = {}
+
+
+def _yaml_config_path() -> Path:
+    from ollim_bot.storage import DATA_DIR
+
+    return DATA_DIR / "tool-policy.yaml"
+
+
+def reset_yaml_cache() -> None:
+    """Reset the YAML config cache. For tests."""
+    global _yaml_cache_mtime, _yaml_cache_data
+    _yaml_cache_mtime = 0.0
+    _yaml_cache_data = {}
+
+
+def load_yaml_config() -> dict[str, Any]:
+    """Load tool-policy.yaml with mtime-based caching.
+
+    Returns empty dict if the file doesn't exist. Re-parses only when
+    the file's mtime changes.
     """
-    seen: set[str] = set()
-    unique: list[str] = []
-    for tools in tool_sets.values():
-        for tool in tools:
-            if tool not in seen:
-                seen.add(tool)
-                unique.append(tool)
-    return strip_state_dir_writes(unique)
+    global _yaml_cache_mtime, _yaml_cache_data
+
+    path = _yaml_config_path()
+    try:
+        mtime = path.stat().st_mtime
+    except FileNotFoundError:
+        _yaml_cache_mtime = 0.0
+        _yaml_cache_data = {}
+        return _yaml_cache_data
+
+    if mtime == _yaml_cache_mtime:
+        return _yaml_cache_data
+
+    import yaml
+
+    with path.open() as f:
+        data = yaml.safe_load(f)
+
+    _yaml_cache_mtime = mtime
+    _yaml_cache_data = data if isinstance(data, dict) else {}
+    return _yaml_cache_data
+
+
+def build_main_tools() -> list[str]:
+    """MAIN_SESSION_TOOLS extended with YAML additional_allowed."""
+    config = load_yaml_config()
+    main_config = config.get("main_session", {})
+    additional = main_config.get("additional_allowed", [])
+    if not additional:
+        return MAIN_SESSION_TOOLS
+    return MAIN_SESSION_TOOLS + [t for t in additional if t not in MAIN_SESSION_TOOLS]
+
+
+def build_bg_tools() -> list[str]:
+    """DEFAULT_BG_TOOLS, optionally overridden or extended by YAML config."""
+    config = load_yaml_config()
+    bg_config = config.get("bg_forks", {})
+    override = bg_config.get("override")
+    if override is not None:
+        return list(override)
+    additional = bg_config.get("additional_allowed", [])
+    if not additional:
+        return DEFAULT_BG_TOOLS
+    return DEFAULT_BG_TOOLS + [t for t in additional if t not in DEFAULT_BG_TOOLS]
