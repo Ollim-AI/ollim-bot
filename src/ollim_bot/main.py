@@ -106,12 +106,10 @@ def _is_bot_running(pid: int) -> bool:
         import ctypes
 
         PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
-        handle = ctypes.windll.kernel32.OpenProcess(  # type: ignore[union-attr]
-            PROCESS_QUERY_LIMITED_INFORMATION, False, pid
-        )
+        handle = ctypes.windll.kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
         if not handle:
             return False
-        ctypes.windll.kernel32.CloseHandle(handle)  # type: ignore[union-attr]
+        ctypes.windll.kernel32.CloseHandle(handle)
         return True
 
     try:
