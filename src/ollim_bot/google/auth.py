@@ -60,10 +60,9 @@ def get_credentials() -> Credentials:
 
     if not CREDENTIALS_FILE.exists():
         print(f"Google credentials not found at {CREDENTIALS_FILE}", file=sys.stderr)
-        print("To set up Google integration:", file=sys.stderr)
-        print("  1. Go to https://console.cloud.google.com/", file=sys.stderr)
-        print("  2. Create OAuth credentials (Desktop application type)", file=sys.stderr)
-        print(f"  3. Save the JSON file to {CREDENTIALS_FILE}", file=sys.stderr)
+        print("", file=sys.stderr)
+        print("Follow the setup guide to create OAuth credentials:", file=sys.stderr)
+        print("https://docs.ollim.ai/self-hosting/google-oauth-setup", file=sys.stderr)
         raise SystemExit(1)
     flow = InstalledAppFlow.from_client_secrets_file(str(CREDENTIALS_FILE), SCOPES)
     creds = flow.run_local_server(port=0, bind_addr="127.0.0.1")
