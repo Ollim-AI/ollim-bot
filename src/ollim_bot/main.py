@@ -87,13 +87,6 @@ def _ensure_sdk_layout() -> None:
     with contextlib.suppress(FileExistsError):
         skills_link.symlink_to(Path("..") / "skills")
 
-    # Spec doc symlinks
-    for name in ("routine-reminder-spec.md", "webhook-spec.md"):
-        source = PROJECT_DIR / "docs" / name
-        target = DATA_DIR / name
-        with contextlib.suppress(FileExistsError):
-            target.symlink_to(source)
-
 
 def _is_bot_running(pid: int) -> bool:
     """Check if a process is alive, with Linux-specific name verification."""

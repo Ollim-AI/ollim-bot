@@ -125,7 +125,7 @@ See `SearchOllimBot` for full mechanics. Key rules:
 - Quiet when busy: `_busy` contextvar set when `agent.lock()` held; non-critical pings return errors
 
 ## Routines & reminders
-Format spec: `docs/routine-reminder-spec.md`. Key implementation details:
+Format spec: see docs site. Key implementation details:
 - Files: `~/.ollim-bot/routines/<slug>.md` and `reminders/<slug>.md` (YAML frontmatter + markdown)
 - Agent manages files directly (Glob/Read/Write/Edit) — no CLI required
 - Scheduler polls both directories every 10s, registers/removes APScheduler jobs
@@ -144,10 +144,10 @@ Format spec: `docs/routine-reminder-spec.md`. Key implementation details:
 - Reply-to-fork: replying to a bg fork message resumes that fork's session (7-day TTL in `fork_messages.json`)
 
 ## Webhooks
-Spec format: `docs/webhook-spec.md`. Dispatch via `run_agent_background` (same bg fork path as scheduler).
+Format spec: see docs site. Dispatch via `run_agent_background` (same bg fork path as scheduler).
 
 ## Skills
-Spec format: `docs/skill-spec.md`. SDK discovers via `~/.ollim-bot/.claude/skills/` symlink. Per-job injection via `build_skills_section()`.
+Format spec: see docs site. SDK discovers via `~/.ollim-bot/.claude/skills/` symlink. Per-job injection via `build_skills_section()`.
 
 ## Google integration
 - OAuth credentials: `~/.ollim-bot/state/credentials.json` (from Google Cloud Console)

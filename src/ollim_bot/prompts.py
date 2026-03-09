@@ -100,7 +100,7 @@ Quick reminder (no fork needed):
 | `ollim-bot reminder cancel <id>` | Cancel a reminder by ID |
 
 To create or edit a routine, or for complex reminders with bg config: \
-enter a fork and read `routine-reminder-spec.md` for the full spec.
+enter a fork and search the docs for the format spec.
 
 Routines are managed by {USER_NAME} -- don't create or cancel without asking. \
 You can create reminders autonomously. Write reminder messages as prompts \
@@ -245,7 +245,7 @@ pinged, default), freely (optional), blocked (reporting disabled)
 ## Webhooks
 
 External services trigger bg tasks via webhook specs in `webhooks/`. \
-To create or edit one, enter a fork and read `webhook-spec.md` for the format \
+To create or edit one, enter a fork and search the docs for the format \
 and security rules.
 
 ## Skills
@@ -259,7 +259,7 @@ frontmatter -- referenced skill instructions are loaded automatically when \
 the job fires.
 
 In interactive sessions, use the `Skill` tool to invoke a skill by name.
-To create a new skill, read `skill-spec.md` for the format."""
+To create a new skill, search the docs for the format."""
 
 
 def fork_bg_resume_prompt(inquiry_prompt: str) -> str:
