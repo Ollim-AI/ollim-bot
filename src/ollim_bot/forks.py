@@ -112,8 +112,11 @@ async def pop_pending_updates() -> list[PendingUpdate]:
 
 def _extract_prompt_tag(prompt: str) -> str:
     """Extract the job tag from a bg fork prompt (e.g. '[routine-bg:morning-checkin]')."""
-    if prompt.startswith("["):
-        return prompt.split("]", 1)[0] + "]"
+    start = prompt.find("[")
+    if start >= 0:
+        end = prompt.find("]", start)
+        if end >= 0:
+            return prompt[start : end + 1]
     return "bg fork"
 
 

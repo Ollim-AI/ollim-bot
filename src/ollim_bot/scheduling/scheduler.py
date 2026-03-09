@@ -51,6 +51,7 @@ from ollim_bot.scheduling.preamble import (
 )
 from ollim_bot.scheduling.reminders import Reminder, list_reminders, remove_reminder
 from ollim_bot.scheduling.routines import Routine, list_routines
+from ollim_bot.skills import cleanup_stale_skills, ensure_skill
 from ollim_bot.streamer import stream_to_channel
 
 if TYPE_CHECKING:
@@ -104,13 +105,14 @@ def _register_routine(
                 return
             reminders = list_reminders()
             routines = list_routines()
+        sname = ensure_skill(routine)
         prompt = build_routine_prompt(
             routine,
+            skill_name=sname,
             reminders=reminders,
             routines=routines,
             busy=busy,
             bg_config=bg_config,
-            skill_names=routine.skills,
         )
         try:
             if routine.background:
@@ -171,13 +173,14 @@ def _register_reminder(
                 return
             all_reminders = list_reminders()
             all_routines = list_routines()
+        sname = ensure_skill(reminder)
         prompt = build_reminder_prompt(
             reminder,
+            skill_name=sname,
             reminders=all_reminders,
             routines=all_routines,
             busy=busy,
             bg_config=bg_config,
-            skill_names=reminder.skills,
             overdue_at=overdue_at,
         )
         # follow_up_chain MCP tool reads this to schedule the next link
@@ -246,7 +249,8 @@ def setup_scheduler(bot: discord.Client, agent: Agent, owner: discord.User) -> A
         current_routine_ids = {r.id for r in current_routines}
         for routine in current_routines:
             _register_routine(scheduler, owner, agent, routine)
-        for stale_id in _registered_routines - current_routine_ids:
+        stale_routine_ids = _registered_routines - current_routine_ids
+        for stale_id in stale_routine_ids:
             job = scheduler.get_job(f"routine_{stale_id}")
             if job:
                 job.remove()
@@ -256,11 +260,16 @@ def setup_scheduler(bot: discord.Client, agent: Agent, owner: discord.User) -> A
         current_reminder_ids = {r.id for r in current_reminders}
         for reminder in current_reminders:
             _register_reminder(scheduler, owner, agent, reminder)
-        for stale_id in _registered_reminders - current_reminder_ids:
+        stale_reminder_ids = _registered_reminders - current_reminder_ids
+        for stale_id in stale_reminder_ids:
             job = scheduler.get_job(f"rem_{stale_id}")
             if job:
                 job.remove()
             _registered_reminders.discard(stale_id)
+
+        if stale_routine_ids or stale_reminder_ids:
+            active = {f"routine-{r.id}" for r in current_routines} | {f"reminder-{r.id}" for r in current_reminders}
+            cleanup_stale_skills(active)
 
         _ch = get_channel()
         if _ch and check_and_clear_revoked():

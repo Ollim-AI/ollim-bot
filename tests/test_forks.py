@@ -416,6 +416,27 @@ def test_many_concurrent_appends(data_dir):
     _run(_scenario())
 
 
+# --- _extract_prompt_tag ---
+
+
+def test_extract_prompt_tag_old_format():
+    from ollim_bot.forks import _extract_prompt_tag
+
+    assert _extract_prompt_tag("[routine-bg:test] do stuff") == "[routine-bg:test]"
+
+
+def test_extract_prompt_tag_skill_format():
+    from ollim_bot.forks import _extract_prompt_tag
+
+    assert _extract_prompt_tag("/routine-abc [routine-bg:test] preamble") == "[routine-bg:test]"
+
+
+def test_extract_prompt_tag_no_tag():
+    from ollim_bot.forks import _extract_prompt_tag
+
+    assert _extract_prompt_tag("no tag here") == "bg fork"
+
+
 # --- Busy contextvar ---
 
 
