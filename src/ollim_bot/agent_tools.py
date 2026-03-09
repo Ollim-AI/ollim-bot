@@ -1,6 +1,7 @@
 """MCP tool definitions for agent interactions (embeds, buttons, chains, forks)."""
 
 import subprocess
+import sys
 from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import Any, Literal
@@ -262,7 +263,9 @@ async def follow_up_chain(args: dict[str, Any]) -> dict[str, Any]:
 
     minutes = args["minutes_from_now"]
     cmd = [
-        "ollim-bot",
+        sys.executable,
+        "-m",
+        "ollim_bot",
         "reminder",
         "add",
         "--delay",
