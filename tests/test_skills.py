@@ -58,9 +58,10 @@ def test_build_skill_md_routine_with_skills():
 
     md = build_skill_md(routine)
 
-    assert "allowed-tools: Read, Skill(sleep-coach *), Skill(task-review *)" in md
+    assert "allowed-tools: Read" in md
+    assert "Skill(sleep-coach *)" not in md  # patterns stay in BgForkConfig only
     assert "REQUIRED SKILLS:" in md
-    assert "Skill(sleep-coach)" in md
+    assert "Skill(sleep-coach)" in md  # body instruction (no wildcard)
     assert "Skill(task-review)" in md
 
 

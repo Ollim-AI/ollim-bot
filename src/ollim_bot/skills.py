@@ -33,17 +33,6 @@ def skill_name(item: Routine | Reminder | WebhookSpec) -> str:
     return f"webhook-{item.id}"
 
 
-def _build_allowed_tools(item: Routine | Reminder | WebhookSpec) -> str | None:
-    """Build allowed-tools frontmatter value from item's tools + skill patterns."""
-    parts: list[str] = []
-    if item.allowed_tools:
-        parts.extend(item.allowed_tools)
-    skills: list[str] | None = getattr(item, "skills", None)
-    if skills:
-        parts.extend(f"Skill({name} *)" for name in skills)
-    return ", ".join(parts) if parts else None
-
-
 def _build_skills_instruction(skill_names: list[str]) -> str:
     """Format a REQUIRED SKILLS instruction block for the SKILL.md body."""
     lines = ["REQUIRED SKILLS: You must invoke these skills before proceeding:"]
@@ -52,9 +41,10 @@ def _build_skills_instruction(skill_names: list[str]) -> str:
     return "\n".join(lines)
 
 
-def build_skill_md(item: Routine | Reminder | WebhookSpec) -> str:
+def build_skill_md(item: Routine | Reminder | WebhookSpec, *, name: str | None = None) -> str:
     """Generate SKILL.md content from a Routine, Reminder, or WebhookSpec."""
-    name = skill_name(item)
+    if name is None:
+        name = skill_name(item)
     description = getattr(item, "description", "") or name
     is_webhook = hasattr(item, "fields")
 
@@ -65,9 +55,8 @@ def build_skill_md(item: Routine | Reminder | WebhookSpec) -> str:
         f"description: {description}",
         "disable-model-invocation: true",
     ]
-    allowed = _build_allowed_tools(item)
-    if allowed:
-        lines.append(f"allowed-tools: {allowed}")
+    if item.allowed_tools:
+        lines.append(f"allowed-tools: {', '.join(item.allowed_tools)}")
     lines.append("---")
 
     # --- Body ---
@@ -93,7 +82,7 @@ def ensure_skill(item: Routine | Reminder | WebhookSpec) -> str:
     name = skill_name(item)
     skill_dir = SKILLS_DIR / name
     skill_file = skill_dir / "SKILL.md"
-    content = build_skill_md(item)
+    content = build_skill_md(item, name=name)
 
     if skill_file.exists() and skill_file.read_text() == content:
         return name
