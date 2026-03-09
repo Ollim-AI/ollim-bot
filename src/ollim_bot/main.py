@@ -245,9 +245,11 @@ def _discord_api(token: str, method: str, path: str, body: dict | None = None) -
             raise SystemExit(1) from e
         if e.code == 403:
             print(f"Discord API returned 403 on {path}", file=sys.stderr)
-            print("The bot token may lack required permissions.", file=sys.stderr)
-            print("Ensure the bot has the 'applications.commands' scope", file=sys.stderr)
-            print("and is invited with sufficient permissions.", file=sys.stderr)
+            print("", file=sys.stderr)
+            print("The bot must be installed to a server you share with it.", file=sys.stderr)
+            print("1. Go to Discord Developer Portal > OAuth2", file=sys.stderr)
+            print("2. Copy the install link (with bot + applications.commands scopes)", file=sys.stderr)
+            print("3. Open it in your browser and add the bot to your server", file=sys.stderr)
             raise SystemExit(1) from e
         raise
 
