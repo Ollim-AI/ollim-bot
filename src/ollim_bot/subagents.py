@@ -15,10 +15,8 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-import yaml
-
 from ollim_bot.config import BOT_NAME, USER_NAME
-from ollim_bot.storage import DATA_DIR
+from ollim_bot.storage import DATA_DIR, parse_frontmatter
 
 log = logging.getLogger(__name__)
 
@@ -54,23 +52,20 @@ def _extract_tools(path: Path) -> tuple[str, list[str]] | None:
     except OSError as exc:
         log.warning("Skipping unreadable agent spec %s: %s", path.name, exc)
         return None
-    parts = text.split("---", 2)
-    if len(parts) < 3:
+    meta = parse_frontmatter(text)
+    if not meta:
         return None
-    try:
-        meta = yaml.safe_load(parts[1])
-    except yaml.YAMLError as exc:
-        log.warning("Skipping corrupt agent spec %s: %s", path.name, exc)
-        return None
-    if not isinstance(meta, dict):
-        return None
-    tools = meta.get("tools")
-    if not tools:
+    raw_tools = meta.get("tools")
+    if not raw_tools:
         return None
     name = str(meta.get("name", path.stem))
     # SDK accepts both comma-separated string and YAML list for tools
-    if isinstance(tools, str):
-        tools = [t.strip() for t in tools.split(",")]
+    if isinstance(raw_tools, str):
+        tools = [t.strip() for t in raw_tools.split(",")]
+    elif isinstance(raw_tools, list):
+        tools = [str(t) for t in raw_tools]
+    else:
+        return None
     return name, tools
 
 

@@ -77,6 +77,21 @@ def git_rm_commit(filepath: Path, message: str) -> None:
     )
 
 
+# --- Frontmatter extraction ---
+
+
+def parse_frontmatter(text: str) -> dict[str, object]:
+    """Extract YAML frontmatter as a dict. Returns {} on any parse failure."""
+    parts = text.split("---", 2)
+    if len(parts) < 3:
+        return {}
+    try:
+        data = yaml.safe_load(parts[1])
+    except yaml.YAMLError:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
 # --- Markdown I/O ---
 
 

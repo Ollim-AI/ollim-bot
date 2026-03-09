@@ -51,7 +51,6 @@ from ollim_bot.scheduling.preamble import (
 )
 from ollim_bot.scheduling.reminders import Reminder, list_reminders, remove_reminder
 from ollim_bot.scheduling.routines import Routine, list_routines
-from ollim_bot.skills import Skill, collect_skill_tools, load_skills
 from ollim_bot.streamer import stream_to_channel
 
 if TYPE_CHECKING:
@@ -64,20 +63,21 @@ _registered_routines: set[str] = set()
 _registered_reminders: set[str] = set()
 
 
-def _merge_skill_tools(config: BgForkConfig, skills: list[Skill]) -> BgForkConfig:
-    """Merge tool dependencies from pre-loaded skills into the config.
+def _merge_skill_tools(config: BgForkConfig, skill_names: list[str] | None) -> BgForkConfig:
+    """Add Skill(<name> *) patterns to allowed_tools for bg fork dispatch.
 
-    BgForkConfig.from_item always sets allowed_tools (MINIMAL_BG_TOOLS default),
-    so config.allowed_tools is guaranteed non-None here.
+    The SDK handles skill content loading and allowed-tools enforcement
+    natively (resolved before can_use_tool callback). We only need to
+    ensure the Skill tool itself is permitted for each skill name.
     """
-    skill_tools = collect_skill_tools(skills)
-    if not skill_tools:
+    if not skill_names:
         return config
-    merged = list(config.allowed_tools or [])
-    for tool in skill_tools:
-        if tool not in merged:
-            merged.append(tool)
-    return replace(config, allowed_tools=merged)
+    additions = [f"Skill({name} *)" for name in skill_names]
+    current = set(config.allowed_tools or [])
+    new = [t for t in additions if t not in current]
+    if not new:
+        return config
+    return replace(config, allowed_tools=list(current) + new)
 
 
 def _register_routine(
@@ -92,7 +92,6 @@ def _register_routine(
 
     async def _fire() -> None:
         busy = agent.lock().locked()
-        skills = load_skills(routine.skills)
         bg_config: BgForkConfig | None = None
         reminders: list[Reminder] = []
         routines: list[Routine] = []
@@ -100,21 +99,18 @@ def _register_routine(
             from ollim_bot.tool_policy import validate_dispatch
 
             bg_config = BgForkConfig.from_item(routine)
-            bg_config = _merge_skill_tools(bg_config, skills)
+            bg_config = _merge_skill_tools(bg_config, routine.skills)
             if not validate_dispatch(bg_config.allowed_tools, source=routine.id):
                 return
             reminders = list_reminders()
             routines = list_routines()
-        # build_routine_prompt runs _expand_commands (sync subprocess, up to 30s)
-        # — offload to thread to avoid blocking the event loop
-        prompt = await asyncio.to_thread(
-            build_routine_prompt,
+        prompt = build_routine_prompt(
             routine,
             reminders=reminders,
             routines=routines,
             busy=busy,
             bg_config=bg_config,
-            skills=skills,
+            skill_names=routine.skills,
         )
         try:
             if routine.background:
@@ -163,7 +159,6 @@ def _register_reminder(
 
     async def fire_oneshot() -> None:
         busy = agent.lock().locked()
-        skills = load_skills(reminder.skills)
         bg_config: BgForkConfig | None = None
         all_reminders: list[Reminder] = []
         all_routines: list[Routine] = []
@@ -171,21 +166,18 @@ def _register_reminder(
             from ollim_bot.tool_policy import validate_dispatch
 
             bg_config = BgForkConfig.from_item(reminder)
-            bg_config = _merge_skill_tools(bg_config, skills)
+            bg_config = _merge_skill_tools(bg_config, reminder.skills)
             if not validate_dispatch(bg_config.allowed_tools, source=reminder.id):
                 return
             all_reminders = list_reminders()
             all_routines = list_routines()
-        # build_reminder_prompt runs _expand_commands (sync subprocess, up to 30s)
-        # — offload to thread to avoid blocking the event loop
-        prompt = await asyncio.to_thread(
-            build_reminder_prompt,
+        prompt = build_reminder_prompt(
             reminder,
             reminders=all_reminders,
             routines=all_routines,
             busy=busy,
             bg_config=bg_config,
-            skills=skills,
+            skill_names=reminder.skills,
             overdue_at=overdue_at,
         )
         # follow_up_chain MCP tool reads this to schedule the next link

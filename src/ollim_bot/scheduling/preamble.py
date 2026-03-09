@@ -12,7 +12,6 @@ from ollim_bot.config import TZ
 from ollim_bot.fork_state import BgForkConfig
 from ollim_bot.scheduling.reminders import Reminder
 from ollim_bot.scheduling.routines import Routine
-from ollim_bot.skills import Skill, build_skills_section
 
 # Standard cron: 0=Sunday. APScheduler CronTrigger: 0=Monday.
 # Convert numeric values to named days to avoid the mismatch.
@@ -340,6 +339,16 @@ def build_bg_preamble(
     return f"{ping_section}{update_section}{busy_line}{budget_section}{tools_section}{unavailable_hint}{proxy_line}"
 
 
+def _build_skills_instruction(skill_names: list[str] | None) -> str:
+    """Format a REQUIRED SKILLS instruction block for the prompt."""
+    if not skill_names:
+        return ""
+    lines = ["REQUIRED SKILLS: You must invoke these skills before proceeding:"]
+    for name in skill_names:
+        lines.append(f"  - Skill({name})")
+    return "\n".join(lines) + "\n\n"
+
+
 def build_routine_prompt(
     routine: Routine,
     *,
@@ -347,9 +356,9 @@ def build_routine_prompt(
     routines: list[Routine],
     busy: bool = False,
     bg_config: BgForkConfig | None = None,
-    skills: list[Skill] | None = None,
+    skill_names: list[str] | None = None,
 ) -> str:
-    skills_section = build_skills_section(skills or [])
+    skills_section = _build_skills_instruction(skill_names)
     if routine.background:
         schedule = build_upcoming_schedule(routines, reminders, current_id=routine.id)
         preamble = build_bg_preamble(schedule, busy=busy, bg_config=bg_config)
@@ -364,7 +373,7 @@ def build_reminder_prompt(
     routines: list[Routine],
     busy: bool = False,
     bg_config: BgForkConfig | None = None,
-    skills: list[Skill] | None = None,
+    skill_names: list[str] | None = None,
     overdue_at: datetime | None = None,
 ) -> str:
     tag = f"reminder-bg:{reminder.id}" if reminder.background else f"reminder:{reminder.id}"
@@ -377,7 +386,7 @@ def build_reminder_prompt(
         schedule = build_upcoming_schedule(routines, reminders, current_id=reminder.id)
         parts.append(build_bg_preamble(schedule, busy=busy, bg_config=bg_config).rstrip())
 
-    skills_section = build_skills_section(skills or [])
+    skills_section = _build_skills_instruction(skill_names)
     if skills_section:
         parts.append(f"\n{skills_section.rstrip()}")
 
