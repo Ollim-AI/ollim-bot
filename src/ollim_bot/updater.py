@@ -154,11 +154,17 @@ def log_and_restart() -> None:
 
 
 def restart_process() -> None:
-    """Replace the current process with a fresh one via os.execv.
+    """Replace the current process with a fresh one.
 
     Deletes the PID file first — os.execv keeps the same PID and skips
     atexit handlers, so _check_already_running() would otherwise see a
     stale PID file matching the current PID and refuse to start.
+
+    On Windows, os.execv spawns a child instead of replacing the process,
+    so we use subprocess.Popen + sys.exit to avoid duplicate instances.
     """
     PID_FILE.unlink(missing_ok=True)
+    if sys.platform == "win32":
+        subprocess.Popen([sys.executable, *sys.argv])
+        raise SystemExit(0)
     os.execv(sys.executable, [sys.executable, *sys.argv])
