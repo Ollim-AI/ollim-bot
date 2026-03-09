@@ -537,7 +537,7 @@ def create_bot() -> commands.Bot:
         if not CREDENTIALS_FILE.exists():
             await interaction.response.send_message(
                 f"google credentials not found at `{CREDENTIALS_FILE}`.\n"
-                "set up OAuth credentials (desktop app type) at console.cloud.google.com first.",
+                "follow the [setup guide](https://docs.ollim.ai/self-hosting/google-oauth-setup) to create OAuth credentials.",
                 ephemeral=True,
             )
             return
