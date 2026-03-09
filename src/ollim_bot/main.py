@@ -193,8 +193,9 @@ async def _run(bot: Bot, token: str) -> None:
         _background_tasks.add(task)
         task.add_done_callback(_background_tasks.discard)
 
-    loop.add_signal_handler(signal.SIGTERM, _on_signal, "SIGTERM")
-    loop.add_signal_handler(signal.SIGINT, _on_signal, "SIGINT")
+    if sys.platform != "win32":
+        loop.add_signal_handler(signal.SIGTERM, _on_signal, "SIGTERM")
+        loop.add_signal_handler(signal.SIGINT, _on_signal, "SIGINT")
 
     try:
         await bot.start(token)
