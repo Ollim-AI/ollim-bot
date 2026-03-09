@@ -84,8 +84,19 @@ def _ensure_sdk_layout() -> None:
     # Skills symlink → .claude/skills/ -> ../skills/
     skills_link = DATA_DIR / ".claude" / "skills"
     skills_link.parent.mkdir(parents=True, exist_ok=True)
-    with contextlib.suppress(FileExistsError):
-        skills_link.symlink_to(Path("..") / "skills")
+    if not skills_link.exists():
+        try:
+            skills_link.symlink_to(Path("..") / "skills")
+        except OSError:
+            # Windows without Developer Mode can't create symlinks;
+            # fall back to a directory junction (no admin required)
+            if sys.platform == "win32":
+                subprocess.run(
+                    ["cmd", "/c", "mklink", "/J", str(skills_link), str(DATA_DIR / "skills")],
+                    capture_output=True,
+                )
+            else:
+                raise
 
 
 def _is_bot_running(pid: int) -> bool:
@@ -219,6 +230,12 @@ def _discord_api(token: str, method: str, path: str, body: dict | None = None) -
             print("Discord API returned 401 — DISCORD_TOKEN appears invalid.", file=sys.stderr)
             print("Check that DISCORD_TOKEN in .env matches the token from", file=sys.stderr)
             print("Discord Developer Portal > Bot > Reset Token.", file=sys.stderr)
+            raise SystemExit(1) from e
+        if e.code == 403:
+            print(f"Discord API returned 403 on {path}", file=sys.stderr)
+            print("The bot token may lack required permissions.", file=sys.stderr)
+            print("Ensure the bot has the 'applications.commands' scope", file=sys.stderr)
+            print("and is invited with sufficient permissions.", file=sys.stderr)
             raise SystemExit(1) from e
         raise
 
