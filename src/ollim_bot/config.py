@@ -22,6 +22,12 @@ BOT_NAME: str = os.environ["OLLIM_BOT_NAME"]
 
 def _detect_local_tz() -> str:
     """Detect the system's IANA timezone name. Falls back to UTC."""
+    if sys.platform == "win32":
+        # Windows: /etc/timezone doesn't exist; use tzlocal for IANA name
+        import tzlocal
+
+        return str(tzlocal.get_localzone())
+
     # Debian/Ubuntu: plain text file with IANA name
     etc_tz = Path("/etc/timezone")
     if etc_tz.exists():

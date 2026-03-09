@@ -100,7 +100,20 @@ def _ensure_sdk_layout() -> None:
 
 
 def _is_bot_running(pid: int) -> bool:
-    """Check if a process is alive, with Linux-specific name verification."""
+    """Check if a process is alive, with platform-specific verification."""
+    if sys.platform == "win32":
+        # Windows: OpenProcess returns 0 for non-existent processes
+        import ctypes
+
+        PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+        handle = ctypes.windll.kernel32.OpenProcess(  # type: ignore[union-attr]
+            PROCESS_QUERY_LIMITED_INFORMATION, False, pid
+        )
+        if not handle:
+            return False
+        ctypes.windll.kernel32.CloseHandle(handle)  # type: ignore[union-attr]
+        return True
+
     try:
         os.kill(pid, 0)
     except ProcessLookupError:
