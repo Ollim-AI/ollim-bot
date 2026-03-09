@@ -71,6 +71,8 @@ Never write working data into the source repo or source code into `~/.ollim-bot/
   - `reminder_cmd.py` -- Reminders CLI (`ollim-bot reminder`)
 
 ## Agent SDK config
+- The Agent SDK wraps the Claude Code CLI — Claude Code behavior is ground truth
+- SDK docs: fetch from `https://code.claude.com/docs` (preferred over reading SDK source)
 - Auth: Claude Code OAuth (no API key needed)
 - Single `ClaudeSDKClient` for persistent conversation with auto-compaction
 - `setting_sources=["project"]` — SDK loads agents and skills from `.claude/` (relative to `cwd=DATA_DIR`)
@@ -207,7 +209,7 @@ Before proposing the plan (ExitPlanMode), load the `python-principles` skill and
 - `SearchOllimBot` MCP tool — search `docs.ollim.ai` for architecture, conventions, and integration patterns. Use for "how does X work" or "how to add Y" questions; use code exploration for implementation details and debugging.
 
 ## Useful skills
-- `/claude-api` -- Claude API & Agent SDK reference (load when working on SDK integration: agent, streaming, sessions, hooks, MCP, subagents)
+- `/claude-api` -- Claude API & Agent SDK reference (load when working on SDK integration: agent, streaming, sessions, hooks, MCP, subagents). For SDK behavior, prefer `https://code.claude.com/docs` over reading SDK source.
 - `/feature-development` -- guided feature dev: explore, clarify, architect, implement, review
 - `/systematic-debugging` -- root-cause debugging: investigate, analyze, hypothesize, fix
 - `/code-review` -- two-stage review: project compliance + code quality (confidence >= 80)
