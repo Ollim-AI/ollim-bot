@@ -16,6 +16,7 @@ from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
 import discord
+from apscheduler.events import EVENT_JOB_MISSED, JobExecutionEvent
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.date import DateTrigger
@@ -40,6 +41,7 @@ from ollim_bot.fork_state import (
     touch_activity,
 )
 from ollim_bot.forks import (
+    append_update,
     run_agent_background,
     send_agent_dm,
 )
@@ -239,9 +241,31 @@ def _register_reminder(
     scheduler.add_job(fire_oneshot, DateTrigger(run_date=run_at), id=f"rem_{reminder.id}")
 
 
+_INTERNAL_JOBS = {"sync_all", "check_fork_timeout", "check_for_update"}
+
+
+def _on_job_missed(event: JobExecutionEvent) -> None:
+    """Surface user-facing job misfires to pending_updates."""
+    job_id: str = event.job_id
+    if job_id in _INTERNAL_JOBS:
+        return
+
+    if job_id.startswith("routine_"):
+        kind, name = "routine", job_id.removeprefix("routine_")
+    elif job_id.startswith("rem_"):
+        kind, name = "reminder", job_id.removeprefix("rem_")
+    else:
+        return
+
+    scheduled = event.scheduled_run_time.astimezone(TZ).strftime("%-I:%M %p")
+    msg = f"Missed {kind} **{name}** (was due {scheduled})"
+    asyncio.get_event_loop().create_task(append_update(msg))
+
+
 def setup_scheduler(bot: discord.Client, agent: Agent, owner: discord.User) -> AsyncIOScheduler:
     """Polls routines/reminders every 10s, registering new and pruning stale jobs."""
     scheduler = AsyncIOScheduler(timezone=str(TZ))
+    scheduler.add_listener(_on_job_missed, EVENT_JOB_MISSED)
 
     @scheduler.scheduled_job(IntervalTrigger(seconds=10))
     async def sync_all() -> None:
