@@ -273,7 +273,7 @@ def build_bg_preamble(
                 window_label = "recent"
             schedule_lines = [f"Upcoming bg tasks ({window_label}):"]
             for entry in schedule:
-                time_str = entry.fire_time.strftime("%-I:%M %p")
+                time_str = entry.fire_time.strftime("%I:%M %p").lstrip("0")
                 silent = " (silent)" if entry.silent else ""
                 tag_str = f" [{entry.tag}]" if entry.tag else ""
                 schedule_lines.append(
@@ -368,7 +368,7 @@ def build_reminder_prompt(
     tag = f"reminder-bg:{reminder.id}" if reminder.background else f"reminder:{reminder.id}"
     parts = [f"/{skill_name} [{tag}]"]
     if overdue_at is not None:
-        scheduled_str = overdue_at.strftime("%-I:%M %p")
+        scheduled_str = overdue_at.strftime("%I:%M %p").lstrip("0")
         parts.append(f"[late: was scheduled for {scheduled_str}, running now]")
 
     if reminder.background:
