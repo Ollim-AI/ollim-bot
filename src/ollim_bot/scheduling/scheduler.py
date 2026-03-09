@@ -257,7 +257,7 @@ def _on_job_missed(event: JobExecutionEvent) -> None:
     else:
         return
 
-    scheduled = event.scheduled_run_time.astimezone(TZ).strftime("%-I:%M %p")
+    scheduled = event.scheduled_run_time.astimezone(TZ).strftime("%I:%M %p").lstrip("0")
     msg = f"Missed {kind} **{name}** (was due {scheduled})"
     asyncio.get_event_loop().create_task(append_update(msg))
 
