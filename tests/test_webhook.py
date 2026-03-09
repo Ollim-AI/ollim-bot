@@ -18,6 +18,16 @@ from ollim_bot.webhook import (
     verify_auth,
 )
 
+_STUB_SKILL = "webhook-test"
+
+
+@pytest.fixture()
+def _patch_skills_dir(data_dir, monkeypatch):
+    """Redirect generated skills to temp dir."""
+    import ollim_bot.skills as skills_mod
+
+    monkeypatch.setattr(skills_mod, "SKILLS_DIR", data_dir / "skills")
+
 
 def test_parse_webhook_spec(data_dir):
     webhooks_dir = data_dir / "webhooks"
@@ -194,16 +204,17 @@ def test_validate_payload_too_many_properties():
 def test_build_webhook_prompt_has_tag(data_dir):
     spec = WebhookSpec(
         id="test-hook",
-        message="Check {repo}.",
+        message="Check repo.",
         fields={"type": "object", "properties": {"repo": {"type": "string"}}},
     )
 
-    prompt = build_webhook_prompt(spec, {"repo": "ollim-bot"})
+    prompt = build_webhook_prompt(spec, {"repo": "ollim-bot"}, skill_name="webhook-test-hook")
 
     assert "[webhook:test-hook]" in prompt
+    assert prompt.startswith("/webhook-test-hook")
 
 
-def test_build_webhook_prompt_data_section(data_dir):
+def test_build_webhook_prompt_json_payload(data_dir):
     spec = WebhookSpec(
         id="ci",
         message="Check build.",
@@ -216,25 +227,11 @@ def test_build_webhook_prompt_data_section(data_dir):
         },
     )
 
-    prompt = build_webhook_prompt(spec, {"repo": "myrepo", "status": "failure"})
+    prompt = build_webhook_prompt(spec, {"repo": "myrepo", "status": "failure"}, skill_name="webhook-ci")
 
-    assert "WEBHOOK DATA" in prompt
-    assert "untrusted" in prompt.lower()
-    assert "repo: myrepo" in prompt
-    assert "status: failure" in prompt
-
-
-def test_build_webhook_prompt_task_section(data_dir):
-    spec = WebhookSpec(
-        id="ci",
-        message="Check {repo} build status.",
-        fields={"type": "object", "properties": {"repo": {"type": "string"}}},
-    )
-
-    prompt = build_webhook_prompt(spec, {"repo": "ollim-bot"})
-
-    assert "TASK" in prompt
-    assert "Check ollim-bot build status." in prompt
+    assert prompt.startswith("/webhook-ci")
+    assert '"repo": "myrepo"' in prompt
+    assert '"status": "failure"' in prompt
 
 
 def test_build_webhook_prompt_includes_preamble(data_dir):
@@ -244,29 +241,9 @@ def test_build_webhook_prompt_includes_preamble(data_dir):
         fields={"type": "object", "properties": {}},
     )
 
-    prompt = build_webhook_prompt(spec, {})
+    prompt = build_webhook_prompt(spec, {}, skill_name="webhook-ci")
 
     assert "ping_user" in prompt or "discarded" in prompt
-
-
-def test_build_webhook_prompt_optional_fields_omitted(data_dir):
-    """Optional fields not in payload should not appear in data section."""
-    spec = WebhookSpec(
-        id="ci",
-        message="Check.",
-        fields={
-            "type": "object",
-            "properties": {
-                "repo": {"type": "string"},
-                "branch": {"type": "string"},
-            },
-        },
-    )
-
-    prompt = build_webhook_prompt(spec, {"repo": "test"})
-
-    assert "repo: test" in prompt
-    assert "branch" not in prompt
 
 
 def test_verify_auth_valid():
@@ -379,7 +356,7 @@ def _write_spec(data_dir):
 
 
 @pytest.mark.asyncio
-async def test_handler_returns_202(data_dir):
+async def test_handler_returns_202(data_dir, _patch_skills_dir):
     _write_spec(data_dir)
     processed = []
 

@@ -339,45 +339,34 @@ def build_bg_preamble(
     return f"{ping_section}{update_section}{busy_line}{budget_section}{tools_section}{unavailable_hint}{proxy_line}"
 
 
-def _build_skills_instruction(skill_names: list[str] | None) -> str:
-    """Format a REQUIRED SKILLS instruction block for the prompt."""
-    if not skill_names:
-        return ""
-    lines = ["REQUIRED SKILLS: You must invoke these skills before proceeding:"]
-    for name in skill_names:
-        lines.append(f"  - Skill({name})")
-    return "\n".join(lines) + "\n\n"
-
-
 def build_routine_prompt(
     routine: Routine,
     *,
+    skill_name: str,
     reminders: list[Reminder],
     routines: list[Routine],
     busy: bool = False,
     bg_config: BgForkConfig | None = None,
-    skill_names: list[str] | None = None,
 ) -> str:
-    skills_section = _build_skills_instruction(skill_names)
     if routine.background:
         schedule = build_upcoming_schedule(routines, reminders, current_id=routine.id)
         preamble = build_bg_preamble(schedule, busy=busy, bg_config=bg_config)
-        return f"[routine-bg:{routine.id}] {preamble}{skills_section}{routine.message}"
-    return f"[routine:{routine.id}] {skills_section}{routine.message}"
+        return f"/{skill_name} [routine-bg:{routine.id}] {preamble}"
+    return f"/{skill_name} [routine:{routine.id}]"
 
 
 def build_reminder_prompt(
     reminder: Reminder,
     *,
+    skill_name: str,
     reminders: list[Reminder],
     routines: list[Routine],
     busy: bool = False,
     bg_config: BgForkConfig | None = None,
-    skill_names: list[str] | None = None,
     overdue_at: datetime | None = None,
 ) -> str:
     tag = f"reminder-bg:{reminder.id}" if reminder.background else f"reminder:{reminder.id}"
-    parts = [f"[{tag}]"]
+    parts = [f"/{skill_name} [{tag}]"]
     if overdue_at is not None:
         scheduled_str = overdue_at.strftime("%-I:%M %p")
         parts.append(f"[late: was scheduled for {scheduled_str}, running now]")
@@ -385,10 +374,6 @@ def build_reminder_prompt(
     if reminder.background:
         schedule = build_upcoming_schedule(routines, reminders, current_id=reminder.id)
         parts.append(build_bg_preamble(schedule, busy=busy, bg_config=bg_config).rstrip())
-
-    skills_section = _build_skills_instruction(skill_names)
-    if skills_section:
-        parts.append(f"\n{skills_section.rstrip()}")
 
     if reminder.max_chain > 0:
         check_num = reminder.chain_depth + 1
@@ -412,5 +397,4 @@ def build_reminder_prompt(
                 f"Otherwise call report_updates."
             )
 
-    parts.append(f"\n{reminder.message}")
     return "\n".join(parts)
