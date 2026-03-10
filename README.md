@@ -55,7 +55,7 @@ Run:
 ollim-bot
 ```
 
-See the [setup guide](https://docs.ollim.ai/getting-started/setup) for
+See the [setup guide](https://docs.ollim.ai/getting-started/google-integration) for
 Discord bot creation, Google OAuth, and webhook configuration.
 
 ## Development
