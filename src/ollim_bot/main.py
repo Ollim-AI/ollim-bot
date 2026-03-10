@@ -249,7 +249,9 @@ def _discord_api(token: str, method: str, path: str, body: dict | None = None) -
             print("The bot must be installed to your Discord account.", file=sys.stderr)
             print("Go to Discord Developer Portal > Installation, copy the", file=sys.stderr)
             print("install link, and open it to add the app to your account.", file=sys.stderr)
-            print("See: https://docs.ollim.ai/self-hosting/discord-bot-setup", file=sys.stderr)
+            print(
+                "See: https://docs.ollim.ai/getting-started/quickstart#install-to-your-discord-account", file=sys.stderr
+            )
             raise SystemExit(1) from e
         raise
 
