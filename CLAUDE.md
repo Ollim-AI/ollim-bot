@@ -24,6 +24,8 @@ Two separate trees — never mix them:
 | `~/.ollim-bot/` (`DATA_DIR`) | Agent working data (routines, reminders, webhooks, state) | yes (auto-committed) |
 
 `DATA_DIR` subdivisions:
+- `IDENTITY.md` — bot persona (tone, personality, relationship dynamics); bootstrapped from template, user-editable
+- `USER.md` — context about the user (work, schedule, ADHD patterns, priorities); user-created, not bootstrapped
 - `routines/`, `reminders/`, `webhooks/`, `skills/` — agent-managed markdown files
 - `state/` (`STATE_DIR`) — code-only infrastructure (sessions, ping budget, inquiries, tokens)
 
@@ -36,7 +38,8 @@ Never write working data into the source repo or source code into `~/.ollim-bot/
 - `agent_context.py` -- Message context helpers: `timestamp`, `prepend_context`, `format_compact_stats`, `thinking()`, `ModelName`
 - `main.py` -- CLI entry point and command router (`ollim-bot` dispatches to bot, routines, reminders, tasks, cal, gmail)
 - `auth.py` -- Claude CLI auth via bundled Agent SDK CLI (`is_authenticated`, `start_login`, `ollim-bot auth` subcommands)
-- `prompts.py` -- System prompt for the main agent and fork prompt helpers
+- `profile.py` -- User profile files: IDENTITY.md (bot persona) and USER.md (user context), bootstrap and loading
+- `prompts.py` -- System prompt builder: composes profile + operational instructions; fork prompt helpers
 - `subagents.py` -- Bundled agent installation (`install_agents`) and tool-set extraction (`load_agent_tool_sets`) for policy validation; specs in `subagents/*.md`
 - `agent_tools.py` -- MCP tools: `discord_embed`, `ping_user`, `follow_up_chain`, `save_context`, `report_updates`, `enter_fork`, `exit_fork`
 - `hooks.py` -- Agent SDK hooks: `state_dir_guard` (PreToolUse — blocks Write/Edit to state/), `auto_commit_hook` (PostToolUse — auto-commits .md file changes in DATA_DIR)
