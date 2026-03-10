@@ -45,7 +45,7 @@ from ollim_bot.permissions import (
 from ollim_bot.permissions import (
     reset as reset_permissions,
 )
-from ollim_bot.prompts import SYSTEM_PROMPT
+from ollim_bot.prompts import build_system_prompt
 from ollim_bot.sessions import (
     delete_session_id,
     load_session_id,
@@ -78,7 +78,7 @@ class Agent:
             cwd=DATA_DIR,
             include_partial_messages=True,
             can_use_tool=handle_tool_permission,
-            system_prompt=SYSTEM_PROMPT,
+            system_prompt=build_system_prompt(),
             setting_sources=["project"],
             mcp_servers={
                 "discord": agent_server,

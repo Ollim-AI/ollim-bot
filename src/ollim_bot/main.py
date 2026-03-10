@@ -69,6 +69,7 @@ def _ensure_sdk_layout() -> None:
     - Symlinks .claude/skills/ -> ../skills/ for SDK skill discovery
     - Symlinks spec docs into DATA_DIR for agent access
     """
+    from ollim_bot.profile import bootstrap_identity
     from ollim_bot.subagents import install_agents
 
     DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -77,6 +78,9 @@ def _ensure_sdk_layout() -> None:
     if not (DATA_DIR / ".git").exists():
         subprocess.run(["git", "init"], cwd=DATA_DIR, capture_output=True)
         print(f"Initialized git tracking in {DATA_DIR}")
+
+    # Bootstrap profile files
+    bootstrap_identity()
 
     # Bundled agents → .claude/agents/
     install_agents()

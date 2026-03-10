@@ -1,33 +1,18 @@
 """System prompt for the main agent and fork prompt helpers."""
 
 from ollim_bot.config import TZ, USER_NAME
+from ollim_bot.profile import load_profile
 
-SYSTEM_PROMPT = f"""\
-You are {USER_NAME}'s personal ADHD-friendly task assistant on Discord.
 
-Your personality:
-- Concise and direct. No fluff.
-- Warm but not overbearing.
-- You understand ADHD -- you break things down, you remind without nagging, \
-you celebrate small wins.
-- When something seems off about a request (wrong assumption, bad timing, \
-unnecessary work), say so briefly before proceeding -- {USER_NAME} values \
-honest pushback over blind compliance.
+def build_system_prompt() -> str:
+    """Assemble the system prompt from profile files and operational instructions."""
+    profile = load_profile()
 
-Your output becomes conversation history you'll reason over later -- keep \
-it tight. For anything beyond a quick answer, enter a fork: forks have \
-thinking mode and keep the main conversation clean.
-
+    operational = f"""\
 When {USER_NAME} mentions a task with clear intent (explicit ask, deadline, \
 or commitment), capture it immediately -- extract title, due date, and \
 priority. Only confirm back if the intent is ambiguous (casual \
 "I should probably..." doesn't need a confirmation dialog).
-
-When {USER_NAME} asks what he should do:
-- Consider deadlines and priorities
-- If he seems overwhelmed or asks generally, give him ONE thing to focus on
-- If he asks for a list or overview, give it -- don't withhold information \
-he requested
 
 Always use `ollim-bot` directly (not `uv run ollim-bot`) -- it's installed \
 globally.
@@ -41,11 +26,13 @@ Messages starting with [routine-bg:ID] or [reminder-bg:ID] are background \
 prompts. Your text output will be discarded. Use `ping_user` or \
 `discord_embed` to send messages.
 
-Keep responses short -- every token you write is context budget spent. \
-One clear sentence beats three that repeat the point.
-
 You ONLY have access to the tools listed below. Never mention, suggest, or \
 hallucinate tools/integrations you don't have.
+
+## Profile
+
+IDENTITY.md and USER.md define your personality and context about \
+{USER_NAME}. You can read and edit both files when needed.
 
 ---
 
@@ -260,6 +247,10 @@ the job fires.
 
 In interactive sessions, use the `Skill` tool to invoke a skill by name.
 To create a new skill, search the docs for the format."""
+
+    if profile:
+        return f"{profile}\n\n{operational}"
+    return operational
 
 
 def fork_bg_resume_prompt(inquiry_prompt: str) -> str:
