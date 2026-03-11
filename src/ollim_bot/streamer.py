@@ -34,9 +34,10 @@ STATUS_TICK = 1.0
 class StreamStatus:
     """Phase-transition signal from stream_chat to stream_to_channel."""
 
-    kind: Literal["thinking_start", "tool_start", "phase_end", "compact_start"]
+    kind: Literal["thinking_start", "tool_start", "phase_end", "compact_start", "context_warning"]
     label: str = ""
     compact_tokens: int | None = None
+    context_pct: int | None = None
 
 
 class StreamParser:
@@ -164,6 +165,7 @@ async def stream_to_channel(
     in_compact = False
     was_compacted = False
     _compact_tokens: int | None = None
+    _context_warning: StreamStatus | None = None
 
     async def _finalize_compact() -> None:
         """Edit compaction timer to permanent annotation, force new message."""
@@ -270,6 +272,8 @@ async def stream_to_channel(
                     _compact_tokens = item.compact_tokens
                     in_compact = True
                     was_compacted = True
+                elif item.kind == "context_warning":
+                    _context_warning = item
                 elif item.kind == "thinking_start":
                     await _set_status("")
                 elif item.kind == "tool_start":
@@ -306,6 +310,17 @@ async def stream_to_channel(
 
     stale = True
     await flush()
+
+    if _context_warning is not None:
+        pct = _context_warning.context_pct or 0
+        tokens_k = (_context_warning.compact_tokens or 0) / 1000
+        if pct >= 80:
+            note = f"context: {pct}% ({tokens_k:.0f}k) — compaction soon, /compact recommended"
+        else:
+            note = f"context: {pct}% ({tokens_k:.0f}k) — consider /compact"
+        with contextlib.suppress(discord.NotFound, discord.HTTPException):
+            warn_msg = await channel.send(f"-# *{note}*")
+            track_message(warn_msg.id)
 
     if not buf and not enter_fork_requested() and not was_compacted:
         log.error("empty agent response — no text or tool output received")

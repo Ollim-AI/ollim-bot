@@ -25,6 +25,9 @@ from ollim_bot.streamer import StreamParser, StreamStatus
 
 log = logging.getLogger(__name__)
 
+_CONTEXT_WINDOW = 200_000
+_WARN_PCT = 60
+
 
 def build_image_query(message: str, images: list[dict[str, str]]) -> AsyncGenerator[dict, None]:
     """Build an SDK-compatible image query envelope.
@@ -84,12 +87,20 @@ async def stream_response(
     parser = StreamParser()
     compacted = False
     compact_tokens: int | None = None
+    last_input_tokens: int | None = None
 
     fork_session_notified = False
 
     async def _consume(response):
         """Process messages from one receive_response() call."""
-        nonlocal streamed, fork_interrupted, result_text, compacted, compact_tokens, fork_session_notified
+        nonlocal \
+            streamed, \
+            fork_interrupted, \
+            result_text, \
+            compacted, \
+            compact_tokens, \
+            fork_session_notified, \
+            last_input_tokens
 
         try:
             async for msg in response:
@@ -123,6 +134,8 @@ async def stream_response(
                         if isinstance(block, TextBlock):
                             fallback_parts.append(block.text)
                 elif isinstance(msg, ResultMessage):
+                    if msg.usage:
+                        last_input_tokens = msg.usage.get("input_tokens")
                     if msg.result:
                         result_text = msg.result
                     if on_result_session is not None:
@@ -156,3 +169,12 @@ async def stream_response(
             yield "\n".join(fallback_parts)
         elif result_text:
             yield result_text
+
+    if last_input_tokens is not None and not compacted:
+        pct = int(last_input_tokens / _CONTEXT_WINDOW * 100)
+        if pct >= _WARN_PCT:
+            yield StreamStatus(
+                kind="context_warning",
+                compact_tokens=last_input_tokens,
+                context_pct=pct,
+            )
