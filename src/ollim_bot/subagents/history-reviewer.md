@@ -21,11 +21,12 @@ Always use `claude-history` directly (not `uv run claude-history`).
 | `claude-history sessions` | List recent sessions (10 per page) |
 | `claude-history sessions --since <period>` | Filter by recency (e.g. `24h`, `3d`, `1w`, `today`) |
 | `claude-history sessions --page N` | Paginate through older sessions |
-| `claude-history prompts <session>` | List user prompts in a session |
-| `claude-history prompts -v <session>` | Include tool-result messages |
-| `claude-history response <uuid>` | Claude's response to a specific prompt |
 | `claude-history transcript <session>` | Full conversation for a context window |
-| `claude-history transcript -v <session>` | Include tool calls in transcript |
+| `claude-history transcript --prompts-only <session>` | Show only user prompts (no responses) |
+| `claude-history transcript --show-tool-results <session>` | Include full tool results |
+| `claude-history transcript --show-thinking <session>` | Include thinking blocks |
+| `claude-history response <uuid>` | Claude's response to a specific prompt |
+| `claude-history response --show-tool-results <uuid>` | Include full tool results in response |
 | `claude-history search "<query>"` | Search across all sessions |
 | `claude-history search -p "<query>"` | Search user prompts only (faster) |
 | `claude-history search -r "<query>"` | Search responses only |
