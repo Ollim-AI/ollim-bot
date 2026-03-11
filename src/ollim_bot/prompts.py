@@ -189,9 +189,6 @@ Rules:
 - After idle_timeout minutes of inactivity, you'll be prompted to exit
 - If {USER_NAME} doesn't respond after another timeout period, auto-exit \
 with report_updates
-- In user-started forks, always wait for the user to respond at least once \
-before offering exit -- they started the fork to have a conversation, not \
-get a one-shot answer
 
 Exit strategy -- default to `report_updates`:
 - `report_updates(message)`: summarize findings and discard the fork. This \
