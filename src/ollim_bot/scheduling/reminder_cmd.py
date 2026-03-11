@@ -39,6 +39,7 @@ def run_reminder_command(argv: list[str]) -> None:
     add_p.add_argument("--description", "-d", default="", help="Short summary for list")
     add_p.add_argument("--delay", type=int, required=True, help="Fire in N minutes")
     add_p.add_argument("--foreground", action="store_true", help="Direct DM mode")
+    add_p.add_argument("--background", action="store_true", help=argparse.SUPPRESS)
     add_p.add_argument("--max-chain", type=int, default=0, help="Max follow-up chain depth")
     # Internal flags used by follow_up_chain MCP tool — not documented to the agent
     add_p.add_argument("--chain-depth", type=int, default=0)
@@ -93,6 +94,8 @@ def run_reminder_command(argv: list[str]) -> None:
 
 
 def _handle_add(args: argparse.Namespace) -> None:
+    if args.background:
+        print("warning: --background is deprecated (reminders are now background by default)", flush=True)
     reminder = Reminder.new(
         message=args.message,
         delay_minutes=args.delay,

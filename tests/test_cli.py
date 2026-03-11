@@ -87,3 +87,12 @@ def test_reminder_add_foreground(data_dir):
 
     output = _capture_stdout(run_reminder_command, ["list"])
     assert "[fg]" in output
+
+
+def test_reminder_add_background_deprecated(data_dir):
+    output = _capture_stdout(
+        run_reminder_command,
+        ["add", "--delay", "15", "-m", "bg reminder", "--background"],
+    )
+    assert "--background is deprecated" in output
+    assert "scheduled" in output
