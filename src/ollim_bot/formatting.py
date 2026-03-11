@@ -47,7 +47,7 @@ def format_tool_label(name: str, input_json: str) -> str:
 
     # Task/Agent: use agent name as prefix, description as parameter.
     if name == "Task":
-        return format_task_label(inp.get("name", ""), inp.get("description", ""))
+        return format_task_label(inp.get("name") or inp.get("subagent_type", ""), inp.get("description", ""))
 
     keys = TOOL_LABEL_KEYS.get(name)
     if keys is None:
