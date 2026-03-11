@@ -208,7 +208,7 @@ DEFAULT_BG_TOOLS: list[str] = [
 
 
 def validate_dispatch(allowed_tools: list[str] | None, source: str) -> bool:
-    """Validate tool patterns before bg fork dispatch. Returns True if valid."""
+    """Validate tool patterns before background fork dispatch. Returns True if valid."""
     if allowed_tools is None:
         return True
     errors = validate_tool_set(allowed_tools, source=source)

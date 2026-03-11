@@ -67,7 +67,7 @@ _registered_reminders: set[str] = set()
 
 
 def _merge_skill_tools(config: BgForkConfig, skill_names: list[str] | None) -> BgForkConfig:
-    """Add Skill(<name> *) patterns to allowed_tools for bg fork dispatch.
+    """Add Skill(<name> *) patterns to allowed_tools for background fork dispatch.
 
     The SDK handles skill content loading and allowed-tools enforcement
     natively (resolved before can_use_tool callback). We only need to
