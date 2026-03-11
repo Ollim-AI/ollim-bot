@@ -53,7 +53,7 @@ async def test_context_warning_shown_at_60_pct():
         ch,
         _gen(
             "response text",
-            StreamStatus(kind="context_warning", compact_tokens=124_000, context_pct=62),
+            StreamStatus(kind="context_warning", input_tokens=124_000, context_pct=62),
         ),
     )
 
@@ -86,7 +86,7 @@ async def test_context_warning_escalates_at_80_pct():
         ch,
         _gen(
             "response text",
-            StreamStatus(kind="context_warning", compact_tokens=162_000, context_pct=81),
+            StreamStatus(kind="context_warning", input_tokens=162_000, context_pct=81),
         ),
     )
 

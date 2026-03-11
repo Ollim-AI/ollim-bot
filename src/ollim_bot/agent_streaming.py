@@ -175,6 +175,6 @@ async def stream_response(
         if pct >= _WARN_PCT:
             yield StreamStatus(
                 kind="context_warning",
-                compact_tokens=last_input_tokens,
+                input_tokens=last_input_tokens,
                 context_pct=pct,
             )

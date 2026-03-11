@@ -36,8 +36,9 @@ class StreamStatus:
 
     kind: Literal["thinking_start", "tool_start", "phase_end", "compact_start", "context_warning"]
     label: str = ""
-    compact_tokens: int | None = None
-    context_pct: int | None = None
+    compact_tokens: int | None = None  # pre-compaction token count (compact_start)
+    input_tokens: int | None = None  # current input token count (context_warning)
+    context_pct: int | None = None  # context window usage percentage (context_warning)
 
 
 class StreamParser:
@@ -311,10 +312,15 @@ async def stream_to_channel(
     stale = True
     await flush()
 
-    if _context_warning is not None:
-        pct = _context_warning.context_pct or 0
-        tokens_k = (_context_warning.compact_tokens or 0) / 1000
-        if pct >= 80:
+    _ESCALATE_PCT = 80
+    if (
+        _context_warning is not None
+        and _context_warning.context_pct is not None
+        and _context_warning.input_tokens is not None
+    ):
+        pct = _context_warning.context_pct
+        tokens_k = _context_warning.input_tokens / 1000
+        if pct >= _ESCALATE_PCT:
             note = f"context: {pct}% ({tokens_k:.0f}k) — compaction soon, /compact recommended"
         else:
             note = f"context: {pct}% ({tokens_k:.0f}k) — consider /compact"
