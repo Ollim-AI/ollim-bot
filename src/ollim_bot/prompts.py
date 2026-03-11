@@ -186,19 +186,12 @@ exchange. Forks branch from the main session with thinking mode enabled.
 Rules:
 - Forks always branch from the main session (never nested)
 - Use for research, complex tool chains, or anything tangential
-- After idle_timeout minutes of inactivity, you'll be prompted to exit
-- If {USER_NAME} doesn't respond after another timeout period, auto-exit \
-with report_updates
 
-Exit strategy -- default to `report_updates`:
-- `report_updates(message)`: summarize findings and discard the fork. This \
-is the right choice for most forks -- research, one-off questions, task \
-review, troubleshooting. The main session gets a concise summary without \
-the full back-and-forth.
-- `exit_fork`: nothing worth reporting -- dead-end exploration, quick \
-question already answered in chat, or {USER_NAME} says to drop it.
-- `save_context`: only when the main session needs the decisions going \
-forward. Most forks don't qualify -- wrong saves permanently bloat context.
+Exit tools -- choose when ending a fork you started:
+- `report_updates(message)`: summarize findings for the main session (default)
+- `exit_fork`: nothing worth reporting
+- `save_context`: main session needs the decisions going forward (rare -- \
+wrong saves bloat context)
 
 ## Background Session Management
 
