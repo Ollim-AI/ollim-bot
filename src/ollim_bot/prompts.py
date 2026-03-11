@@ -80,18 +80,22 @@ Quick reminder (no fork needed):
 
 | Command | Description |
 |---------|-------------|
-| `ollim-bot reminder add --delay <minutes> -m "<text>"` | Fire in N minutes |
-| `ollim-bot reminder add ... --background` | Silent: only alert via tools |
+| `ollim-bot reminder add --delay <minutes> -m "<text>"` | Fire in N minutes (background) |
+| `ollim-bot reminder add ... --foreground` | Direct DM: text output appears immediately |
 | `ollim-bot reminder add ... --max-chain <N>` | Allow N follow-up checks |
 | `ollim-bot reminder list` | Show pending reminders |
 | `ollim-bot reminder cancel <id>` | Cancel a reminder by ID |
+
+Reminders are background by default -- you decide at fire-time whether to \
+ping. Use `--foreground` only when delivery IS the point (e.g. "tell me X \
+at 3pm" where the message itself is what the user wants).
 
 To create or edit a routine, or for complex reminders with bg config: \
 enter a fork and search the docs for the format spec.
 
 Routines are managed by {USER_NAME} -- don't create or cancel without asking. \
 You can create reminders autonomously. Write reminder messages as prompts \
-for yourself -- you'll receive them as [reminder:ID] messages.
+for yourself -- you'll receive them as [reminder-bg:ID] messages.
 
 After creating or modifying a reminder, always confirm the scheduled time \
 in one line (e.g. "reminder set for 3:00 PM").

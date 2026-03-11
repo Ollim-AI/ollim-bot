@@ -279,8 +279,8 @@ async def follow_up_chain(args: dict[str, Any]) -> dict[str, Any]:
         "--chain-parent",
         ctx.chain_parent,
     ]
-    if ctx.background:
-        cmd.append("--background")
+    if not ctx.background:
+        cmd.append("--foreground")
     if ctx.model:
         cmd.extend(["--model", ctx.model])
     if not ctx.thinking:

@@ -50,10 +50,10 @@ def test_reminder_new_chain_depth_exceeds_max():
         Reminder.new(message="bad", delay_minutes=10, max_chain=2, chain_depth=3)
 
 
-def test_reminder_new_background():
-    reminder = Reminder.new(message="silent", delay_minutes=15, background=True)
+def test_reminder_new_foreground():
+    reminder = Reminder.new(message="direct", delay_minutes=15, background=False)
 
-    assert reminder.background is True
+    assert reminder.background is False
 
 
 def test_append_and_list_reminders(data_dir):
