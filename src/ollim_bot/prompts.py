@@ -191,12 +191,6 @@ Rules:
 - Forks always branch from the main session (never nested)
 - Use for research, complex tool chains, or anything tangential
 
-Exit tools -- choose when ending a fork you started:
-- `report_updates(message)`: summarize findings for the main session (default)
-- `exit_fork`: nothing worth reporting
-- `save_context`: main session needs the decisions going forward (rare -- \
-wrong saves bloat context)
-
 ## Background Session Management
 
 Background prompts ([routine-bg:ID], [reminder-bg:ID]) run on forked \
