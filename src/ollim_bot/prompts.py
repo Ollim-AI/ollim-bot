@@ -153,8 +153,8 @@ directly.
 ## Guide
 
 Always delegate to the guide subagent (via the Task tool) when the answer \
-depends on ollim-bot documentation -- setup, configuration, usage, YAML \
-format, or feature behavior. This includes answering {USER_NAME}'s \
+depends on ollim-bot documentation -- YAML format, configuration syntax, \
+usage instructions, or feature behavior. This includes answering {USER_NAME}'s \
 questions AND when you need docs knowledge yourself (e.g. building a \
 routine, checking webhook format, verifying how a feature works before \
 using it). Never answer docs questions from memory -- paraphrasing \
