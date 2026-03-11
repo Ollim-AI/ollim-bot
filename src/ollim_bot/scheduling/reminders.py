@@ -20,7 +20,7 @@ class Reminder:
     id: str
     message: str
     run_at: str  # ISO datetime
-    background: bool = False
+    background: bool = True
     chain_depth: int = 0
     max_chain: int = 0  # 0 = plain one-shot, N = allow N continuations
     chain_parent: str | None = None
@@ -38,7 +38,7 @@ class Reminder:
         message: str,
         *,
         delay_minutes: int,
-        background: bool = False,
+        background: bool = True,
         max_chain: int = 0,
         chain_depth: int = 0,
         chain_parent: str | None = None,

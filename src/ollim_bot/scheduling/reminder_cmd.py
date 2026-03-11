@@ -17,12 +17,10 @@ def _summary(r: Reminder) -> str:
 
 def _fmt_schedule(r: Reminder) -> str:
     sched = f"at {r.run_at[:16]}"
-    if r.background:
-        parts = ["bg"]
-        if r.isolated:
-            parts.append("isolated")
-        tag = f"[{','.join(parts)}]"
-        sched = f"{tag} {sched}"
+    if not r.background:
+        sched = f"[fg] {sched}"
+    elif r.isolated:
+        sched = f"[isolated] {sched}"
     if r.model:
         sched += f"  (model: {r.model})"
     if not r.thinking:
@@ -40,7 +38,7 @@ def run_reminder_command(argv: list[str]) -> None:
     add_p.add_argument("--message", "-m", required=True, help="Reminder message")
     add_p.add_argument("--description", "-d", default="", help="Short summary for list")
     add_p.add_argument("--delay", type=int, required=True, help="Fire in N minutes")
-    add_p.add_argument("--background", action="store_true", help="Silent mode")
+    add_p.add_argument("--foreground", action="store_true", help="Direct DM mode")
     add_p.add_argument("--max-chain", type=int, default=0, help="Max follow-up chain depth")
     # Internal flags used by follow_up_chain MCP tool — not documented to the agent
     add_p.add_argument("--chain-depth", type=int, default=0)
@@ -99,7 +97,7 @@ def _handle_add(args: argparse.Namespace) -> None:
         message=args.message,
         delay_minutes=args.delay,
         description=args.description,
-        background=args.background,
+        background=not args.foreground,
         max_chain=args.max_chain,
         chain_depth=args.chain_depth,
         chain_parent=args.chain_parent,

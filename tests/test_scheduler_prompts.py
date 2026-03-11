@@ -35,7 +35,7 @@ def test_routine_prompt_background():
 
 
 def test_reminder_prompt_plain():
-    reminder = Reminder(id="r1", message="Take a break", run_at="2026-02-16T12:00:00-08:00")
+    reminder = Reminder(id="r1", message="Take a break", run_at="2026-02-16T12:00:00-08:00", background=False)
 
     prompt = build_reminder_prompt(reminder, skill_name="reminder-r1", reminders=[], routines=[])
 

@@ -78,12 +78,12 @@ def test_reminder_add_with_chain(data_dir):
     assert "chain 0/3" in output
 
 
-def test_reminder_add_background(data_dir):
+def test_reminder_add_foreground(data_dir):
     output = _capture_stdout(
         run_reminder_command,
-        ["add", "--delay", "15", "-m", "bg reminder", "--background"],
+        ["add", "--delay", "15", "-m", "fg reminder", "--foreground"],
     )
     assert "scheduled" in output
 
     output = _capture_stdout(run_reminder_command, ["list"])
-    assert "[bg]" in output
+    assert "[fg]" in output
