@@ -153,12 +153,16 @@ def create_bot() -> commands.Bot:
             f"[fork-started] You are now inside an interactive forked session. "
             f"Topic: {topic}\n\n"
             f"This is a conversation — engage with the topic and follow "
-            f"{USER_NAME}'s lead on when to wrap up."
+            f"{USER_NAME}'s lead. Do NOT call exit tools (report_updates, "
+            f"save_context, exit_fork) unless {USER_NAME} explicitly asks to "
+            f"wrap up or leave the fork."
         )
 
     _FORK_NO_TOPIC_PROMPT = (
         f"[fork-started] You are now inside an interactive forked session. "
-        f"No topic was given — {USER_NAME} will lead. Wait for their message."
+        f"No topic was given — {USER_NAME} will lead. Do NOT call exit tools "
+        f"(report_updates, save_context, exit_fork) unless {USER_NAME} "
+        f"explicitly asks to wrap up or leave the fork."
     )
 
     _FORK_REPLY_PREFIX = (
