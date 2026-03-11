@@ -39,19 +39,31 @@ class _KeyMeta(NamedTuple):
     display: str
     description: str
     kind: str  # "model", "bool", "int", "permission_mode"
+    options: str = ""  # human-readable options hint
 
 
 _KEY_META: dict[str, _KeyMeta] = {
-    "model_main": _KeyMeta("model.main", "Default model for main session", "model"),
-    "model_fork": _KeyMeta("model.fork", "Default model for interactive forks", "model"),
-    "thinking_main": _KeyMeta("thinking.main", "Extended thinking for main session", "thinking"),
-    "thinking_fork": _KeyMeta("thinking.fork", "Extended thinking for interactive forks", "thinking"),
+    "model_main": _KeyMeta("model.main", "Default model for main session", "model", "opus / sonnet / haiku / default"),
+    "model_fork": _KeyMeta(
+        "model.fork", "Default model for interactive forks", "model", "opus / sonnet / haiku / default"
+    ),
+    "thinking_main": _KeyMeta(
+        "thinking.main", "Extended thinking for main session", "thinking", "off / adaptive / <budget>"
+    ),
+    "thinking_fork": _KeyMeta(
+        "thinking.fork", "Extended thinking for interactive forks", "thinking", "off / adaptive / <budget>"
+    ),
     "bg_fork_timeout": _KeyMeta("bg_fork_timeout", "Max background fork runtime (seconds)", "int"),
     "fork_idle_timeout": _KeyMeta("fork_idle_timeout", "Interactive fork idle timeout (minutes)", "int"),
-    "permission_mode": _KeyMeta("permission_mode", "Default permission mode", "permission_mode"),
-    "auto_update": _KeyMeta("auto_update", "Auto-pull and restart on new commits", "bool"),
+    "permission_mode": _KeyMeta(
+        "permission_mode",
+        "Default permission mode",
+        "permission_mode",
+        "dontAsk / default / acceptEdits / bypassPermissions",
+    ),
+    "auto_update": _KeyMeta("auto_update", "Auto-pull and restart on new commits", "bool", "on / off"),
     "auto_update_interval": _KeyMeta("auto_update_interval", "Update check interval (minutes)", "int"),
-    "auto_update_hour": _KeyMeta("auto_update_hour", "Hour to apply updates (0-23)", "hour"),
+    "auto_update_hour": _KeyMeta("auto_update_hour", "Hour to apply updates (0-23)", "hour", "0-23"),
 }
 
 VALID_KEYS = frozenset(_KEY_META)
@@ -189,7 +201,10 @@ def format_all() -> str:
     lines: list[str] = []
     for key, meta in _KEY_META.items():
         value = getattr(config, key)
-        lines.append(f"**{meta.display}**: {_format_value(key, value)}")
+        line = f"**{meta.display}**: {_format_value(key, value)}"
+        if meta.options:
+            line += f"  `{meta.options}`"
+        lines.append(line)
     return "\n".join(lines)
 
 
@@ -198,4 +213,7 @@ def format_one(key: str) -> str:
     config = load()
     meta = _KEY_META[key]
     value = getattr(config, key)
-    return f"**{meta.display}**: {_format_value(key, value)}"
+    line = f"**{meta.display}**: {_format_value(key, value)}"
+    if meta.options:
+        line += f"  `{meta.options}`"
+    return line
