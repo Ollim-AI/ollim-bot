@@ -49,6 +49,7 @@ class StreamParser:
         self._tool_input_buf = ""
         self._status_active = False
         self._deferred_labels: list[str] = []
+        self.active_task_label: str | None = None
 
     async def feed(self, event: dict[str, Any]) -> AsyncGenerator[str | StreamStatus, None]:
         """Process one SSE event dict."""
@@ -82,6 +83,8 @@ class StreamParser:
         elif etype == "content_block_stop":
             if self._tool_name is not None:
                 label = format_tool_label(self._tool_name, self._tool_input_buf)
+                if self._tool_name == "Task":
+                    self.active_task_label = label
                 yield StreamStatus(kind="tool_start", label=label)
                 self._status_active = True
                 self._deferred_labels.append(label)
