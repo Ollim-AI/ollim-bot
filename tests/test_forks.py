@@ -598,6 +598,48 @@ def test_bg_fork_config_from_item_deduplicates_system_tools():
     assert config.allowed_tools.count(DEFAULT_BG_TOOLS[0]) == 1
 
 
+def test_bg_fork_config_from_item_strips_discord_tools():
+    """Discord MCP tools are stripped so canUseTool gates them via flags."""
+    from typing import ClassVar
+
+    from ollim_bot.tool_policy import DISCORD_TOOLS
+
+    class FakeItem:
+        update_main_session = "on_ping"
+        allow_ping = True
+        allowed_tools: ClassVar[list[str]] = [
+            "Task",
+            "mcp__discord__ping_user",
+            "mcp__discord__discord_embed",
+            "mcp__discord__report_updates",
+            "mcp__discord__follow_up_chain",
+        ]
+
+    config = BgForkConfig.from_item(FakeItem())
+
+    assert config.allowed_tools is not None
+    for tool in DISCORD_TOOLS:
+        assert tool not in config.allowed_tools
+    assert "Task" in config.allowed_tools
+
+
+def test_bg_fork_config_from_item_strips_discord_tools_when_no_declared():
+    """Discord tools absent from defaults — stripping is a no-op."""
+    from ollim_bot.tool_policy import DEFAULT_BG_TOOLS, DISCORD_TOOLS
+
+    class FakeItem:
+        update_main_session = "on_ping"
+        allow_ping = True
+        allowed_tools = None
+
+    config = BgForkConfig.from_item(FakeItem())
+
+    assert config.allowed_tools is not None
+    assert config.allowed_tools == DEFAULT_BG_TOOLS
+    for tool in DISCORD_TOOLS:
+        assert tool not in config.allowed_tools
+
+
 # --- BgForkTracking ---
 
 

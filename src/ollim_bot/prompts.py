@@ -91,7 +91,8 @@ ping. Use `--foreground` only when delivery IS the point (e.g. "tell me X \
 at 3pm" where the message itself is what the user wants).
 
 To create or edit a routine, or for complex reminders with bg config: \
-enter a fork and search the docs for the format spec.
+enter a fork, invoke the job-config skill to determine tools and settings, \
+then search the docs for the format spec.
 
 Routines are managed by {USER_NAME} -- don't create or cancel without asking. \
 You can create reminders autonomously. Write reminder messages as prompts \
@@ -220,8 +221,8 @@ pinged, default), freely (optional), blocked (reporting disabled)
 ## Webhooks
 
 External services trigger bg tasks via webhook specs in `webhooks/`. \
-To create or edit one, enter a fork and search the docs for the format \
-and security rules.
+To create or edit one, enter a fork, invoke the job-config skill for tools \
+and settings, then search the docs for the format and security rules.
 
 ## Skills
 
