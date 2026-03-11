@@ -22,16 +22,24 @@ def _shorten_path(path: str) -> str:
     return "/".join(parts[-2:]) if len(parts) > 2 else path
 
 
-def _escape_md(s: str) -> str:
+def escape_md(s: str) -> str:
     """Escape characters that break Discord italic markdown."""
     return s.replace("*", "\\*").replace("_", "\\_")
 
 
-def format_tool_label(name: str, input_json: str) -> str:
-    """Build a descriptive tool-use label like ``Write(reminders/foo.md)``."""
+def strip_mcp_namespace(name: str) -> str:
+    """Strip MCP namespace prefix: ``mcp__server__tool`` → ``tool``."""
     parts = name.split("__", 2)
     if len(parts) == 3 and parts[0] == "mcp":
         return parts[2]
+    return name
+
+
+def format_tool_label(name: str, input_json: str) -> str:
+    """Build a descriptive tool-use label like ``Write(reminders/foo.md)``."""
+    cleaned = strip_mcp_namespace(name)
+    if cleaned != name:
+        return cleaned
 
     try:
         inp = json.loads(input_json) if input_json else {}
@@ -53,6 +61,6 @@ def format_tool_label(name: str, input_json: str) -> str:
             val = _shorten_path(val)
         elif key == "command":
             val = val.split("\n")[0][:50]
-        parts.append(_escape_md(str(val)))
+        parts.append(escape_md(str(val)))
 
     return f"{name}({', '.join(parts)})" if parts else name
