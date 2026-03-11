@@ -12,7 +12,6 @@ TOOL_LABEL_KEYS: dict[str, str | tuple[str, ...]] = {
     "Glob": "pattern",
     "WebSearch": "query",
     "WebFetch": "url",
-    "Task": "description",
 }
 
 
@@ -46,6 +45,10 @@ def format_tool_label(name: str, input_json: str) -> str:
     except json.JSONDecodeError:
         return name
 
+    # Task/Agent: use agent name as prefix, description as parameter.
+    if name == "Task":
+        return format_task_label(inp.get("name", ""), inp.get("description", ""))
+
     keys = TOOL_LABEL_KEYS.get(name)
     if keys is None:
         return name
@@ -64,3 +67,11 @@ def format_tool_label(name: str, input_json: str) -> str:
         parts.append(escape_md(str(val)))
 
     return f"{name}({', '.join(parts)})" if parts else name
+
+
+def format_task_label(agent_name: str, description: str) -> str:
+    """Build a Task label like ``guide(search for docs)``."""
+    prefix = escape_md(agent_name) if agent_name else "Task"
+    if not description:
+        return prefix
+    return f"{prefix}({escape_md(description)})"

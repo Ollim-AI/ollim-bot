@@ -22,23 +22,13 @@ from claude_agent_sdk import (
 from claude_agent_sdk.types import StreamEvent
 
 from ollim_bot.fork_state import enter_fork_requested
-from ollim_bot.formatting import escape_md, strip_mcp_namespace
+from ollim_bot.formatting import strip_mcp_namespace
 from ollim_bot.streamer import StreamParser, StreamStatus
 
 log = logging.getLogger(__name__)
 
 _CONTEXT_WINDOW = 200_000
 _WARN_PCT = 60
-_DESC_MAX = 40
-
-
-def _task_progress_label(description: str, tool_name: str) -> str:
-    """Build a status label like ``Task(desc) · Read`` for nested subagent tools."""
-    desc = description[:_DESC_MAX]
-    if len(description) > _DESC_MAX:
-        desc += "…"
-    desc = escape_md(desc)
-    return f"Task({desc}) · {strip_mcp_namespace(tool_name)}"
 
 
 def build_image_query(message: str, images: list[dict[str, str]]) -> AsyncGenerator[dict, None]:
@@ -118,8 +108,9 @@ async def stream_response(
             async for msg in response:
                 if isinstance(msg, TaskProgressMessage):
                     if msg.last_tool_name:
-                        label = _task_progress_label(msg.description, msg.last_tool_name)
-                        yield StreamStatus(kind="task_progress", label=label)
+                        prefix = parser.active_task_label or "Task"
+                        tool = strip_mcp_namespace(msg.last_tool_name)
+                        yield StreamStatus(kind="task_progress", label=f"{prefix} · {tool}")
                     continue
 
                 if isinstance(msg, SystemMessage):
