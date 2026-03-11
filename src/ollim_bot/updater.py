@@ -118,7 +118,7 @@ def apply_update(project_dir: Path) -> None:
         timeout=_UV_SYNC_TIMEOUT,
     )
     subprocess.run(
-        ["uv", "tool", "install", "--editable", "."],
+        ["uv", "tool", "upgrade", "ollim-bot"],
         cwd=project_dir,
         capture_output=True,
         check=True,
@@ -131,7 +131,12 @@ def format_error(exc: subprocess.CalledProcessError | subprocess.TimeoutExpired)
     cmd = shlex.join(exc.cmd) if isinstance(exc.cmd, list) else exc.cmd
     if isinstance(exc, subprocess.TimeoutExpired):
         return f"`{cmd}` timed out after {exc.timeout}s"
-    return f"`{cmd}` returned {exc.returncode}"
+    msg = f"`{cmd}` returned {exc.returncode}"
+    if exc.stderr:
+        stderr = exc.stderr.strip() if isinstance(exc.stderr, str) else exc.stderr.decode().strip()
+        if stderr:
+            msg += f"\n```\n{stderr}\n```"
+    return msg
 
 
 def format_commit_summary(commit_summary: str, *, max_lines: int = 5) -> str:
