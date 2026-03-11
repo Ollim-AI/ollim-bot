@@ -63,6 +63,11 @@ def is_denied(label: str) -> bool:
     return False
 
 
+def clear_denied() -> None:
+    """Clear stale denied labels. Called before each new response."""
+    _denied_labels.clear()
+
+
 # ---------------------------------------------------------------------------
 # Session-allowed management
 # ---------------------------------------------------------------------------
