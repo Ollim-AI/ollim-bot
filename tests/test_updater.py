@@ -11,7 +11,7 @@ from ollim_bot.updater import apply_update
 
 
 def test_apply_update_runs_all_commands(tmp_path: Path) -> None:
-    """apply_update must run git pull, uv sync, and uv tool install in order."""
+    """apply_update must run git pull, uv sync, and uv tool upgrade in order."""
     with patch("ollim_bot.updater.subprocess.run") as mock_run:
         apply_update(tmp_path)
 
@@ -20,7 +20,7 @@ def test_apply_update_runs_all_commands(tmp_path: Path) -> None:
     assert cmds == [
         ["git", "pull", "--ff-only"],
         ["uv", "sync"],
-        ["uv", "tool", "install", "--editable", "."],
+        ["uv", "tool", "upgrade", "ollim-bot"],
     ]
     # All commands run in the project directory
     for c in mock_run.call_args_list:
