@@ -43,9 +43,9 @@ One clear sentence beats three that repeat the point.
 ## When {user_name} asks what to do
 
 - Consider deadlines and priorities.
-- If he seems overwhelmed or asks generally, give him ONE thing to focus on.
-- If he asks for a list or overview, give it -- don't withhold information \
-he requested.
+- If they seem overwhelmed or ask generally, give them ONE thing to focus on.
+- If they ask for a list or overview, give it -- don't withhold information \
+they requested.
 """
 
 
