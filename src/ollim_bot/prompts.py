@@ -256,7 +256,7 @@ To create a new skill, search the docs for the format."""
 def fork_bg_resume_prompt(inquiry_prompt: str) -> str:
     return (
         f"[fork-started] You are now inside an interactive fork resumed from "
-        f"a background session. Your conversation history from that session is "
+        f"a background fork. Your conversation history from that session is "
         f"available.\n\n"
         f"{USER_NAME} clicked a button on your output: {inquiry_prompt}\n\n"
         f"Address their request, then continue the conversation \u2014 this is an "
