@@ -152,8 +152,8 @@ def create_bot() -> commands.Bot:
         return (
             f"[fork-started] You are now inside an interactive forked session. "
             f"Topic: {topic}\n\n"
-            f"Respond to the topic, then wait for {USER_NAME} to reply before "
-            "considering exit — they started this fork to have a conversation."
+            f"This is a conversation — engage with the topic and follow "
+            f"{USER_NAME}'s lead on when to wrap up."
         )
 
     _FORK_NO_TOPIC_PROMPT = (
