@@ -237,6 +237,20 @@ def create_bot() -> commands.Bot:
             touch_activity()
             await _check_fork_transitions(channel)
 
+    @bot.tree.command(name="setup", description="Run the setup wizard")
+    @discord.app_commands.check(_owner_check)
+    async def slash_setup(interaction: discord.Interaction):
+        if agent.in_fork:
+            await interaction.response.send_message("exit fork first.", ephemeral=True)
+            return
+        await interaction.response.defer()
+        async with agent.lock():
+            channel = interaction.channel
+            assert isinstance(channel, discord.abc.Messageable)
+            await interaction.delete_original_response()
+            await channel.typing()
+            await stream_to_channel(channel, agent.stream_chat("/setup"))
+
     @bot.tree.command(name="model", description="Switch the AI model")
     @discord.app_commands.describe(name="Model to use")
     @discord.app_commands.check(_owner_check)

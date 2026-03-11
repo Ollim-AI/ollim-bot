@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import shutil
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from ollim_bot.storage import DATA_DIR, atomic_write
@@ -21,7 +22,29 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 SKILLS_DIR = DATA_DIR / "skills"
+_BUNDLED_SOURCE_DIR = Path(__file__).parent / "skills"
 _GENERATED_PREFIXES = ("routine-", "reminder-", "webhook-")
+
+
+def install_bundled_skills() -> None:
+    """Copy bundled skill specs from source to skills/ for SDK discovery.
+
+    Skips files that already exist (user customizations persist across updates).
+    """
+    if not _BUNDLED_SOURCE_DIR.is_dir():
+        return
+    SKILLS_DIR.mkdir(parents=True, exist_ok=True)
+    for source in sorted(_BUNDLED_SOURCE_DIR.glob("*.md")):
+        name = source.stem
+        target_dir = SKILLS_DIR / name
+        target = target_dir / "SKILL.md"
+        try:
+            target_dir.mkdir(parents=True, exist_ok=True)
+            with open(target, "x") as f:
+                f.write(source.read_text())
+        except FileExistsError:
+            continue
+        log.info("Installed bundled skill: %s", name)
 
 
 def skill_name(item: Routine | Reminder | WebhookSpec) -> str:
