@@ -5,6 +5,7 @@ import base64
 import contextlib
 import logging
 from collections.abc import Callable
+from pathlib import Path
 from typing import Literal, cast
 from urllib.parse import urlparse
 
@@ -29,6 +30,7 @@ from ollim_bot.fork_state import (
 )
 from ollim_bot.scheduling import setup_scheduler
 from ollim_bot.sessions import load_session_id, lookup_fork_session
+from ollim_bot.storage import save_attachment
 from ollim_bot.streamer import stream_to_channel
 from ollim_bot.views import ActionButton
 from ollim_bot.views import init as init_views
@@ -70,13 +72,16 @@ def _detect_image_type(data: bytes) -> _ImageMime | None:
     return None
 
 
-async def _read_images(
+async def _process_attachments(
     attachments: list[discord.Attachment],
-) -> list[dict[str, str]]:
-    """Detect MIME from magic bytes and base64-encode recognised image attachments."""
+) -> tuple[list[dict[str, str]], list[Path]]:
+    """Base64-encode images, save other attachments to disk."""
+    if not attachments:
+        return [], []
+    raw_bytes = await asyncio.gather(*(att.read() for att in attachments))
     images: list[dict[str, str]] = []
-    for att in attachments:
-        raw = await att.read()
+    saved: list[Path] = []
+    for att, raw in zip(attachments, raw_bytes, strict=True):
         mime = _detect_image_type(raw)
         if mime:
             images.append(
@@ -85,7 +90,9 @@ async def _read_images(
                     "data": base64.b64encode(raw).decode(),
                 }
             )
-    return images
+        else:
+            saved.append(save_attachment(att.filename, raw))
+    return images, saved
 
 
 _MAX_QUOTE_LEN = 500
@@ -337,7 +344,10 @@ def create_bot() -> commands.Bot:
                     await message.remove_reaction("\N{EYES}", bot.user)
             return
 
-        images = await _read_images(message.attachments)
+        images, saved_files = await _process_attachments(message.attachments)
+        if saved_files:
+            paths_text = "\n".join(f"- {p}" for p in saved_files)
+            content = f"[ATTACHMENTS — use Read to view]:\n{paths_text}\n\n{content}"
 
         # Reply handling: fork-from-reply or quote context
         ref = message.reference

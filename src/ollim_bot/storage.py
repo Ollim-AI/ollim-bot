@@ -15,6 +15,7 @@ import yaml
 
 DATA_DIR = Path.home() / ".ollim-bot"
 STATE_DIR = DATA_DIR / "state"
+DOWNLOADS_DIR = DATA_DIR / "downloads"
 PROJECT_DIR = Path(__file__).resolve().parent.parent.parent
 PID_FILE = STATE_DIR / "bot.pid"
 
@@ -31,6 +32,23 @@ def atomic_write(path: Path, data: bytes) -> None:
     finally:
         os.close(fd)
     os.replace(tmp, path)
+
+
+def save_attachment(filename: str, data: bytes) -> Path:
+    """Save attachment bytes to downloads dir, returning the path.
+
+    Handles filename collisions with numeric suffixes (file-2.txt, file-3.txt).
+    """
+    DOWNLOADS_DIR.mkdir(parents=True, exist_ok=True)
+    target = DOWNLOADS_DIR / filename
+    if target.exists():
+        stem, suffix = target.stem, target.suffix
+        counter = 2
+        while (DOWNLOADS_DIR / f"{stem}-{counter}{suffix}").exists():
+            counter += 1
+        target = DOWNLOADS_DIR / f"{stem}-{counter}{suffix}"
+    atomic_write(target, data)
+    return target
 
 
 def _find_repo(filepath: Path) -> Path | None:
