@@ -281,12 +281,8 @@ async def stream_to_channel(
                     await _set_status(item.label)
                 elif item.kind == "task_progress":
                     # Update label but keep timer running from original Task start.
+                    # Don't edit inline — let the editor loop pick it up (throttled).
                     status_label = item.label
-                    now = time.monotonic()
-                    status_last_edit = now
-                    if status_msg is not None:
-                        with contextlib.suppress(discord.NotFound, discord.HTTPException):
-                            await status_msg.edit(content=_status_text())
                 else:  # phase_end — defer clear until text arrives to avoid blank gap
                     pass
             else:

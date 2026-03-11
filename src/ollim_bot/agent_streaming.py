@@ -22,7 +22,7 @@ from claude_agent_sdk import (
 from claude_agent_sdk.types import StreamEvent
 
 from ollim_bot.fork_state import enter_fork_requested
-from ollim_bot.formatting import _escape_md
+from ollim_bot.formatting import escape_md, strip_mcp_namespace
 from ollim_bot.streamer import StreamParser, StreamStatus
 
 log = logging.getLogger(__name__)
@@ -37,11 +37,8 @@ def _task_progress_label(description: str, tool_name: str) -> str:
     desc = description[:_DESC_MAX]
     if len(description) > _DESC_MAX:
         desc += "…"
-    desc = _escape_md(desc)
-    # Strip MCP namespace: mcp__server__tool → tool
-    parts = tool_name.split("__", 2)
-    clean = parts[2] if len(parts) == 3 and parts[0] == "mcp" else tool_name
-    return f"Task({desc}) · {clean}"
+    desc = escape_md(desc)
+    return f"Task({desc}) · {strip_mcp_namespace(tool_name)}"
 
 
 def build_image_query(message: str, images: list[dict[str, str]]) -> AsyncGenerator[dict, None]:
