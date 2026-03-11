@@ -20,7 +20,7 @@ def _fmt_schedule(r: Reminder) -> str:
     if not r.background:
         sched = f"[fg] {sched}"
     elif r.isolated:
-        sched = f"[isolated] {sched}"
+        sched = f"[bg,isolated] {sched}"
     if r.model:
         sched += f"  (model: {r.model})"
     if not r.thinking:
@@ -94,8 +94,11 @@ def run_reminder_command(argv: list[str]) -> None:
 
 
 def _handle_add(args: argparse.Namespace) -> None:
+    if args.foreground and args.background:
+        print("error: --foreground and --background are mutually exclusive")
+        sys.exit(1)
     if args.background:
-        print("warning: --background is deprecated (reminders are now background by default)", flush=True)
+        print("warning: --background is deprecated (reminders are now background by default)")
     reminder = Reminder.new(
         message=args.message,
         delay_minutes=args.delay,
