@@ -34,7 +34,7 @@ STATUS_TICK = 1.0
 class StreamStatus:
     """Phase-transition signal from stream_chat to stream_to_channel."""
 
-    kind: Literal["thinking_start", "tool_start", "phase_end", "compact_start", "context_warning"]
+    kind: Literal["thinking_start", "tool_start", "phase_end", "compact_start", "context_warning", "task_progress"]
     label: str = ""
     compact_tokens: int | None = None  # pre-compaction token count (compact_start)
     input_tokens: int | None = None  # current input token count (context_warning)
@@ -279,6 +279,14 @@ async def stream_to_channel(
                     await _set_status("")
                 elif item.kind == "tool_start":
                     await _set_status(item.label)
+                elif item.kind == "task_progress":
+                    # Update label but keep timer running from original Task start.
+                    status_label = item.label
+                    now = time.monotonic()
+                    status_last_edit = now
+                    if status_msg is not None:
+                        with contextlib.suppress(discord.NotFound, discord.HTTPException):
+                            await status_msg.edit(content=_status_text())
                 else:  # phase_end — defer clear until text arrives to avoid blank gap
                     pass
             else:
