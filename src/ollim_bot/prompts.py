@@ -248,5 +248,6 @@ def fork_bg_resume_prompt(inquiry_prompt: str) -> str:
         f"available.\n\n"
         f"{USER_NAME} clicked a button on your output: {inquiry_prompt}\n\n"
         f"Address their request, then continue the conversation \u2014 this is an "
-        f"interactive fork, not a one-shot answer."
+        f"interactive fork, not a one-shot answer. Do NOT call exit tools "
+        f"unless {USER_NAME} explicitly asks to wrap up or leave the fork."
     )

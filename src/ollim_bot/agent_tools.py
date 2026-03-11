@@ -304,8 +304,7 @@ async def follow_up_chain(args: dict[str, Any]) -> dict[str, Any]:
 @tool(
     "save_context",
     "Promote the current interactive fork to the main session. "
-    "Reserve for forks that produced decisions or context the main session "
-    "needs going forward. Most forks should use report_updates instead.",
+    "Only call when the user explicitly asks to save or keep the fork context.",
     {
         "type": "object",
         "properties": {},
@@ -324,7 +323,8 @@ async def save_context(args: dict[str, Any]) -> dict[str, Any]:
 @tool(
     "report_updates",
     "Default fork exit. Summarize findings and discard the fork — the summary "
-    "is injected into the next main-session message.",
+    "is injected into the next main-session message. In interactive forks, "
+    "only call when the user explicitly asks to wrap up or leave the fork.",
     {
         "type": "object",
         "properties": {
@@ -389,7 +389,8 @@ async def enter_fork(args: dict[str, Any]) -> dict[str, Any]:
 
 @tool(
     "exit_fork",
-    "Exit the current interactive fork. The fork is discarded and the main session resumes.",
+    "Exit the current interactive fork (clean discard). "
+    "Only call when the user explicitly asks to leave or end the fork.",
     {"type": "object", "properties": {}},
 )
 async def exit_fork(args: dict[str, Any]) -> dict[str, Any]:
