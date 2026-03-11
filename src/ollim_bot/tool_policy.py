@@ -47,6 +47,7 @@ FILE_WRITE_TOOLS = frozenset(("Write", "Edit"))
 # Discord MCP tool classification — used for dynamic bg fork gating
 PING_TOOLS = frozenset(("mcp__discord__ping_user", "mcp__discord__discord_embed"))
 REPORTING_TOOLS = frozenset(("mcp__discord__report_updates", "mcp__discord__follow_up_chain"))
+DISCORD_TOOLS = PING_TOOLS | REPORTING_TOOLS
 
 
 # ---------------------------------------------------------------------------
