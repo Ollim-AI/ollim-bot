@@ -40,7 +40,9 @@ from ollim_bot.forks import peek_pending_updates
 from ollim_bot.hooks import auto_commit_hook, state_dir_guard
 from ollim_bot.permissions import (
     cancel_pending,
+    clear_denied,
     handle_tool_permission,
+    set_dont_ask,
 )
 from ollim_bot.permissions import (
     reset as reset_permissions,
@@ -263,6 +265,9 @@ class Agent:
         Returns True if SAVE successfully promoted the fork to main session.
         """
         cancel_pending()
+        # Restore _dont_ask from persisted config — /permissions during a fork
+        # changes it globally, but it should be fork-scoped.
+        set_dont_ask(runtime_config.load().permission_mode == "dontAsk")
         client = self._fork_client
         session_id = self._fork_session_id
         self._fork_client = None
@@ -459,6 +464,7 @@ class Agent:
         images: list[dict[str, str]] | None = None,
     ) -> AsyncGenerator[str | StreamStatus, None]:
         """Yield text deltas and StreamStatus signals for live progress display."""
+        clear_denied()
         client, message = await self._resolve_client(message)
         try:
             async for item in stream_response(

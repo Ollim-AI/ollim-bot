@@ -14,8 +14,10 @@ from ollim_bot.fork_state import BgForkConfig, set_bg_fork_config, set_in_fork
 from ollim_bot.permissions import (
     _PendingApproval,
     cancel_pending,
+    clear_denied,
     dont_ask,
     handle_tool_permission,
+    is_denied,
     is_session_allowed,
     reset,
     resolve_approval,
@@ -242,3 +244,24 @@ def test_bg_fork_denies_report_when_blocked():
     finally:
         set_in_fork(False)
         set_bg_fork_config(BgForkConfig())
+
+
+# --- clear_denied ---
+
+
+def test_clear_denied_removes_stale_labels():
+    """Denied labels from a previous response don't bleed into the next one."""
+    reset()
+    set_dont_ask(True)
+    try:
+        _run(handle_tool_permission("Bash", {"command": "ls"}, ToolPermissionContext()))
+        assert is_denied("Bash(ls)") is True
+
+        # Simulate a second denial that isn't consumed by the streamer
+        _run(handle_tool_permission("Bash", {"command": "rm -rf /"}, ToolPermissionContext()))
+        # clear_denied should wipe it before the next response
+        clear_denied()
+        assert is_denied("Bash(rm -rf /)") is False
+    finally:
+        set_dont_ask(True)
+        reset()
