@@ -432,6 +432,36 @@ async def require_report_hook(
     return {}
 
 
+@tool(
+    "update_names",
+    "Update the bot and user display names. Writes to .env and takes "
+    "effect after /restart. Only available in main session.",
+    {
+        "type": "object",
+        "properties": {
+            "user_name": {"type": "string", "description": "User's display name"},
+            "bot_name": {"type": "string", "description": "Bot's display name"},
+        },
+        "required": ["user_name", "bot_name"],
+    },
+)
+async def update_names(args: dict[str, Any]) -> dict[str, Any]:
+    if in_bg_fork() or in_interactive_fork():
+        return _resp("Error: update_names is only available in the main session")
+    user_name = args["user_name"].strip()
+    bot_name = args["bot_name"].strip()
+    if not user_name or not bot_name:
+        return _resp("Error: both names must be non-empty")
+    from dotenv import set_key
+
+    from ollim_bot.storage import PROJECT_DIR
+
+    env_path = str(PROJECT_DIR / ".env")
+    set_key(env_path, "OLLIM_USER_NAME", user_name)
+    set_key(env_path, "OLLIM_BOT_NAME", bot_name)
+    return _resp(f"Names updated: user={user_name}, bot={bot_name}. Changes take full effect after /restart.")
+
+
 agent_server = create_sdk_mcp_server(
     "discord",
     tools=[
@@ -442,5 +472,6 @@ agent_server = create_sdk_mcp_server(
         report_updates,
         enter_fork,
         exit_fork,
+        update_names,
     ],
 )

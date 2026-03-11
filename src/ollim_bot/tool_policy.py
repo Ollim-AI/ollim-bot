@@ -184,6 +184,7 @@ MAIN_SESSION_TOOLS: list[str] = [
     "mcp__discord__report_updates",
     "mcp__discord__enter_fork",
     "mcp__discord__exit_fork",
+    "mcp__discord__update_names",
     "mcp__docs__*",
     "Task",
     "Skill",

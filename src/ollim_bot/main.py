@@ -85,6 +85,11 @@ def _ensure_sdk_layout() -> None:
     # Bundled agents → .claude/agents/
     install_agents()
 
+    # Bundled skills → skills/
+    from ollim_bot.skills import install_bundled_skills
+
+    install_bundled_skills()
+
     # Skills symlink → .claude/skills/ -> ../skills/
     skills_link = DATA_DIR / ".claude" / "skills"
     skills_link.parent.mkdir(parents=True, exist_ok=True)
