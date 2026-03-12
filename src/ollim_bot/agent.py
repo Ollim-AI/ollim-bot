@@ -80,7 +80,11 @@ class Agent:
             cwd=DATA_DIR,
             include_partial_messages=True,
             can_use_tool=handle_tool_permission,
-            system_prompt=build_system_prompt(),
+            system_prompt={
+                "type": "preset",
+                "preset": "claude_code",
+                "append": build_system_prompt(),
+            },
             setting_sources=["project"],
             mcp_servers={
                 "discord": agent_server,
