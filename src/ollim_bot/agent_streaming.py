@@ -108,7 +108,7 @@ async def stream_response(
             async for msg in response:
                 if isinstance(msg, TaskProgressMessage):
                     if msg.last_tool_name:
-                        prefix = parser.active_task_label or "Task"
+                        prefix = parser.active_task_label or "Agent"
                         tool = strip_mcp_namespace(msg.last_tool_name)
                         yield StreamStatus(kind="task_progress", label=f"{prefix} · {tool}")
                     continue

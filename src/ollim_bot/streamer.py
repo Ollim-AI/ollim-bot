@@ -83,7 +83,7 @@ class StreamParser:
         elif etype == "content_block_stop":
             if self._tool_name is not None:
                 label = format_tool_label(self._tool_name, self._tool_input_buf)
-                if self._tool_name == "Task":
+                if self._tool_name == "Agent":
                     self.active_task_label = label
                 yield StreamStatus(kind="tool_start", label=label)
                 self._status_active = True
