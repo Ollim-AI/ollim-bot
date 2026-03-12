@@ -102,6 +102,8 @@ class Agent:
         cfg = runtime_config.load()
         if cfg.model_main:
             self.options = replace(self.options, model=cfg.model_main)
+        if cfg.permission_mode not in ("dontAsk", "default"):
+            self.options = replace(self.options, permission_mode=cfg.permission_mode)
         self.options = _with_thinking(self.options, cfg.thinking_main)
 
         self._client: ClaudeSDKClient | None = None
@@ -309,6 +311,7 @@ class Agent:
         thinking: str | None = None,
         model: str | None = None,
         allowed_tools: list[str] | None = None,
+        bg: bool = False,
     ) -> ClaudeSDKClient:
         """Create a disposable client that forks from a given or current session.
 
@@ -316,12 +319,16 @@ class Agent:
         target is a completed bg fork session that may not support re-forking.
         thinking=None inherits from main session; True/False overrides.
         model=None inherits from main session options.
+        bg=True forces permission_mode="default" so canUseTool is always
+        reachable — prevents bypassPermissions from skipping tool gating.
         """
         sid = session_id or load_session_id()
         if sid:
             opts = replace(self.options, resume=sid, fork_session=fork)
         else:
             opts = self.options
+        if bg:
+            opts = replace(opts, permission_mode="default")
         if model:
             opts = replace(opts, model=model)
         if thinking is not None:
@@ -337,9 +344,16 @@ class Agent:
         model: str | None = None,
         thinking: str = "adaptive",
         allowed_tools: list[str] | None = None,
+        bg: bool = False,
     ) -> ClaudeSDKClient:
-        """Create a standalone client with no conversation history."""
+        """Create a standalone client with no conversation history.
+
+        bg=True forces permission_mode="default" so canUseTool is always
+        reachable — prevents bypassPermissions from skipping tool gating.
+        """
         opts = self.options
+        if bg:
+            opts = replace(opts, permission_mode="default")
         if model:
             opts = replace(opts, model=model)
         opts = _with_thinking(opts, thinking)

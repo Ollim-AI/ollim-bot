@@ -202,11 +202,13 @@ async def run_agent_background(
                             model=model,
                             thinking=thinking,
                             allowed_tools=allowed,
+                            bg=True,
                         )
                     else:
                         client = await agent.create_forked_client(
                             thinking=thinking,
                             allowed_tools=allowed,
+                            bg=True,
                         )
                     break
                 except Exception as exc:
