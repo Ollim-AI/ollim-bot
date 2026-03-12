@@ -170,6 +170,6 @@ def restart_process() -> None:
     """
     PID_FILE.unlink(missing_ok=True)
     if sys.platform == "win32":
-        subprocess.Popen([sys.executable, *sys.argv])
+        subprocess.Popen(sys.argv)
         os._exit(0)  # Skip atexit (mirrors os.execv behavior on Unix)
     os.execv(sys.executable, [sys.executable, *sys.argv])
