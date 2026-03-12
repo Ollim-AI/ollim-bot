@@ -95,8 +95,8 @@ async def test_drain_renders_pending_labels():
 
 
 @pytest.mark.asyncio
-async def test_multi_tool_labels_deferred_until_text():
-    """Multiple tool labels are deferred and rendered together when text arrives."""
+async def test_multi_tool_labels_rendered_progressively():
+    """Tool labels render progressively — each flushes when the next tool starts."""
     reset()
     parser = StreamParser()
 
@@ -105,20 +105,19 @@ async def test_multi_tool_labels_deferred_until_text():
     await _collect(parser, _input_delta('{"file_path": "/a/b/foo.md"}'))
     await _collect(parser, _block_stop())
 
-    # Tool B — triggers drain(defer=True) so A's label is NOT rendered yet
+    # Tool B — drain flushes A's label immediately
     items_b_start = await _collect(parser, _block_start("tool_use", name="Write", id="2"))
-    labels_early = [i for i in items_b_start if isinstance(i, str) and ("Read" in i or "Write" in i)]
-    assert labels_early == [], "Labels should be deferred when another tool follows"
+    labels_early = [i for i in items_b_start if isinstance(i, str) and "Read" in i]
+    assert len(labels_early) == 1, "Tool A label should flush when Tool B starts"
 
     await _collect(parser, _input_delta('{"file_path": "/a/b/bar.md", "content": "x"}'))
     await _collect(parser, _block_stop())
 
-    # Text block — triggers drain(defer=False), renders both labels
+    # Text block — only Tool B's label remains to flush
     items = await _collect(parser, _block_start("text"))
 
-    labels = [i for i in items if isinstance(i, str) and ("-#" in i)]
-    assert len(labels) == 2
-    assert any("Read" in lab for lab in labels)
+    labels = [i for i in items if isinstance(i, str) and "-#" in i]
+    assert len(labels) == 1
     assert any("Write" in lab for lab in labels)
 
 
@@ -134,19 +133,19 @@ async def test_multi_tool_denied_label_matched_correctly():
     await _collect(parser, _input_delta('{"file_path": "/a/b/foo.md"}'))
     await _collect(parser, _block_stop())
 
-    # Tool B (denied)
-    await _collect(parser, _block_start("tool_use", name="Write", id="2"))
+    # Tool B (denied) — also flushes Tool A's label
+    items_b = await _collect(parser, _block_start("tool_use", name="Write", id="2"))
+    read_label = next(i for i in items_b if isinstance(i, str) and "Read" in i)
+    assert "denied" not in read_label
+
     await _collect(parser, _input_delta('{"file_path": "/a/b/bar.md", "content": "x"}'))
     await _collect(parser, _block_stop())
 
-    # Text block renders both
+    # Text block renders Tool B's label
     items = await _collect(parser, _block_start("text"))
     labels = [i for i in items if isinstance(i, str) and "-#" in i]
 
-    read_label = next(lab for lab in labels if "Read" in lab)
     write_label = next(lab for lab in labels if "Write" in lab)
-
-    assert "denied" not in read_label
     assert "denied" in write_label
     assert "~~" in write_label
 
