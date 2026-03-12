@@ -59,7 +59,7 @@ class StreamParser:
             block = event["content_block"]
             btype = block["type"]
             is_tool = btype == "tool_use"
-            async for item in self._drain(defer=is_tool):
+            async for item in self._drain():
                 yield item
             if btype in ("thinking", "redacted_thinking"):
                 yield StreamStatus(kind="thinking_start")
@@ -76,7 +76,7 @@ class StreamParser:
             elif dtype in ("thinking_delta", "redacted_thinking_delta"):
                 pass  # thinking content hidden — timer shown instead
             elif text := delta.get("text", ""):
-                async for item in self._drain(defer=False):
+                async for item in self._drain():
                     yield item
                 yield text
 
@@ -95,14 +95,14 @@ class StreamParser:
 
     async def drain(self) -> AsyncGenerator[str | StreamStatus, None]:
         """Flush any active status phase. Call after the stream ends."""
-        async for item in self._drain(defer=False):
+        async for item in self._drain():
             yield item
 
-    async def _drain(self, *, defer: bool) -> AsyncGenerator[str | StreamStatus, None]:
+    async def _drain(self) -> AsyncGenerator[str | StreamStatus, None]:
         if self._status_active:
             self._status_active = False
             yield StreamStatus(kind="phase_end")
-        if not defer and self._deferred_labels:
+        if self._deferred_labels:
             for label in self._deferred_labels:
                 if is_denied(label):
                     yield f"\n-# *~~{label}~~ — denied (use /permissions ask to approve)*\n"
