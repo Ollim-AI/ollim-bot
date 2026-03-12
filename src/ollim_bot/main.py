@@ -11,6 +11,7 @@ import os
 import signal
 import subprocess
 import sys
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -223,12 +224,20 @@ async def _run(bot: Bot, token: str) -> None:
         pass  # Signal handler already notified and closed
     except discord.LoginFailure:
         print("Invalid Discord token. Check DISCORD_TOKEN in .env", file=sys.stderr)
-        print("Get a new token: Discord Developer Portal > Bot > Reset Token", file=sys.stderr)
+        print(
+            "Get a new token: Discord Developer Portal > Bot > Reset Token",
+            file=sys.stderr,
+        )
         raise SystemExit(1) from None
     except discord.PrivilegedIntentsRequired:
         print("Message Content Intent is not enabled.", file=sys.stderr)
-        print("Enable it: Discord Developer Portal > Bot > Privileged Gateway Intents", file=sys.stderr)
+        print(
+            "Enable it: Discord Developer Portal > Bot > Privileged Gateway Intents",
+            file=sys.stderr,
+        )
         raise SystemExit(1) from None
+    except discord.DiscordServerError:
+        raise  # Handled by retry loop in main()
     except Exception as e:
         await _notify_exit(bot, f"{type(e).__name__}: {e}")
         raise
@@ -319,8 +328,29 @@ def main() -> None:
 
     from ollim_bot.bot import create_bot
 
-    bot = create_bot()
-    asyncio.run(_run(bot, token))
+    max_retries = 5
+    retry_delay = 5  # seconds, doubles each attempt
+
+    for attempt in range(max_retries + 1):
+        bot = create_bot()
+        try:
+            asyncio.run(_run(bot, token))
+            break  # Clean exit
+        except discord.DiscordServerError as e:
+            prefix = f"Discord API error ({e.status} {e.text})"
+            if attempt < max_retries:
+                delay = retry_delay * (2**attempt)
+                print(
+                    f"{prefix} — retrying in {delay}s (attempt {attempt + 1}/{max_retries})",
+                    file=sys.stderr,
+                )
+                time.sleep(delay)
+            else:
+                print(
+                    f"{prefix} — giving up after {max_retries} retries.\nCheck https://discordstatus.com for outages.",
+                    file=sys.stderr,
+                )
+                raise SystemExit(1) from None
 
 
 if __name__ == "__main__":
