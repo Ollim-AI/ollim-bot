@@ -180,8 +180,7 @@ def create_bot() -> commands.Bot:
             await agent.enter_interactive_fork(idle_timeout=timeout)
             await _send_fork_enter(channel, topic)
             prompt = _fork_topic_prompt(topic) if topic else _FORK_NO_TOPIC_PROMPT
-            await channel.typing()
-            await stream_to_channel(channel, agent.stream_chat(prompt))
+            await _dispatch(channel, prompt)
             touch_activity()
             await _check_fork_transitions(channel)
             return
@@ -236,8 +235,7 @@ def create_bot() -> commands.Bot:
             await _send_fork_enter(channel, topic)
             await interaction.delete_original_response()
             prompt = _fork_topic_prompt(topic) if topic else _FORK_NO_TOPIC_PROMPT
-            await channel.typing()
-            await stream_to_channel(channel, agent.stream_chat(prompt))
+            await _dispatch(channel, prompt)
             touch_activity()
             await _check_fork_transitions(channel)
 
@@ -252,8 +250,7 @@ def create_bot() -> commands.Bot:
             channel = interaction.channel
             assert isinstance(channel, discord.abc.Messageable)
             await interaction.delete_original_response()
-            await channel.typing()
-            await stream_to_channel(channel, agent.stream_chat("/setup"))
+            await _dispatch(channel, "/setup")
 
     @bot.tree.command(name="model", description="View or switch the AI model")
     @discord.app_commands.describe(name="Model to use (omit to view current)")
