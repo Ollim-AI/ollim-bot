@@ -608,7 +608,7 @@ def test_bg_fork_config_from_item_strips_discord_tools():
         update_main_session = "on_ping"
         allow_ping = True
         allowed_tools: ClassVar[list[str]] = [
-            "Task",
+            "Agent",
             "mcp__discord__ping_user",
             "mcp__discord__discord_embed",
             "mcp__discord__report_updates",
@@ -620,7 +620,7 @@ def test_bg_fork_config_from_item_strips_discord_tools():
     assert config.allowed_tools is not None
     for tool in DISCORD_TOOLS:
         assert tool not in config.allowed_tools
-    assert "Task" in config.allowed_tools
+    assert "Agent" in config.allowed_tools
 
 
 def test_bg_fork_config_from_item_strips_discord_tools_when_no_declared():

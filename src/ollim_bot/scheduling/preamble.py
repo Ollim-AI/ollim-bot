@@ -333,8 +333,8 @@ def build_bg_preamble(
     )
 
     # Only mention user-proxy when Task is available (not restricted out)
-    can_use_task = config.allowed_tools is None or "Task" in config.allowed_tools
-    proxy_line = "For preference decisions, spawn the user-proxy subagent (via Task tool).\n\n" if can_use_task else ""
+    can_use_task = config.allowed_tools is None or "Agent" in config.allowed_tools
+    proxy_line = "For preference decisions, spawn the user-proxy subagent (via Agent tool).\n\n" if can_use_task else ""
 
     return f"{ping_section}{update_section}{busy_line}{budget_section}{tools_section}{unavailable_hint}{proxy_line}"
 

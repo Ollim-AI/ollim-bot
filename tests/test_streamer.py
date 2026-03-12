@@ -91,6 +91,24 @@ async def test_drain_renders_pending_labels():
     assert len(labels) == 1
 
 
+@pytest.mark.asyncio
+async def test_agent_tool_gets_descriptive_label():
+    """Agent tool renders as 'agent_name(description)', not bare 'Agent'."""
+    reset()
+    parser = StreamParser()
+
+    await _collect(parser, _block_start("tool_use", name="Agent", id="1"))
+    await _collect(parser, _input_delta('{"name": "guide", "description": "search for docs"}'))
+    await _collect(parser, _block_stop())
+
+    items = await _collect(parser, _block_start("text"))
+
+    labels = [i for i in items if isinstance(i, str) and "-#" in i]
+    assert len(labels) == 1
+    assert "guide(search for docs)" in labels[0]
+    assert "Agent" not in labels[0]
+
+
 # --- Multi-tool deferred rendering ---
 
 

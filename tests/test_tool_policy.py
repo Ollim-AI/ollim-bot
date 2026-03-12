@@ -93,8 +93,8 @@ def test_bare_tool_name_passes():
     assert errors == []
 
 
-def test_task_passes():
-    errors = validate_pattern("Task")
+def test_agent_passes():
+    errors = validate_pattern("Agent")
 
     assert errors == []
 
@@ -150,7 +150,7 @@ def test_validate_tool_set_all_valid():
         "Read(**.md)",
         "mcp__discord__ping_user",
         "WebFetch",
-        "Task",
+        "Agent",
     ]
 
     results = validate_tool_set(patterns, "routine:test")
@@ -248,15 +248,15 @@ def test_read_broad_glob_not_state_rejected():
 
 
 def test_strip_state_dir_writes_removes_dangerous():
-    tools = ["Write(**)", "Read(**.md)", "Edit(**.json)", "Task"]
+    tools = ["Write(**)", "Read(**.md)", "Edit(**.json)", "Agent"]
 
     result = strip_state_dir_writes(tools)
 
-    assert result == ["Read(**.md)", "Task"]
+    assert result == ["Read(**.md)", "Agent"]
 
 
 def test_strip_state_dir_writes_keeps_safe():
-    tools = ["Write(**.md)", "Edit(routines/**)", "Read(**)", "Task"]
+    tools = ["Write(**.md)", "Edit(routines/**)", "Read(**)", "Agent"]
 
     result = strip_state_dir_writes(tools)
 

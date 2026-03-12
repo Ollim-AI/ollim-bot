@@ -187,7 +187,7 @@ MAIN_SESSION_TOOLS: list[str] = [
     "mcp__discord__exit_fork",
     "mcp__discord__update_names",
     "mcp__docs__*",
-    "Task",
+    "Agent",
     "Skill",
 ]
 
