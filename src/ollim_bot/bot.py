@@ -255,8 +255,8 @@ def create_bot() -> commands.Bot:
             await channel.typing()
             await stream_to_channel(channel, agent.stream_chat("/setup"))
 
-    @bot.tree.command(name="model", description="Switch the AI model")
-    @discord.app_commands.describe(name="Model to use")
+    @bot.tree.command(name="model", description="View or switch the AI model")
+    @discord.app_commands.describe(name="Model to use (omit to view current)")
     @discord.app_commands.check(_owner_check)
     @discord.app_commands.choices(
         name=[
@@ -265,15 +265,18 @@ def create_bot() -> commands.Bot:
             discord.app_commands.Choice(name="haiku", value="haiku"),
         ]
     )
-    async def slash_model(interaction: discord.Interaction, name: discord.app_commands.Choice[str]):
+    async def slash_model(interaction: discord.Interaction, name: discord.app_commands.Choice[str] | None = None):
+        if name is None:
+            await interaction.response.send_message(f"model: {agent.options.model}.")
+            return
         if agent.in_fork:
             await interaction.response.send_message("exit fork first.", ephemeral=True)
             return
         await agent.set_model(cast(ModelName, name.value))
         await interaction.response.send_message(f"switched to {name.value}.")
 
-    @bot.tree.command(name="thinking", description="Set thinking mode")
-    @discord.app_commands.describe(mode="off, adaptive, or a token budget (e.g. 8000)")
+    @bot.tree.command(name="thinking", description="View or set thinking mode")
+    @discord.app_commands.describe(mode="off, adaptive, or a token budget (omit to view current)")
     @discord.app_commands.check(_owner_check)
     @discord.app_commands.choices(
         mode=[
@@ -284,7 +287,17 @@ def create_bot() -> commands.Bot:
             discord.app_commands.Choice(name="64k budget", value="64000"),
         ]
     )
-    async def slash_thinking(interaction: discord.Interaction, mode: discord.app_commands.Choice[str]):
+    async def slash_thinking(interaction: discord.Interaction, mode: discord.app_commands.Choice[str] | None = None):
+        if mode is None:
+            cfg = agent.options.thinking
+            if cfg is None or cfg["type"] == "adaptive":
+                label = "adaptive"
+            elif cfg["type"] == "disabled":
+                label = "off"
+            else:
+                label = f"{cfg['budget_tokens'] // 1000}k budget"
+            await interaction.response.send_message(f"thinking: {label}.")
+            return
         if agent.in_fork:
             await interaction.response.send_message("exit fork first.", ephemeral=True)
             return
@@ -431,8 +444,8 @@ def create_bot() -> commands.Bot:
         await interaction.response.defer()
         await interaction.delete_original_response()
 
-    @bot.tree.command(name="permissions", description="Set permission mode")
-    @discord.app_commands.describe(mode="Permission mode to use")
+    @bot.tree.command(name="permissions", description="View or set permission mode")
+    @discord.app_commands.describe(mode="Permission mode to use (omit to view current)")
     @discord.app_commands.check(_owner_check)
     @discord.app_commands.choices(
         mode=[
@@ -442,7 +455,11 @@ def create_bot() -> commands.Bot:
             discord.app_commands.Choice(name="bypassPermissions", value="bypassPermissions"),
         ]
     )
-    async def slash_permissions(interaction: discord.Interaction, mode: discord.app_commands.Choice[str]):
+    async def slash_permissions(interaction: discord.Interaction, mode: discord.app_commands.Choice[str] | None = None):
+        if mode is None:
+            current = "dontAsk" if permissions.dont_ask() else agent.options.permission_mode
+            await interaction.response.send_message(f"permissions: {current}.")
+            return
         if mode.value == "dontAsk":
             permissions.set_dont_ask(True)
             await agent.set_permission_mode("default")
