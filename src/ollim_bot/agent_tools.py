@@ -464,7 +464,7 @@ async def update_names(args: dict[str, Any]) -> dict[str, Any]:
 
 
 def build_agent_server() -> Any:
-    """Build the discord MCP server. Lazy to avoid circular imports with scheduling."""
+    """Build the discord MCP server. Lazy to avoid circular import via scheduling.__init__."""
     from ollim_bot.reminder_tools import add_reminder, cancel_reminder, list_reminders_tool
 
     return create_sdk_mcp_server(

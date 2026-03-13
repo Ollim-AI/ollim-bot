@@ -55,6 +55,9 @@ REMINDER_TOOLS = frozenset(
     )
 )
 DISCORD_TOOLS = PING_TOOLS | REPORTING_TOOLS | REMINDER_TOOLS
+# Tools gated by canUseTool (ping budget, allow_ping, update_main_session) —
+# stripped from bg fork allowed_tools so the SDK doesn't auto-approve them.
+GATED_TOOLS = PING_TOOLS | REPORTING_TOOLS
 
 
 # ---------------------------------------------------------------------------
