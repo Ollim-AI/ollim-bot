@@ -25,7 +25,14 @@ from ollim_bot.forks import append_update
 from ollim_bot.google.calendar import delete_event
 from ollim_bot.google.tasks import complete_task, delete_task
 from ollim_bot.prompts import fork_bg_resume_prompt
-from ollim_bot.sessions import lookup_fork_session
+from ollim_bot.sessions import (
+    cancel_message_collector,
+    flush_message_collector,
+    load_session_id,
+    lookup_fork_session,
+    start_message_collector,
+    track_message,
+)
 from ollim_bot.streamer import stream_to_channel
 
 if TYPE_CHECKING:
@@ -132,10 +139,18 @@ async def _handle_agent_inquiry(interaction: discord.Interaction, inquiry_id: st
     async with _agent.lock():
         if fork_session_id:
             await _agent.enter_interactive_fork(resume_session_id=fork_session_id)
-            await channel.send(embed=fork_enter_embed(), view=fork_enter_view())
+            start_message_collector()
+            msg = await channel.send(embed=fork_enter_embed(), view=fork_enter_view())
+            track_message(msg.id)
         await channel.typing()
         message = fork_bg_resume_prompt(prompt) if fork_session_id else f"[button] {prompt}"
         await stream_to_channel(channel, _agent.stream_chat(message))
+        if fork_session_id:
+            sid = _agent.fork_session_id
+            if sid:
+                flush_message_collector(sid, load_session_id())
+            else:
+                cancel_message_collector()
         if enter_fork_requested():
             pop_enter_fork()  # drain; fork entry requires the bot.py loop
         result = await _agent.pop_fork_exit()
