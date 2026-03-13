@@ -153,6 +153,7 @@ async def stream_to_channel(
         text = _status_text()
         if status_msg is None:
             status_msg = await channel.send(text)
+            track_message(status_msg.id)
         else:
             with contextlib.suppress(discord.NotFound, discord.HTTPException):
                 await status_msg.edit(content=text)

@@ -118,6 +118,10 @@ class Agent:
         return self._fork_client is not None
 
     @property
+    def fork_session_id(self) -> str | None:
+        return self._fork_session_id
+
+    @property
     def is_compacting(self) -> bool:
         return self._compacting
 

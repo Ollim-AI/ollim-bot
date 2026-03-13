@@ -29,7 +29,14 @@ from ollim_bot.fork_state import (
     touch_activity,
 )
 from ollim_bot.scheduling import setup_scheduler
-from ollim_bot.sessions import load_session_id, lookup_fork_session
+from ollim_bot.sessions import (
+    cancel_message_collector,
+    flush_message_collector,
+    load_session_id,
+    lookup_fork_session,
+    start_message_collector,
+    track_message,
+)
 from ollim_bot.storage import save_attachment
 from ollim_bot.streamer import stream_to_channel
 from ollim_bot.views import ActionButton
@@ -146,7 +153,8 @@ def create_bot() -> commands.Bot:
         await stream_to_channel(channel, agent.stream_chat(prompt, images=images))
 
     async def _send_fork_enter(channel: discord.abc.Messageable, topic: str | None) -> None:
-        await channel.send(embed=fork_enter_embed(topic), view=fork_enter_view())
+        msg = await channel.send(embed=fork_enter_embed(topic), view=fork_enter_view())
+        track_message(msg.id)
 
     def _fork_topic_prompt(topic: str) -> str:
         return (
@@ -169,6 +177,14 @@ def create_bot() -> commands.Bot:
         "[fork-started] You are now inside an interactive forked session (resumed from a background fork reply)."
     )
 
+    def _flush_fork_messages() -> None:
+        """Flush the message collector with the interactive fork's session ID."""
+        sid = agent.fork_session_id
+        if sid:
+            flush_message_collector(sid, load_session_id())
+        else:
+            cancel_message_collector()
+
     async def _check_fork_transitions(
         channel: discord.abc.Messageable,
     ) -> None:
@@ -178,9 +194,11 @@ def create_bot() -> commands.Bot:
             if agent.in_fork:
                 return
             await agent.enter_interactive_fork(idle_timeout=timeout)
+            start_message_collector()
             await _send_fork_enter(channel, topic)
             prompt = _fork_topic_prompt(topic) if topic else _FORK_NO_TOPIC_PROMPT
             await _dispatch(channel, prompt)
+            _flush_fork_messages()
             touch_activity()
             await _check_fork_transitions(channel)
             return
@@ -232,10 +250,12 @@ def create_bot() -> commands.Bot:
             await agent.enter_interactive_fork()
             channel = interaction.channel
             assert isinstance(channel, discord.abc.Messageable)
+            start_message_collector()
             await _send_fork_enter(channel, topic)
             await interaction.delete_original_response()
             prompt = _fork_topic_prompt(topic) if topic else _FORK_NO_TOPIC_PROMPT
             await _dispatch(channel, prompt)
+            _flush_fork_messages()
             touch_activity()
             await _check_fork_transitions(channel)
 
@@ -408,12 +428,18 @@ def create_bot() -> commands.Bot:
             async with agent.lock():
                 if fork_session_id:
                     await agent.enter_interactive_fork(resume_session_id=fork_session_id)
-                    await _send_fork_enter(message.channel, None)
                     content = f"{_FORK_REPLY_PREFIX}\n\n{content}"
+                if in_interactive_fork() or fork_session_id:
+                    start_message_collector()
+                if fork_session_id:
+                    await _send_fork_enter(message.channel, None)
                 await _dispatch(message.channel, content, images=images or None)
                 if in_interactive_fork():
+                    _flush_fork_messages()
                     touch_activity()
                     clear_prompted()
+                else:
+                    cancel_message_collector()
                 await _check_fork_transitions(message.channel)
         except CLIConnectionError as e:
             log.error("CLIConnectionError in on_message: %s", e)

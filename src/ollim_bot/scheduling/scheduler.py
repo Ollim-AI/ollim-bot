@@ -53,6 +53,12 @@ from ollim_bot.scheduling.preamble import (
 )
 from ollim_bot.scheduling.reminders import Reminder, list_reminders, remove_reminder
 from ollim_bot.scheduling.routines import Routine, list_routines
+from ollim_bot.sessions import (
+    cancel_message_collector,
+    flush_message_collector,
+    load_session_id,
+    start_message_collector,
+)
 from ollim_bot.skills import cleanup_stale_skills, ensure_skill
 from ollim_bot.streamer import stream_to_channel
 
@@ -337,9 +343,15 @@ def setup_scheduler(bot: discord.Client, agent: Agent, owner: discord.User) -> A
             )
 
         async with agent.lock():
+            start_message_collector()
             await dm.send("-# fork idle — checking in...")
             await dm.typing()
             await stream_to_channel(dm, agent.stream_chat(prompt))
+            sid = agent.fork_session_id
+            if sid:
+                flush_message_collector(sid, load_session_id())
+            else:
+                cancel_message_collector()
             result = await agent.pop_fork_exit()
             if result:
                 action, summary = result

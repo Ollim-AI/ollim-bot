@@ -203,3 +203,19 @@ def test_live_record_not_expired(fork_messages):
     result = lookup_fork_session(200)
     assert result.session_id == "fork-abc"
     assert not result.expired
+
+
+def test_duplicate_track_resolves_correctly(fork_messages):
+    """Status messages are tracked on creation and again on promotion.
+
+    Duplicate IDs in the collector are harmless — lookup returns the
+    first match, which has the correct fork session ID.
+    """
+    start_message_collector()
+    track_message(300)  # status msg created
+    track_message(300)  # same msg promoted to text
+    track_message(400)  # overflow msg
+    flush_message_collector("fork-dup", "parent-dup")
+
+    assert lookup_fork_session(300).session_id == "fork-dup"
+    assert lookup_fork_session(400).session_id == "fork-dup"
