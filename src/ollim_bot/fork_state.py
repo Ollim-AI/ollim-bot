@@ -98,14 +98,16 @@ class BgForkConfig:
         reaching the ``canUseTool`` callback, which would bypass the
         ``allow_ping`` / ``update_main_session`` gating.
         """
-        from ollim_bot.tool_policy import DISCORD_TOOLS, build_bg_tools
+        from ollim_bot.tool_policy import PING_TOOLS, REPORTING_TOOLS, build_bg_tools
 
         base = build_bg_tools()
         declared = item.allowed_tools
         allowed = base if declared is None else base + [t for t in declared if t not in base]
 
-        # Strip discord tools — gated by canUseTool via allow_ping/update_main_session
-        allowed = [t for t in allowed if t not in DISCORD_TOOLS]
+        # Strip ping/reporting tools — gated by canUseTool via allow_ping/update_main_session.
+        # Reminder tools stay in allowed_tools (data operations, no dynamic gating).
+        gated_tools = PING_TOOLS | REPORTING_TOOLS
+        allowed = [t for t in allowed if t not in gated_tools]
 
         return cls(
             update_main_session=item.update_main_session,

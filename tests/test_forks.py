@@ -598,11 +598,11 @@ def test_bg_fork_config_from_item_deduplicates_system_tools():
     assert config.allowed_tools.count(DEFAULT_BG_TOOLS[0]) == 1
 
 
-def test_bg_fork_config_from_item_strips_discord_tools():
-    """Discord MCP tools are stripped so canUseTool gates them via flags."""
+def test_bg_fork_config_from_item_strips_gated_tools():
+    """Ping/reporting tools are stripped so canUseTool gates them; reminder tools stay."""
     from typing import ClassVar
 
-    from ollim_bot.tool_policy import DISCORD_TOOLS
+    from ollim_bot.tool_policy import PING_TOOLS, REMINDER_TOOLS, REPORTING_TOOLS
 
     class FakeItem:
         update_main_session = "on_ping"
@@ -613,19 +613,22 @@ def test_bg_fork_config_from_item_strips_discord_tools():
             "mcp__discord__discord_embed",
             "mcp__discord__report_updates",
             "mcp__discord__follow_up_chain",
+            "mcp__discord__add_reminder",
         ]
 
     config = BgForkConfig.from_item(FakeItem())
 
     assert config.allowed_tools is not None
-    for tool in DISCORD_TOOLS:
-        assert tool not in config.allowed_tools
+    for t in PING_TOOLS | REPORTING_TOOLS:
+        assert t not in config.allowed_tools
+    for t in REMINDER_TOOLS:
+        assert t in config.allowed_tools
     assert "Agent" in config.allowed_tools
 
 
-def test_bg_fork_config_from_item_strips_discord_tools_when_no_declared():
-    """Discord tools absent from defaults — stripping is a no-op."""
-    from ollim_bot.tool_policy import DEFAULT_BG_TOOLS, DISCORD_TOOLS
+def test_bg_fork_config_from_item_strips_gated_tools_when_no_declared():
+    """Ping/reporting tools absent from defaults — reminder tools present."""
+    from ollim_bot.tool_policy import DEFAULT_BG_TOOLS, PING_TOOLS, REPORTING_TOOLS
 
     class FakeItem:
         update_main_session = "on_ping"
@@ -636,8 +639,8 @@ def test_bg_fork_config_from_item_strips_discord_tools_when_no_declared():
 
     assert config.allowed_tools is not None
     assert config.allowed_tools == DEFAULT_BG_TOOLS
-    for tool in DISCORD_TOOLS:
-        assert tool not in config.allowed_tools
+    for t in PING_TOOLS | REPORTING_TOOLS:
+        assert t not in config.allowed_tools
 
 
 # --- BgForkTracking ---
