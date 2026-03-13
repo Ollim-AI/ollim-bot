@@ -298,6 +298,13 @@ def _login_via_discord(token: str) -> None:
 
 
 def main() -> None:
+    # Windows console defaults to the system codepage (e.g. cp1252),
+    # which breaks any Unicode output. Force UTF-8 on all streams.
+    if sys.platform == "win32":
+        for stream in (sys.stdout, sys.stderr):
+            if hasattr(stream, "reconfigure"):
+                stream.reconfigure(encoding="utf-8")
+
     if _dispatch_subcommand():
         return
 
