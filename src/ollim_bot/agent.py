@@ -28,7 +28,7 @@ from ollim_bot.agent_context import (
     thinking as _thinking,
 )
 from ollim_bot.agent_streaming import stream_response
-from ollim_bot.agent_tools import agent_server, require_report_hook
+from ollim_bot.agent_tools import build_agent_server, require_report_hook
 from ollim_bot.channel import get_channel
 from ollim_bot.fork_state import (
     ForkExitAction,
@@ -87,7 +87,7 @@ class Agent:
             },
             setting_sources=["project"],
             mcp_servers={
-                "discord": agent_server,
+                "discord": build_agent_server(),
                 "docs": {"type": "http", "url": "https://docs.ollim.ai/mcp"},
             },
             allowed_tools=main_tools,

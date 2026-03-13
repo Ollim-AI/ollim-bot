@@ -463,16 +463,23 @@ async def update_names(args: dict[str, Any]) -> dict[str, Any]:
     return _resp(f"Names updated: user={user_name}, bot={bot_name}. Changes take full effect after /restart.")
 
 
-agent_server = create_sdk_mcp_server(
-    "discord",
-    tools=[
-        discord_embed,
-        ping_user,
-        follow_up_chain,
-        save_context,
-        report_updates,
-        enter_fork,
-        exit_fork,
-        update_names,
-    ],
-)
+def build_agent_server() -> Any:
+    """Build the discord MCP server. Lazy to avoid circular imports with scheduling."""
+    from ollim_bot.reminder_tools import add_reminder, cancel_reminder, list_reminders_tool
+
+    return create_sdk_mcp_server(
+        "discord",
+        tools=[
+            discord_embed,
+            ping_user,
+            follow_up_chain,
+            save_context,
+            report_updates,
+            enter_fork,
+            exit_fork,
+            update_names,
+            add_reminder,
+            list_reminders_tool,
+            cancel_reminder,
+        ],
+    )

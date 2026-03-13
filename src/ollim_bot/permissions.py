@@ -19,7 +19,7 @@ from claude_agent_sdk.types import (
 from ollim_bot.channel import get_channel
 from ollim_bot.fork_state import get_bg_fork_config, in_bg_fork
 from ollim_bot.formatting import format_tool_label
-from ollim_bot.tool_policy import PING_TOOLS, REPORTING_TOOLS
+from ollim_bot.tool_policy import PING_TOOLS, REMINDER_TOOLS, REPORTING_TOOLS
 
 log = logging.getLogger(__name__)
 
@@ -188,6 +188,8 @@ async def handle_tool_permission(
             config = get_bg_fork_config()
             if config.update_main_session == "blocked":
                 return PermissionResultDeny(message="reporting blocked for this job")
+            return PermissionResultAllow()
+        if tool_name in REMINDER_TOOLS:
             return PermissionResultAllow()
         return PermissionResultDeny(message=f"{tool_name} is not available in background forks")
     if is_session_allowed(tool_name):

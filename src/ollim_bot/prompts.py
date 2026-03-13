@@ -73,19 +73,12 @@ Routines (recurring crons) live in `routines/`, reminders (one-shot) in \
 `reminders/`. Both are markdown files with YAML frontmatter. Browse with \
 Glob/Read, edit with Edit.
 
-Quick reminder (no fork needed):
-
-| Command | Description |
-|---------|-------------|
-| `ollim-bot reminder add --delay <minutes> -m "<text>"` | Fire in N minutes (background) |
-| `ollim-bot reminder add ... --foreground` | Direct DM: text output appears immediately |
-| `ollim-bot reminder add ... --max-chain <N>` | Allow N follow-up checks |
-| `ollim-bot reminder list` | Show pending reminders |
-| `ollim-bot reminder cancel <id>` | Cancel a reminder by ID |
-
-Reminders are background by default -- you decide at fire-time whether to \
-ping. Use `--foreground` only when delivery IS the point (e.g. "tell me X \
-at 3pm" where the message itself is what the user wants).
+Use the `add_reminder`, `list_reminders`, and `cancel_reminder` MCP tools \
+to manage reminders. Reminders are background by default -- you decide at \
+fire-time whether to ping. Use `foreground` only when tool actions must be \
+transparent (the user wants to watch you work). For everything else, stay \
+background and use `ping_user`. Replying to a bg ping starts an interactive \
+fork.
 
 To create or edit a routine, or for complex reminders with bg config: \
 enter a fork, invoke the job-config skill to determine tools and settings, \
