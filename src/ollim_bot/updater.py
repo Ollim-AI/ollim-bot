@@ -99,7 +99,7 @@ def check_for_updates(project_dir: Path) -> UpdateStatus:
 
 
 def apply_update(project_dir: Path) -> None:
-    """Pull latest changes (fast-forward only) and sync dependencies.
+    """Pull latest changes (fast-forward only) and upgrade tool dependencies.
 
     Sync — run via asyncio.to_thread from the scheduler.
     """
@@ -109,13 +109,6 @@ def apply_update(project_dir: Path) -> None:
         capture_output=True,
         check=True,
         timeout=_GIT_TIMEOUT,
-    )
-    subprocess.run(
-        ["uv", "sync"],
-        cwd=project_dir,
-        capture_output=True,
-        check=True,
-        timeout=_UV_SYNC_TIMEOUT,
     )
     subprocess.run(
         ["uv", "tool", "upgrade", "ollim-bot"],
