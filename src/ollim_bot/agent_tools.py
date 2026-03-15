@@ -23,9 +23,11 @@ from ollim_bot.fork_state import (
     ForkExitAction,
     get_bg_fork_config,
     get_bg_tracking,
+    has_new_updates_since_fork,
     in_bg_fork,
     in_interactive_fork,
     is_busy,
+    is_fork_stale,
     request_enter_fork,
     set_exit_action,
 )
@@ -315,6 +317,20 @@ async def save_context(args: dict[str, Any]) -> dict[str, Any]:
         return _resp("Error: save_context is not available in background forks. Use report_updates instead.")
     if not in_interactive_fork():
         return _resp("Error: not in an interactive fork")
+
+    stale = is_fork_stale()
+    new_updates = has_new_updates_since_fork()
+    if stale or new_updates:
+        reasons = []
+        if stale:
+            reasons.append("the main session received new messages")
+        if new_updates:
+            reasons.append("new background updates arrived")
+        return _resp(
+            f"Error: cannot save — {' and '.join(reasons)} since this fork was created. "
+            "Promoting would discard that history. Use report_updates to summarize findings instead."
+        )
+
     set_exit_action(ForkExitAction.SAVE)
     await clear_pending_updates()
     return _resp("Context saved. Fork will be promoted to main session after you finish responding.")

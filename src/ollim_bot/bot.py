@@ -22,6 +22,7 @@ from ollim_bot.config import BOT_NAME, USER_NAME
 from ollim_bot.embeds import fork_enter_embed, fork_enter_view, fork_exit_embed
 from ollim_bot.fork_state import (
     ForkExitAction,
+    bump_main_generation,
     clear_prompted,
     enter_fork_requested,
     in_interactive_fork,
@@ -440,6 +441,7 @@ def create_bot() -> commands.Bot:
                     clear_prompted()
                 else:
                     cancel_message_collector()
+                    bump_main_generation()
                 await _check_fork_transitions(message.channel)
         except CLIConnectionError as e:
             log.error("CLIConnectionError in on_message: %s", e)
