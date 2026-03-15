@@ -29,7 +29,7 @@ from ollim_bot.fork_state import (
     set_in_fork,
     set_interactive_fork,
 )
-from ollim_bot.forks import pop_pending_updates
+from ollim_bot.forks import append_update, pop_pending_updates
 
 # @tool decorator wraps the function in SdkMcpTool; .handler is the raw async fn
 _follow_up = follow_up_chain.handler
@@ -249,7 +249,7 @@ def test_exit_fork_in_interactive_fork():
 # --- save_context (interactive fork mode) ---
 
 
-def test_save_context_in_interactive_fork():
+def test_save_context_in_interactive_fork(data_dir):
     set_interactive_fork(True, idle_timeout=10)
 
     result = _run(_save_ctx({}))
@@ -271,6 +271,72 @@ def test_save_context_blocked_in_bg_fork_even_with_interactive():
     assert pop_exit_action() is ForkExitAction.NONE
     set_interactive_fork(False)
     set_in_fork(False)
+
+
+def test_save_context_blocked_when_stale(data_dir):
+    from ollim_bot.fork_state import bump_main_generation
+
+    set_interactive_fork(True, idle_timeout=10)
+    bump_main_generation()
+
+    result = _run(_save_ctx({}))
+
+    assert "Error" in result["content"][0]["text"]
+    assert "main session received new messages" in result["content"][0]["text"]
+    assert pop_exit_action() is ForkExitAction.NONE
+    set_interactive_fork(False)
+
+
+def test_save_context_blocked_when_new_updates(data_dir):
+    set_interactive_fork(True, idle_timeout=10)
+    _run(append_update("post-fork update"))
+
+    result = _run(_save_ctx({}))
+
+    assert "Error" in result["content"][0]["text"]
+    assert "new background updates arrived" in result["content"][0]["text"]
+    assert pop_exit_action() is ForkExitAction.NONE
+    set_interactive_fork(False)
+    _run(pop_pending_updates())
+
+
+def test_save_context_allowed_with_preexisting_updates(data_dir):
+    _run(append_update("pre-fork update"))
+    set_interactive_fork(True, idle_timeout=10)
+
+    result = _run(_save_ctx({}))
+
+    assert "promoted" in result["content"][0]["text"].lower()
+    assert pop_exit_action() is ForkExitAction.SAVE
+    set_interactive_fork(False)
+    _run(pop_pending_updates())
+
+
+def test_save_context_blocked_when_stale_and_new_updates(data_dir):
+    from ollim_bot.fork_state import bump_main_generation
+
+    set_interactive_fork(True, idle_timeout=10)
+    bump_main_generation()
+    _run(append_update("post-fork update"))
+
+    result = _run(_save_ctx({}))
+
+    text = result["content"][0]["text"]
+    assert "main session received new messages" in text
+    assert "new background updates arrived" in text
+    assert pop_exit_action() is ForkExitAction.NONE
+    set_interactive_fork(False)
+    _run(pop_pending_updates())
+
+
+def test_save_context_allowed_when_fresh(data_dir):
+    set_interactive_fork(True, idle_timeout=10)
+
+    result = _run(_save_ctx({}))
+
+    assert "promoted" in result["content"][0]["text"].lower()
+    assert pop_exit_action() is ForkExitAction.SAVE
+    set_interactive_fork(False)
 
 
 # --- report_updates (interactive fork mode) ---

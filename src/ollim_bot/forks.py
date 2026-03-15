@@ -15,6 +15,7 @@ if TYPE_CHECKING:
 from ollim_bot.channel import get_channel
 from ollim_bot.config import TZ
 from ollim_bot.fork_state import (
+    bump_updates_generation,
     init_bg_tracking,
     set_bg_fork_config,
     set_busy,
@@ -67,6 +68,7 @@ async def append_update(message: str) -> None:
             }
             updates.insert(0, sentinel)
         atomic_write(_UPDATES_FILE, json.dumps(updates).encode())
+        bump_updates_generation()
         log.info("pending update appended (now %d): %.80s", len(updates), message)
 
 

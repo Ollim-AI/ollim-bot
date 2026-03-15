@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import time
 from contextvars import ContextVar
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
@@ -133,40 +133,91 @@ def get_bg_fork_config() -> BgForkConfig:
 # Interactive fork state
 # ---------------------------------------------------------------------------
 
-_in_interactive_fork: bool = False
-_fork_exit_action: ForkExitAction = ForkExitAction.NONE
+
+@dataclass(slots=True)
+class InteractiveForkContext:
+    """Mutable state for the active interactive fork. Created on entry, None on exit."""
+
+    idle_timeout: int
+    main_gen_snapshot: int
+    updates_gen_snapshot: int
+    exit_action: ForkExitAction = ForkExitAction.NONE
+    last_activity: float = field(default_factory=time.monotonic)
+    prompted_at: float | None = None
+
+
+_fork_ctx: InteractiveForkContext | None = None
+
+# Global counters — meaningful independent of any fork.
+_main_generation: int = 0
+_updates_generation: int = 0
+
+# Enter-fork request state — transient signal from MCP tool to Agent.
 _enter_fork_requested: bool = False
 _enter_fork_topic: str | None = None
 _enter_fork_timeout: int = 10
-_fork_idle_timeout: int = 10
-_fork_last_activity: float = 0.0
-_fork_prompted_at: float | None = None
+
+
+def bump_main_generation() -> None:
+    """Increment main-session generation (call on each user message to main)."""
+    global _main_generation
+    _main_generation += 1
+
+
+def bump_updates_generation() -> None:
+    """Increment updates generation (call on each append_update)."""
+    global _updates_generation
+    _updates_generation += 1
+
+
+def main_generation() -> int:
+    """Current main-session generation counter."""
+    return _main_generation
+
+
+def is_fork_stale() -> bool:
+    """True if the main session received messages since this fork was created."""
+    if _fork_ctx is None:
+        return False
+    return _main_generation != _fork_ctx.main_gen_snapshot
+
+
+def has_new_updates_since_fork() -> bool:
+    """True if bg forks appended updates after this fork was created."""
+    if _fork_ctx is None:
+        return False
+    return _updates_generation != _fork_ctx.updates_gen_snapshot
 
 
 def in_interactive_fork() -> bool:
-    return _in_interactive_fork
+    return _fork_ctx is not None
 
 
 def set_interactive_fork(active: bool, *, idle_timeout: int | None = None) -> None:
     """Enter or exit interactive fork mode."""
     from ollim_bot import runtime_config
 
-    global _in_interactive_fork, _fork_exit_action, _fork_idle_timeout, _fork_prompted_at
-    _in_interactive_fork = active
-    _fork_idle_timeout = idle_timeout if idle_timeout is not None else runtime_config.load().fork_idle_timeout
-    _fork_exit_action = ForkExitAction.NONE
-    _fork_prompted_at = None
+    global _fork_ctx
+    if active:
+        timeout = idle_timeout if idle_timeout is not None else runtime_config.load().fork_idle_timeout
+        _fork_ctx = InteractiveForkContext(
+            idle_timeout=timeout,
+            main_gen_snapshot=_main_generation,
+            updates_gen_snapshot=_updates_generation,
+        )
+    else:
+        _fork_ctx = None
 
 
 def set_exit_action(action: ForkExitAction) -> None:
-    global _fork_exit_action
-    _fork_exit_action = action
+    assert _fork_ctx is not None
+    _fork_ctx.exit_action = action
 
 
 def pop_exit_action() -> ForkExitAction:
-    global _fork_exit_action
-    action = _fork_exit_action
-    _fork_exit_action = ForkExitAction.NONE
+    assert _fork_ctx is not None
+    action = _fork_ctx.exit_action
+    _fork_ctx.exit_action = ForkExitAction.NONE
     return action
 
 
@@ -198,37 +249,40 @@ def pop_enter_fork() -> tuple[str | None, int]:
 
 
 def idle_timeout() -> int:
-    return _fork_idle_timeout
+    assert _fork_ctx is not None
+    return _fork_ctx.idle_timeout
 
 
 def touch_activity() -> None:
-    global _fork_last_activity
-    _fork_last_activity = time.monotonic()
+    assert _fork_ctx is not None
+    _fork_ctx.last_activity = time.monotonic()
 
 
 def is_idle() -> bool:
     """True if interactive fork has been idle longer than idle_timeout."""
-    if not _in_interactive_fork:
+    if _fork_ctx is None:
         return False
-    return time.monotonic() - _fork_last_activity > _fork_idle_timeout * 60
+    return time.monotonic() - _fork_ctx.last_activity > _fork_ctx.idle_timeout * 60
 
 
 def prompted_at() -> float | None:
-    return _fork_prompted_at
+    if _fork_ctx is None:
+        return None
+    return _fork_ctx.prompted_at
 
 
 def set_prompted_at() -> None:
-    global _fork_prompted_at
-    _fork_prompted_at = time.monotonic()
+    assert _fork_ctx is not None
+    _fork_ctx.prompted_at = time.monotonic()
 
 
 def clear_prompted() -> None:
-    global _fork_prompted_at
-    _fork_prompted_at = None
+    assert _fork_ctx is not None
+    _fork_ctx.prompted_at = None
 
 
 def should_auto_exit() -> bool:
     """True if timeout prompt was sent and idle_timeout has passed since."""
-    if _fork_prompted_at is None:
+    if _fork_ctx is None or _fork_ctx.prompted_at is None:
         return False
-    return time.monotonic() - _fork_prompted_at > _fork_idle_timeout * 60
+    return time.monotonic() - _fork_ctx.prompted_at > _fork_ctx.idle_timeout * 60

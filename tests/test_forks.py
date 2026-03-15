@@ -7,13 +7,17 @@ from unittest.mock import AsyncMock, MagicMock
 from ollim_bot.fork_state import (
     BgForkConfig,
     ForkExitAction,
+    bump_main_generation,
     get_bg_fork_config,
     get_bg_tracking,
+    has_new_updates_since_fork,
     idle_timeout,
     in_interactive_fork,
     init_bg_tracking,
     is_busy,
+    is_fork_stale,
     is_idle,
+    main_generation,
     pop_enter_fork,
     pop_exit_action,
     prompted_at,
@@ -174,7 +178,8 @@ def test_idle_after_timeout():
     import ollim_bot.fork_state as fork_state_mod
 
     set_interactive_fork(True, idle_timeout=10)
-    fork_state_mod._fork_last_activity = time.monotonic() - 601
+    assert fork_state_mod._fork_ctx is not None
+    fork_state_mod._fork_ctx.last_activity = time.monotonic() - 601
 
     assert is_idle() is True
 
@@ -224,7 +229,8 @@ def test_should_auto_exit_true_after_timeout():
     import ollim_bot.fork_state as fork_state_mod
 
     set_interactive_fork(True, idle_timeout=10)
-    fork_state_mod._fork_prompted_at = time.monotonic() - 601
+    assert fork_state_mod._fork_ctx is not None
+    fork_state_mod._fork_ctx.prompted_at = time.monotonic() - 601
 
     assert should_auto_exit() is True
 
@@ -237,6 +243,58 @@ def test_should_auto_exit_false_when_not_prompted():
     assert should_auto_exit() is False
 
     set_interactive_fork(False)
+
+
+# --- Generation counter (fork staleness) ---
+
+
+def test_main_generation_starts_at_zero():
+    assert main_generation() == 0
+
+
+def test_bump_main_generation():
+    bump_main_generation()
+    bump_main_generation()
+
+    assert main_generation() == 2
+
+
+def test_fork_not_stale_at_creation():
+    bump_main_generation()
+    set_interactive_fork(True, idle_timeout=10)
+
+    assert is_fork_stale() is False
+
+    set_interactive_fork(False)
+
+
+def test_fork_stale_after_main_message():
+    set_interactive_fork(True, idle_timeout=10)
+    bump_main_generation()
+
+    assert is_fork_stale() is True
+
+    set_interactive_fork(False)
+
+
+def test_no_new_updates_at_fork_creation(data_dir):
+    _run(append_update("pre-fork update"))
+    set_interactive_fork(True, idle_timeout=10)
+
+    assert has_new_updates_since_fork() is False
+
+    set_interactive_fork(False)
+    _run(pop_pending_updates())
+
+
+def test_new_updates_after_fork_creation(data_dir):
+    set_interactive_fork(True, idle_timeout=10)
+    _run(append_update("post-fork update"))
+
+    assert has_new_updates_since_fork() is True
+
+    set_interactive_fork(False)
+    _run(pop_pending_updates())
 
 
 # --- Background fork timeout ---
