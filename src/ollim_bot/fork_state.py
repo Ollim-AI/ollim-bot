@@ -142,6 +142,7 @@ class InteractiveForkContext:
     main_gen_snapshot: int
     updates_gen_snapshot: int
     exit_action: ForkExitAction = ForkExitAction.NONE
+    turn_count: int = 0
     last_activity: float = field(default_factory=time.monotonic)
     prompted_at: float | None = None
 
@@ -219,6 +220,18 @@ def pop_exit_action() -> ForkExitAction:
     action = _fork_ctx.exit_action
     _fork_ctx.exit_action = ForkExitAction.NONE
     return action
+
+
+def bump_fork_turn() -> None:
+    """Increment the fork turn counter (call after each user message to fork)."""
+    assert _fork_ctx is not None
+    _fork_ctx.turn_count += 1
+
+
+def is_first_fork_turn() -> bool:
+    """True if the interactive fork is still on its first turn (turn 0)."""
+    assert _fork_ctx is not None
+    return _fork_ctx.turn_count < 1
 
 
 def enter_fork_requested() -> bool:

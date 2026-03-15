@@ -297,6 +297,30 @@ def test_new_updates_after_fork_creation(data_dir):
     _run(pop_pending_updates())
 
 
+# --- Fork turn counter ---
+
+
+def test_is_first_fork_turn_initially():
+    from ollim_bot.fork_state import is_first_fork_turn
+
+    set_interactive_fork(True, idle_timeout=10)
+
+    assert is_first_fork_turn() is True
+
+    set_interactive_fork(False)
+
+
+def test_not_first_turn_after_bump():
+    from ollim_bot.fork_state import bump_fork_turn, is_first_fork_turn
+
+    set_interactive_fork(True, idle_timeout=10)
+    bump_fork_turn()
+
+    assert is_first_fork_turn() is False
+
+    set_interactive_fork(False)
+
+
 # --- Background fork timeout ---
 
 
