@@ -162,6 +162,7 @@ class ForkLookup(NamedTuple):
 
     session_id: str | None
     expired: bool
+    ts: float | None = None
 
 
 def lookup_fork_session(message_id: int) -> ForkLookup:
@@ -176,7 +177,7 @@ def lookup_fork_session(message_id: int) -> ForkLookup:
     for record in all_records:
         if record["message_id"] == message_id:
             if record["ts"] > cutoff:
-                return ForkLookup(record["fork_session_id"], expired=False)
+                return ForkLookup(record["fork_session_id"], expired=False, ts=record["ts"])
             return ForkLookup(None, expired=True)
     return ForkLookup(None, expired=False)
 

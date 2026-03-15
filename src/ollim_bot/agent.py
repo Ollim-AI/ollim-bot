@@ -266,7 +266,7 @@ class Agent:
             model=model,
         )
         self._fork_session_id = None
-        set_interactive_fork(True, idle_timeout=idle_timeout)
+        set_interactive_fork(True, idle_timeout=idle_timeout, resume_session_id=resume_session_id)
         touch_activity()
 
     async def exit_interactive_fork(self, action: ForkExitAction) -> bool:

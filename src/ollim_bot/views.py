@@ -24,7 +24,7 @@ from ollim_bot.fork_state import (
 from ollim_bot.forks import append_update
 from ollim_bot.google.calendar import delete_event
 from ollim_bot.google.tasks import complete_task, delete_task
-from ollim_bot.prompts import fork_bg_resume_prompt
+from ollim_bot.prompts import fork_bg_resume_prompt, fork_resume_notice
 from ollim_bot.sessions import (
     cancel_message_collector,
     flush_message_collector,
@@ -122,7 +122,8 @@ async def _handle_agent_inquiry(interaction: discord.Interaction, inquiry_id: st
     assert isinstance(channel, discord.abc.Messageable)
 
     assert interaction.message is not None
-    fork_session_id = lookup_fork_session(interaction.message.id).session_id
+    fork_lookup = lookup_fork_session(interaction.message.id)
+    fork_session_id = fork_lookup.session_id
 
     if fork_session_id and in_interactive_fork():
         await interaction.response.send_message("already in a fork.", ephemeral=True)
@@ -144,6 +145,8 @@ async def _handle_agent_inquiry(interaction: discord.Interaction, inquiry_id: st
             track_message(msg.id)
         await channel.typing()
         message = fork_bg_resume_prompt(prompt) if fork_session_id else f"[button] {prompt}"
+        if fork_session_id:
+            message = f"{message}\n\n{fork_resume_notice(fork_lookup.ts)}"
         await stream_to_channel(channel, _agent.stream_chat(message))
         if fork_session_id:
             sid = _agent.fork_session_id

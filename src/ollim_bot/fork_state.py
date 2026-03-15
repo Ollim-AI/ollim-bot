@@ -141,6 +141,7 @@ class InteractiveForkContext:
     idle_timeout: int
     main_gen_snapshot: int
     updates_gen_snapshot: int
+    resume_session_id: str | None = None
     exit_action: ForkExitAction = ForkExitAction.NONE
     turn_count: int = 0
     last_activity: float = field(default_factory=time.monotonic)
@@ -194,7 +195,19 @@ def in_interactive_fork() -> bool:
     return _fork_ctx is not None
 
 
-def set_interactive_fork(active: bool, *, idle_timeout: int | None = None) -> None:
+def is_resumed_fork() -> bool:
+    """True if the current interactive fork was resumed from a prior bg session."""
+    if _fork_ctx is None:
+        return False
+    return _fork_ctx.resume_session_id is not None
+
+
+def set_interactive_fork(
+    active: bool,
+    *,
+    idle_timeout: int | None = None,
+    resume_session_id: str | None = None,
+) -> None:
     """Enter or exit interactive fork mode."""
     from ollim_bot import runtime_config
 
@@ -205,6 +218,7 @@ def set_interactive_fork(active: bool, *, idle_timeout: int | None = None) -> No
             idle_timeout=timeout,
             main_gen_snapshot=_main_generation,
             updates_gen_snapshot=_updates_generation,
+            resume_session_id=resume_session_id,
         )
     else:
         _fork_ctx = None

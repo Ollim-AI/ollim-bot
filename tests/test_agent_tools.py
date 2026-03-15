@@ -372,6 +372,18 @@ def test_save_context_allowed_when_fresh(data_dir):
     set_interactive_fork(False)
 
 
+def test_save_context_blocked_for_resumed_fork(data_dir):
+    set_interactive_fork(True, idle_timeout=10, resume_session_id="abc-123")
+
+    result = _run(_save_ctx({}))
+
+    text = result["content"][0]["text"]
+    assert "Error" in text
+    assert "resumed" in text
+    assert pop_exit_action() is ForkExitAction.NONE
+    set_interactive_fork(False)
+
+
 # --- report_updates (interactive fork mode) ---
 
 
