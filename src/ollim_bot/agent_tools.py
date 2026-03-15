@@ -27,6 +27,7 @@ from ollim_bot.fork_state import (
     in_bg_fork,
     in_interactive_fork,
     is_busy,
+    is_first_fork_turn,
     is_fork_stale,
     request_enter_fork,
     set_exit_action,
@@ -362,6 +363,8 @@ async def report_updates(args: dict[str, Any]) -> dict[str, Any]:
             tracking.output_sent = False
         return _resp("Update reported -- summary will appear in main session.")
     if in_interactive_fork():
+        if is_first_fork_turn():
+            return _resp("Cannot exit on the first turn — respond to the user first.")
         set_exit_action(ForkExitAction.REPORT)
         await append_update(args["message"])
         return _resp(
@@ -416,6 +419,8 @@ async def exit_fork(args: dict[str, Any]) -> dict[str, Any]:
         )
     if not in_interactive_fork():
         return _resp("Error: not in an interactive fork")
+    if is_first_fork_turn():
+        return _resp("Cannot exit on the first turn — respond to the user first.")
     set_exit_action(ForkExitAction.EXIT)
     return _resp("Fork will be discarded after you finish responding — further tool calls delay the exit.")
 

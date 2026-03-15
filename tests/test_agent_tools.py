@@ -21,6 +21,7 @@ from ollim_bot.channel import init_channel
 from ollim_bot.fork_state import (
     BgForkConfig,
     ForkExitAction,
+    bump_fork_turn,
     init_bg_tracking,
     pop_enter_fork,
     pop_exit_action,
@@ -238,12 +239,44 @@ def test_exit_fork_not_in_fork():
 
 def test_exit_fork_in_interactive_fork():
     set_interactive_fork(True, idle_timeout=10)
+    bump_fork_turn()
 
     result = _run(_exit({}))
 
     assert "discarded" in result["content"][0]["text"].lower()
     assert pop_exit_action() is ForkExitAction.EXIT
     set_interactive_fork(False)
+
+
+def test_exit_fork_blocked_on_first_turn():
+    set_interactive_fork(True, idle_timeout=10)
+
+    result = _run(_exit({}))
+
+    assert "first turn" in result["content"][0]["text"].lower()
+    assert pop_exit_action() is ForkExitAction.NONE
+    set_interactive_fork(False)
+
+
+def test_report_updates_blocked_on_first_turn_interactive(data_dir):
+    set_in_fork(False)
+    set_interactive_fork(True, idle_timeout=10)
+
+    result = _run(_report({"message": "summary"}))
+
+    assert "first turn" in result["content"][0]["text"].lower()
+    assert pop_exit_action() is ForkExitAction.NONE
+    set_interactive_fork(False)
+
+
+def test_report_updates_allowed_in_bg_fork_regardless_of_turn(data_dir):
+    set_in_fork(True)
+    init_bg_tracking()
+
+    result = _run(_report({"message": "bg finding"}))
+
+    assert "reported" in result["content"][0]["text"].lower()
+    set_in_fork(False)
 
 
 # --- save_context (interactive fork mode) ---
@@ -346,6 +379,7 @@ def test_report_updates_in_interactive_fork(data_dir):
     _run(pop_pending_updates())
     set_in_fork(False)
     set_interactive_fork(True, idle_timeout=10)
+    bump_fork_turn()
 
     _run(_report({"message": "found 3 papers"}))
 

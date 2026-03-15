@@ -22,6 +22,7 @@ from ollim_bot.config import BOT_NAME, USER_NAME
 from ollim_bot.embeds import fork_enter_embed, fork_enter_view, fork_exit_embed
 from ollim_bot.fork_state import (
     ForkExitAction,
+    bump_fork_turn,
     bump_main_generation,
     clear_prompted,
     enter_fork_requested,
@@ -439,6 +440,7 @@ def create_bot() -> commands.Bot:
                     _flush_fork_messages()
                     touch_activity()
                     clear_prompted()
+                    bump_fork_turn()
                 else:
                     cancel_message_collector()
                     bump_main_generation()
