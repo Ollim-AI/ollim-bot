@@ -30,6 +30,7 @@ from ollim_bot.fork_state import (
     pop_enter_fork,
     touch_activity,
 )
+from ollim_bot.prompts import fork_resume_notice
 from ollim_bot.scheduling import setup_scheduler
 from ollim_bot.sessions import (
     cancel_message_collector,
@@ -430,7 +431,8 @@ def create_bot() -> commands.Bot:
             async with agent.lock():
                 if fork_session_id:
                     await agent.enter_interactive_fork(resume_session_id=fork_session_id)
-                    content = f"{_FORK_REPLY_PREFIX}\n\n{content}"
+                    notice = fork_resume_notice(fork_lookup.ts)
+                    content = f"{_FORK_REPLY_PREFIX}\n\n{content}\n\n{notice}"
                 if in_interactive_fork() or fork_session_id:
                     start_message_collector()
                 if fork_session_id:

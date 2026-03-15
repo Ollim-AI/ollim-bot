@@ -68,3 +68,31 @@ def test_fork_bg_resume_prompt_references_bg_fork():
     result = fork_bg_resume_prompt("yes")
 
     assert "background fork" in result
+
+
+# --- fork_resume_notice ---
+
+
+def test_fork_resume_notice_includes_age():
+    import time
+
+    from ollim_bot.prompts import fork_resume_notice
+
+    two_days_ago = time.time() - 2 * 86400
+
+    result = fork_resume_notice(two_days_ago)
+
+    assert "[stale-fork]" in result
+    assert "2d ago" in result
+    assert "save_context" in result
+    assert "report_updates" in result
+
+
+def test_fork_resume_notice_no_ts():
+    from ollim_bot.prompts import fork_resume_notice
+
+    result = fork_resume_notice(None)
+
+    assert "[stale-fork]" in result
+    assert "save_context" in result
+    assert "ago)" not in result

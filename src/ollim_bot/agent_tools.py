@@ -29,6 +29,7 @@ from ollim_bot.fork_state import (
     is_busy,
     is_first_fork_turn,
     is_fork_stale,
+    is_resumed_fork,
     request_enter_fork,
     set_exit_action,
 )
@@ -318,6 +319,11 @@ async def save_context(args: dict[str, Any]) -> dict[str, Any]:
         return _resp("Error: save_context is not available in background forks. Use report_updates instead.")
     if not in_interactive_fork():
         return _resp("Error: not in an interactive fork")
+    if is_resumed_fork():
+        return _resp(
+            "Error: cannot save — this fork was resumed from a background session. "
+            "The main session has diverged. Use report_updates to summarize findings instead."
+        )
 
     stale = is_fork_stale()
     new_updates = has_new_updates_since_fork()

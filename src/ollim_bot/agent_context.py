@@ -51,7 +51,7 @@ def timestamp() -> str:
     return datetime.now(_TZ).strftime("[%Y-%m-%d %a %I:%M %p PT]")
 
 
-def _relative_time(iso_ts: str) -> str:
+def relative_time(iso_ts: str) -> str:
     """Format an ISO timestamp as relative time (e.g. '2h ago')."""
     delta = datetime.now(_TZ) - datetime.fromisoformat(iso_ts)
     seconds = int(delta.total_seconds())
@@ -75,7 +75,7 @@ async def prepend_context(message: str, *, clear: bool = True) -> str:
     ts = timestamp()
     updates = (await pop_pending_updates()) if clear else peek_pending_updates()
     if updates:
-        lines = [f"- ({_relative_time(u.ts)}) {u.message}" for u in updates]
+        lines = [f"- ({relative_time(u.ts)}) {u.message}" for u in updates]
         if clear:
             label = "RECENT BACKGROUND UPDATES (mention key findings in your response)"
         else:

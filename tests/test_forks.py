@@ -321,6 +321,35 @@ def test_not_first_turn_after_bump():
     set_interactive_fork(False)
 
 
+# --- Resumed fork flag ---
+
+
+def test_is_resumed_fork_false_by_default():
+    from ollim_bot.fork_state import is_resumed_fork
+
+    set_interactive_fork(True, idle_timeout=10)
+
+    assert is_resumed_fork() is False
+
+    set_interactive_fork(False)
+
+
+def test_is_resumed_fork_true_when_set():
+    from ollim_bot.fork_state import is_resumed_fork
+
+    set_interactive_fork(True, idle_timeout=10, resume_session_id="abc-123")
+
+    assert is_resumed_fork() is True
+
+    set_interactive_fork(False)
+
+
+def test_is_resumed_fork_false_when_no_fork():
+    from ollim_bot.fork_state import is_resumed_fork
+
+    assert is_resumed_fork() is False
+
+
 # --- Background fork timeout ---
 
 

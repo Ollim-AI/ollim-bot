@@ -1,5 +1,8 @@
 """System prompt for the main agent and fork prompt helpers."""
 
+from datetime import datetime
+
+from ollim_bot.agent_context import relative_time
 from ollim_bot.config import TZ, USER_NAME
 from ollim_bot.profile import load_profile
 
@@ -241,4 +244,17 @@ def fork_bg_resume_prompt(inquiry_prompt: str) -> str:
         f"Address their request, then continue the conversation \u2014 this is an "
         f"interactive fork, not a one-shot answer. Do NOT call exit tools "
         f"unless {USER_NAME} explicitly asks to wrap up or leave the fork."
+    )
+
+
+def fork_resume_notice(fork_ts: float | None) -> str:
+    """Build the staleness notice for a resumed bg fork."""
+    age = ""
+    if fork_ts is not None:
+        iso = datetime.fromtimestamp(fork_ts, tz=TZ).isoformat()
+        age = f" ({relative_time(iso)})"
+    return (
+        f"[stale-fork] This fork was resumed from a background session{age}. "
+        "save_context is unavailable — use report_updates to pass findings "
+        "back to the main session."
     )
