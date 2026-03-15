@@ -14,9 +14,12 @@ def _reset_bg_tracking():
     import ollim_bot.fork_state as fork_state_mod
 
     fork_state_mod._bg_tracking.set(None)
+    fork_state_mod._main_generation = 0
+    fork_state_mod._updates_generation = 0
+    fork_state_mod._fork_ctx = None
 
 
-@pytest.fixture()
+@pytest.fixture(autouse=True)
 def data_dir(tmp_path, monkeypatch):
     """Redirect all data file paths to a temp directory."""
     import ollim_bot.forks as forks_mod
