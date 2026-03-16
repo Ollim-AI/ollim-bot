@@ -10,9 +10,9 @@ from claude_agent_sdk import ResultMessage
 
 from ollim_bot.agent_context import (
     _format_duration,
-    _relative_time,
     format_compact_stats,
     prepend_context,
+    relative_time,
     thinking,
     thinking_mode,
     timestamp,
@@ -54,27 +54,27 @@ def test_timestamp_format():
     assert re.match(TS_RE, ts)
 
 
-# -- _relative_time --
+# -- relative_time --
 
 
-def test_relative_time_just_now():
+def testrelative_time_just_now():
     now = datetime.now(TZ).isoformat()
-    assert _relative_time(now) == "just now"
+    assert relative_time(now) == "just now"
 
 
-def test_relative_time_minutes_ago():
+def testrelative_time_minutes_ago():
     five_min_ago = (datetime.now(TZ) - timedelta(minutes=5)).isoformat()
-    assert _relative_time(five_min_ago) == "5m ago"
+    assert relative_time(five_min_ago) == "5m ago"
 
 
-def test_relative_time_hours_ago():
+def testrelative_time_hours_ago():
     three_hours_ago = (datetime.now(TZ) - timedelta(hours=3)).isoformat()
-    assert _relative_time(three_hours_ago) == "3h ago"
+    assert relative_time(three_hours_ago) == "3h ago"
 
 
-def test_relative_time_days_ago():
+def testrelative_time_days_ago():
     two_days_ago = (datetime.now(TZ) - timedelta(days=2)).isoformat()
-    assert _relative_time(two_days_ago) == "2d ago"
+    assert relative_time(two_days_ago) == "2d ago"
 
 
 # -- thinking_mode --
