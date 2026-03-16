@@ -54,7 +54,7 @@ def session_start_time() -> datetime | None:
     if not HISTORY_FILE.exists():
         return None
     last_created: str | None = None
-    for line in HISTORY_FILE.read_text().splitlines():
+    for line in HISTORY_FILE.read_text(encoding="utf-8").splitlines():
         if not line.strip():
             continue
         entry = json.loads(line)
@@ -68,7 +68,7 @@ def session_start_time() -> datetime | None:
 def load_session_id() -> str | None:
     if not SESSIONS_FILE.exists():
         return None
-    text = SESSIONS_FILE.read_text().strip()
+    text = SESSIONS_FILE.read_text(encoding="utf-8").strip()
     if not text or text.startswith("{"):
         return None
     return text

@@ -143,14 +143,14 @@ def _check_already_running() -> None:
     STATE_DIR.mkdir(parents=True, exist_ok=True)
     if PID_FILE.exists():
         try:
-            pid = int(PID_FILE.read_text().strip())
+            pid = int(PID_FILE.read_text(encoding="utf-8").strip())
         except (ValueError, OSError):
             pass  # Corrupted PID file — overwrite below
         else:
             if _is_bot_running(pid):
                 print(f"ollim-bot is already running (pid {pid})")
                 raise SystemExit(1)
-    PID_FILE.write_text(str(os.getpid()))
+    PID_FILE.write_text(str(os.getpid()), encoding="utf-8")
     atexit.register(PID_FILE.unlink, missing_ok=True)
 
 

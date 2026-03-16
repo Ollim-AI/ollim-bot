@@ -40,8 +40,8 @@ def install_bundled_skills() -> None:
         target = target_dir / "SKILL.md"
         try:
             target_dir.mkdir(parents=True, exist_ok=True)
-            with open(target, "x") as f:
-                f.write(source.read_text())
+            with open(target, "x", encoding="utf-8") as f:
+                f.write(source.read_text(encoding="utf-8"))
         except FileExistsError:
             continue
         log.info("Installed bundled skill: %s", name)
@@ -101,18 +101,11 @@ def build_skill_md(item: Routine | Reminder | WebhookSpec, *, name: str | None =
 
 
 def ensure_skill(item: Routine | Reminder | WebhookSpec) -> str:
-    """Write/update SKILL.md if content changed. Returns skill name."""
+    """Write SKILL.md for the item. Returns skill name."""
     name = skill_name(item)
     skill_dir = SKILLS_DIR / name
-    skill_file = skill_dir / "SKILL.md"
-    content = build_skill_md(item, name=name)
-
-    if skill_file.exists() and skill_file.read_text() == content:
-        return name
-
     skill_dir.mkdir(parents=True, exist_ok=True)
-    atomic_write(skill_file, content.encode())
-    log.info("Wrote skill: %s", name)
+    atomic_write(skill_dir / "SKILL.md", build_skill_md(item, name=name).encode())
     return name
 
 
