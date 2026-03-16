@@ -9,7 +9,7 @@ from datetime import datetime
 from pathlib import Path
 
 from ollim_bot.config import TZ
-from ollim_bot.storage import STATE_DIR, atomic_write
+from ollim_bot.storage import STATE_DIR, atomic_write, safe_json_load
 
 BUDGET_FILE: Path = STATE_DIR / "ping_budget.json"
 _DEFAULT_CAPACITY = 5
@@ -53,7 +53,8 @@ def load() -> BudgetState:
     now = datetime.now(TZ)
     today = now.date().isoformat()
 
-    if not BUDGET_FILE.exists():
+    data = safe_json_load(BUDGET_FILE)
+    if not data:
         state = BudgetState(
             capacity=_DEFAULT_CAPACITY,
             available=float(_DEFAULT_CAPACITY),
@@ -66,8 +67,6 @@ def load() -> BudgetState:
         )
         save(state)
         return state
-
-    data = json.loads(BUDGET_FILE.read_text())
 
     state = BudgetState(**data)
     state = _refill(state)

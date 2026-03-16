@@ -13,9 +13,11 @@ import subprocess
 import time
 from dataclasses import replace
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING
+from pathlib import Path
+from typing import TYPE_CHECKING, Literal
 
 import discord
+import yaml
 from apscheduler.events import EVENT_JOB_MISSED, JobExecutionEvent
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -51,8 +53,8 @@ from ollim_bot.scheduling.preamble import (
     build_reminder_prompt,
     build_routine_prompt,
 )
-from ollim_bot.scheduling.reminders import Reminder, list_reminders, remove_reminder
-from ollim_bot.scheduling.routines import Routine, list_routines
+from ollim_bot.scheduling.reminders import REMINDERS_DIR, Reminder, list_reminders, remove_reminder
+from ollim_bot.scheduling.routines import ROUTINES_DIR, Routine, list_routines
 from ollim_bot.sessions import (
     cancel_message_collector,
     flush_message_collector,
@@ -70,6 +72,44 @@ log = logging.getLogger(__name__)
 
 _registered_routines: set[str] = set()
 _registered_reminders: set[str] = set()
+_reported_problems: set[str] = set()
+
+
+def _check_corrupt_files(
+    loaded_count: int,
+    kind: Literal["routine", "reminder"],
+    all_files: list[Path],
+) -> None:
+    """Surface corrupt routine/reminder files to the agent via pending_updates.
+
+    Compares the number of .md files on disk to the number successfully parsed.
+    Reports once per directory (deduped by kind); clears when the problem resolves.
+    *all_files* is passed from the caller to avoid re-globbing the directory.
+    """
+    skipped = len(all_files) - loaded_count
+    problem_key = f"corrupt_{kind}_files"
+
+    if skipped > 0:
+        if problem_key not in _reported_problems:
+            _reported_problems.add(problem_key)
+            from ollim_bot.storage import parse_md
+
+            cls = Routine if kind == "routine" else Reminder
+            names = []
+            for filepath in all_files:
+                try:
+                    parse_md(filepath.read_text(encoding="utf-8"), cls)
+                except (ValueError, yaml.YAMLError, TypeError, KeyError):
+                    names.append(filepath.name)
+            file_list = ", ".join(names) if names else f"{skipped} file(s)"
+            asyncio.get_event_loop().create_task(
+                append_update(
+                    f"**{skipped} corrupt {kind} file(s)** skipped by scheduler: {file_list} — "
+                    f"read and fix them, or delete and recreate"
+                )
+            )
+    elif problem_key in _reported_problems:
+        _reported_problems.discard(problem_key)
 
 
 def _merge_skill_tools(config: BgForkConfig, skill_names: list[str] | None) -> BgForkConfig:
@@ -97,7 +137,6 @@ def _register_routine(
 ) -> None:
     if routine.id in _registered_routines:
         return
-    _registered_routines.add(routine.id)
 
     async def _fire() -> None:
         busy = agent.lock().locked()
@@ -144,17 +183,28 @@ def _register_routine(
             raise
 
     parts = routine.cron.split()
-    scheduler.add_job(
-        _fire,
-        CronTrigger(
-            minute=parts[0],
-            hour=parts[1],
-            day=parts[2],
-            month=parts[3],
-            day_of_week=_convert_dow(parts[4]),
-        ),
-        id=f"routine_{routine.id}",
-    )
+    try:
+        scheduler.add_job(
+            _fire,
+            CronTrigger(
+                minute=parts[0],
+                hour=parts[1],
+                day=parts[2],
+                month=parts[3],
+                day_of_week=_convert_dow(parts[4]),
+            ),
+            id=f"routine_{routine.id}",
+        )
+    except (ValueError, KeyError):
+        log.exception("Failed to register routine %s (cron: %s)", routine.id, routine.cron)
+        problem_key = f"routine_reg_{routine.id}"
+        if problem_key not in _reported_problems:
+            _reported_problems.add(problem_key)
+            asyncio.get_event_loop().create_task(
+                append_update(f"Routine **{routine.id}** failed to register — invalid cron `{routine.cron}`")
+            )
+        return
+    _registered_routines.add(routine.id)
 
 
 def _register_reminder(
@@ -165,7 +215,6 @@ def _register_reminder(
 ) -> None:
     if reminder.id in _registered_reminders:
         return
-    _registered_reminders.add(reminder.id)
 
     async def fire_oneshot() -> None:
         busy = agent.lock().locked()
@@ -244,7 +293,18 @@ def _register_reminder(
         overdue_at = run_at
         run_at = now + timedelta(seconds=5)
 
-    scheduler.add_job(fire_oneshot, DateTrigger(run_date=run_at), id=f"rem_{reminder.id}")
+    try:
+        scheduler.add_job(fire_oneshot, DateTrigger(run_date=run_at), id=f"rem_{reminder.id}")
+    except (ValueError, KeyError):
+        log.exception("Failed to register reminder %s (run_at: %s)", reminder.id, reminder.run_at)
+        problem_key = f"reminder_reg_{reminder.id}"
+        if problem_key not in _reported_problems:
+            _reported_problems.add(problem_key)
+            asyncio.get_event_loop().create_task(
+                append_update(f"Reminder **{reminder.id}** failed to register — invalid run_at `{reminder.run_at}`")
+            )
+        return
+    _registered_reminders.add(reminder.id)
 
 
 _INTERNAL_JOBS = {"sync_all", "check_fork_timeout", "check_for_update"}
@@ -275,8 +335,10 @@ def setup_scheduler(bot: discord.Client, agent: Agent, owner: discord.User) -> A
 
     @scheduler.scheduled_job(IntervalTrigger(seconds=10))
     async def sync_all() -> None:
+        routine_files = sorted(ROUTINES_DIR.glob("*.md")) if ROUTINES_DIR.is_dir() else []
         current_routines = list_routines()
         current_routine_ids = {r.id for r in current_routines}
+        _check_corrupt_files(len(current_routines), "routine", routine_files)
         for routine in current_routines:
             _register_routine(scheduler, owner, agent, routine)
         stale_routine_ids = _registered_routines - current_routine_ids
@@ -285,9 +347,12 @@ def setup_scheduler(bot: discord.Client, agent: Agent, owner: discord.User) -> A
             if job:
                 job.remove()
             _registered_routines.discard(stale_id)
+            _reported_problems.discard(f"routine_reg_{stale_id}")
 
+        reminder_files = sorted(REMINDERS_DIR.glob("*.md")) if REMINDERS_DIR.is_dir() else []
         current_reminders = list_reminders()
         current_reminder_ids = {r.id for r in current_reminders}
+        _check_corrupt_files(len(current_reminders), "reminder", reminder_files)
         for reminder in current_reminders:
             _register_reminder(scheduler, owner, agent, reminder)
         stale_reminder_ids = _registered_reminders - current_reminder_ids
@@ -296,6 +361,7 @@ def setup_scheduler(bot: discord.Client, agent: Agent, owner: discord.User) -> A
             if job:
                 job.remove()
             _registered_reminders.discard(stale_id)
+            _reported_problems.discard(f"reminder_reg_{stale_id}")
 
         if stale_routine_ids or stale_reminder_ids:
             active = {f"routine-{r.id}" for r in current_routines} | {f"reminder-{r.id}" for r in current_reminders}

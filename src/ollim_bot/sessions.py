@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Literal, NamedTuple, TypedDict
 
 from ollim_bot.config import TZ as _TZ
-from ollim_bot.storage import STATE_DIR, append_jsonl, atomic_write
+from ollim_bot.storage import STATE_DIR, append_jsonl, atomic_write, safe_json_load
 
 SESSIONS_FILE = STATE_DIR / "sessions.json"
 HISTORY_FILE = STATE_DIR / "session_history.jsonl"
@@ -188,9 +188,7 @@ def _read_fork_messages() -> list[_ForkMessageRecord]:
 
 
 def _read_all_fork_messages() -> list[_ForkMessageRecord]:
-    if not FORK_MESSAGES_FILE.exists():
-        return []
-    return json.loads(FORK_MESSAGES_FILE.read_text())
+    return safe_json_load(FORK_MESSAGES_FILE, [])
 
 
 def _write_fork_messages(records: list[_ForkMessageRecord]) -> None:
