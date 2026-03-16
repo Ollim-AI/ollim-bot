@@ -18,6 +18,9 @@ def run_tasks_command(argv: list[str]) -> None:
     list_p = sub.add_parser("list", help="List tasks")
     list_p.add_argument("--all", action="store_true", help="Include completed")
 
+    show_p = sub.add_parser("show", help="Show task details")
+    show_p.add_argument("id", help="Task ID")
+
     add_p = sub.add_parser("add", help="Add a task")
     add_p.add_argument("title", help="Task title")
     add_p.add_argument("--due", help="Due date YYYY-MM-DD")
@@ -39,6 +42,8 @@ def run_tasks_command(argv: list[str]) -> None:
 
     if args.action == "list":
         _handle_list(args)
+    elif args.action == "show":
+        _handle_show(args.id)
     elif args.action == "add":
         _handle_add(args)
     elif args.action == "done":
@@ -50,6 +55,10 @@ def run_tasks_command(argv: list[str]) -> None:
     else:
         parser.print_help()
         sys.exit(1)
+
+
+def _fmt_due(due: str | None) -> str:
+    return due[:10] if due else "(no due)"
 
 
 def _handle_list(args: argparse.Namespace) -> None:
@@ -78,9 +87,26 @@ def _handle_list(args: argparse.Namespace) -> None:
         return
 
     for t in tasks:
-        due = t.get("due", "")[:10] if t.get("due") else "(no due)"
+        due = _fmt_due(t.get("due"))
         status = "[x]" if t.get("status") == "completed" else "[ ]"
-        print(f"  {t['id']}  {due:12s}  {status}  {t.get('title', '')}")
+        notes_marker = " [+]" if t.get("notes") else ""
+        print(f"  {t['id']}  {due:12s}  {status}  {t.get('title', '')}{notes_marker}")
+
+
+def _handle_show(task_id: str) -> None:
+    service = _get_tasks_service()
+    t = service.tasks().get(tasklist="@default", task=task_id).execute()
+
+    status = "completed" if t.get("status") == "completed" else "needs action"
+    due = _fmt_due(t.get("due"))
+
+    print(f"title:     {t.get('title', '(no title)')}")
+    print(f"status:    {status}")
+    print(f"due:       {due}")
+    if t.get("notes"):
+        indented = t["notes"].replace("\n", "\n           ")
+        print(f"notes:     {indented}")
+    print(f"id:        {t['id']}")
 
 
 def _handle_add(args: argparse.Namespace) -> None:
