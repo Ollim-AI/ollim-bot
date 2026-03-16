@@ -78,7 +78,7 @@ def test_fork_resume_notice_includes_age():
 
     from ollim_bot.prompts import fork_resume_notice
 
-    two_days_ago = time.time() - 2 * 86400
+    two_days_ago = time.time() - 2.5 * 86400
 
     result = fork_resume_notice(two_days_ago)
 
