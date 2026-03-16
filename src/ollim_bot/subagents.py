@@ -38,8 +38,8 @@ def install_agents() -> None:
     for source in sorted(_SOURCE_DIR.glob("*.md")):
         target = _AGENTS_DIR / source.name
         try:
-            with open(target, "x") as f:
-                f.write(_expand(source.read_text()))
+            with open(target, "x", encoding="utf-8") as f:
+                f.write(_expand(source.read_text(encoding="utf-8")))
         except FileExistsError:
             continue
         log.info("Installed bundled agent: %s", source.name)
@@ -48,7 +48,7 @@ def install_agents() -> None:
 def _extract_tools(path: Path) -> tuple[str, list[str]] | None:
     """Extract (name, tools) from a single agent spec's YAML frontmatter."""
     try:
-        text = path.read_text()
+        text = path.read_text(encoding="utf-8")
     except OSError as exc:
         log.warning("Skipping unreadable agent spec %s: %s", path.name, exc)
         return None

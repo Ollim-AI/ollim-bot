@@ -55,7 +55,7 @@ def get_credentials() -> Credentials:
                 TOKEN_FILE.unlink(missing_ok=True)
                 _REVOKED_MARKER.touch()
             raise
-        TOKEN_FILE.write_text(creds.to_json())
+        TOKEN_FILE.write_text(creds.to_json(), encoding="utf-8")
         return creds
 
     if not CREDENTIALS_FILE.exists():
@@ -67,7 +67,7 @@ def get_credentials() -> Credentials:
     flow = InstalledAppFlow.from_client_secrets_file(str(CREDENTIALS_FILE), SCOPES)
     creds = flow.run_local_server(port=0, bind_addr="127.0.0.1")
     STATE_DIR.mkdir(parents=True, exist_ok=True)
-    TOKEN_FILE.write_text(creds.to_json())
+    TOKEN_FILE.write_text(creds.to_json(), encoding="utf-8")
     return creds
 
 
@@ -150,7 +150,7 @@ async def start_google_auth_flow() -> tuple[str, Callable[[str], None], asyncio.
             # oauthlib requires https in authorization_response
             base = f"https://127.0.0.1:{server.server_port}"
             flow.fetch_token(authorization_response=f"{base}?{captured['query']}")
-            TOKEN_FILE.write_text(flow.credentials.to_json())
+            TOKEN_FILE.write_text(flow.credentials.to_json(), encoding="utf-8")
         finally:
             server.server_close()
 

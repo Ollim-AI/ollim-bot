@@ -312,7 +312,7 @@ def load_yaml_config() -> dict[str, Any]:
 
     import yaml
 
-    with path.open() as f:
+    with path.open(encoding="utf-8") as f:
         data = yaml.safe_load(f)
 
     _yaml_cache_mtime = mtime

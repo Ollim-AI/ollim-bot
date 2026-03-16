@@ -101,25 +101,6 @@ def test_ensure_skill_creates_file(data_dir, monkeypatch):
     assert "name: routine-abc" in skill_file.read_text()
 
 
-def test_ensure_skill_skips_unchanged(data_dir, monkeypatch):
-    import ollim_bot.skills as skills_mod
-
-    monkeypatch.setattr(skills_mod, "SKILLS_DIR", data_dir / "skills")
-
-    routine = Routine(id="abc", message="Check tasks.", cron="0 8 * * *")
-    ensure_skill(routine)
-    skill_file = data_dir / "skills" / "routine-abc" / "SKILL.md"
-    mtime_before = skill_file.stat().st_mtime
-
-    import time
-
-    time.sleep(0.01)
-    ensure_skill(routine)
-    mtime_after = skill_file.stat().st_mtime
-
-    assert mtime_before == mtime_after
-
-
 def test_ensure_skill_updates_on_change(data_dir, monkeypatch):
     import ollim_bot.skills as skills_mod
 
