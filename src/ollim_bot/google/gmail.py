@@ -21,6 +21,7 @@ def run_gmail_command(argv: list[str]) -> None:
 
     unread_p = sub.add_parser("unread", help="List unread emails")
     unread_p.add_argument("--max", type=int, default=20, help="Max results (default 20)")
+    unread_p.add_argument("--all", action="store_true", help="Include all categories (not just primary)")
 
     read_p = sub.add_parser("read", help="Read an email by ID")
     read_p.add_argument("id", help="Message ID")
@@ -28,17 +29,20 @@ def run_gmail_command(argv: list[str]) -> None:
     search_p = sub.add_parser("search", help="Search emails")
     search_p.add_argument("query", help="Gmail search query")
     search_p.add_argument("--max", type=int, default=20, help="Max results (default 20)")
+    search_p.add_argument("--all", action="store_true", help="Include all categories (not just primary)")
 
     sub.add_parser("labels", help="List labels")
 
     args = parser.parse_args(argv)
 
     if args.action == "unread":
-        _handle_list(query="is:unread", max_results=args.max)
+        query = "is:unread" if getattr(args, "all", False) else "is:unread category:primary"
+        _handle_list(query=query, max_results=args.max)
     elif args.action == "read":
         _handle_read(args.id)
     elif args.action == "search":
-        _handle_list(query=args.query, max_results=args.max)
+        query = args.query if getattr(args, "all", False) else f"{args.query} category:primary"
+        _handle_list(query=query, max_results=args.max)
     elif args.action == "labels":
         _handle_labels()
     else:
