@@ -95,7 +95,7 @@ async def add_reminder(args: dict[str, Any]) -> dict[str, Any]:
     append_reminder(reminder)
 
     fire_dt = datetime.fromisoformat(reminder.run_at)
-    fire_str = fire_dt.strftime("%-I:%M %p")
+    fire_str = fire_dt.strftime("%I:%M %p").lstrip("0")
     return _resp(f"Reminder {reminder.id} set for {fire_str}.")
 
 
@@ -112,7 +112,7 @@ async def list_reminders_tool(args: dict[str, Any]) -> dict[str, Any]:
     lines = []
     for r in sorted(reminders, key=lambda r: r.run_at):
         fire_dt = datetime.fromisoformat(r.run_at)
-        time_str = fire_dt.strftime("%Y-%m-%d %-I:%M %p")
+        time_str = fire_dt.strftime("%Y-%m-%d %I:%M %p")
         mode = "fg" if not r.background else "bg"
         desc = r.description or "(no description)"
         lines.append(f"- {r.id} [{mode}] {time_str} — {desc}  (reminders/{r.id}.md)")
