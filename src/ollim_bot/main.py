@@ -50,6 +50,7 @@ commands:
   ollim-bot gmail unread     List unread emails
   ollim-bot gmail read       Read an email by ID
   ollim-bot gmail search     Search emails
+  ollim-bot doctor           Check every layer of the routine pipeline
   ollim-bot auth login       Log in to Claude (Agent SDK)
   ollim-bot auth status      Show auth status
   ollim-bot auth logout      Log out
@@ -168,6 +169,7 @@ def _dispatch_subcommand() -> bool:
         run_auth_command(rest)
         return True
     routes: dict[str, tuple[str, str]] = {
+        "doctor": ("ollim_bot.doctor", "run_doctor_command"),
         "routine": ("ollim_bot.scheduling.routine_cmd", "run_routine_command"),
         "reminder": ("ollim_bot.scheduling.reminder_cmd", "run_reminder_command"),
         "tasks": ("ollim_bot.google.tasks", "run_tasks_command"),

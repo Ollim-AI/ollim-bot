@@ -9,7 +9,7 @@ import subprocess
 import tempfile
 from dataclasses import asdict
 from pathlib import Path
-from typing import TypeVar
+from typing import Any, TypeVar
 
 import yaml
 
@@ -32,6 +32,17 @@ def atomic_write(path: Path, data: bytes) -> None:
     finally:
         os.close(fd)
     os.replace(tmp, path)
+
+
+def safe_json_load(path: Path, default: Any = None) -> Any:
+    """Load JSON from path, returning *default* on missing file or decode error."""
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return default
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        log.warning("Corrupt JSON, using defaults: %s", path)
+        return default
 
 
 def save_attachment(filename: str, data: bytes) -> Path:
@@ -191,7 +202,7 @@ def read_md_dir(dir_path: Path, cls: type[T]) -> list[T]:
     result: list[T] = []
     for filepath in sorted(dir_path.glob("*.md")):
         try:
-            text = filepath.read_text()
+            text = filepath.read_text(encoding="utf-8")
             result.append(parse_md(text, cls))
         except (ValueError, yaml.YAMLError, TypeError, KeyError):
             log.warning("Skipping corrupt file: %s", filepath)
@@ -207,7 +218,7 @@ def write_md(dir_path: Path, item: T, commit_msg: str) -> None:
     # Handle slug collisions: allow overwrite if same id, else bump suffix
     counter = 2
     while target.exists():
-        existing_text = target.read_text()
+        existing_text = target.read_text(encoding="utf-8")
         parts = existing_text.split("---", 2)
         if len(parts) >= 3:
             existing_data = yaml.safe_load(parts[1])
@@ -227,7 +238,7 @@ def remove_md(dir_path: Path, item_id: str, commit_msg: str) -> bool:
     if not dir_path.is_dir():
         return False
     for filepath in dir_path.glob("*.md"):
-        parts = filepath.read_text().split("---", 2)
+        parts = filepath.read_text(encoding="utf-8").split("---", 2)
         if len(parts) < 3:
             continue
         data = yaml.safe_load(parts[1])
@@ -244,7 +255,7 @@ def read_jsonl(filepath: Path, cls: type[T]) -> list[T]:
         return []
     fields = {f.name for f in dataclasses.fields(cls)}
     result: list[T] = []
-    for line in filepath.read_text().splitlines():
+    for line in filepath.read_text(encoding="utf-8").splitlines():
         stripped = line.strip()
         if not stripped or not stripped.startswith("{"):
             continue
@@ -255,7 +266,7 @@ def read_jsonl(filepath: Path, cls: type[T]) -> list[T]:
 
 def append_jsonl(filepath: Path, item: T, commit_msg: str) -> None:
     filepath.parent.mkdir(parents=True, exist_ok=True)
-    with filepath.open("a") as f:
+    with filepath.open("a", encoding="utf-8") as f:
         f.write(json.dumps(asdict(item)) + "\n")  # type: ignore[call-overload]
     git_commit(filepath, commit_msg)
 

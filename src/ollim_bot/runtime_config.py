@@ -7,7 +7,7 @@ from dataclasses import asdict, dataclass, fields, replace
 from pathlib import Path
 from typing import NamedTuple
 
-from ollim_bot.storage import STATE_DIR, atomic_write
+from ollim_bot.storage import STATE_DIR, atomic_write, safe_json_load
 
 CONFIG_FILE: Path = STATE_DIR / "config.json"
 
@@ -79,10 +79,10 @@ def _migrate_thinking(value: object) -> str:
 
 
 def load() -> RuntimeConfig:
-    """Read config from disk; return defaults if missing."""
-    if not CONFIG_FILE.exists():
+    """Read config from disk; return defaults if missing or corrupt."""
+    data = safe_json_load(CONFIG_FILE)
+    if not data:
         return _DEFAULTS
-    data = json.loads(CONFIG_FILE.read_text())
     known = {f.name for f in fields(RuntimeConfig)}
     filtered = {k: v for k, v in data.items() if k in known}
     for key in ("thinking_main", "thinking_fork"):

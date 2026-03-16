@@ -5,7 +5,7 @@ import time
 from typing import TypedDict
 from uuid import uuid4
 
-from ollim_bot.storage import STATE_DIR, atomic_write
+from ollim_bot.storage import STATE_DIR, atomic_write, safe_json_load
 
 
 class _InquiryEntry(TypedDict):
@@ -44,9 +44,7 @@ def pop(uid: str) -> str | None:
 
 
 def _read() -> dict[str, _InquiryEntry]:
-    if not INQUIRIES_FILE.exists():
-        return {}
-    data = json.loads(INQUIRIES_FILE.read_text())
+    data = safe_json_load(INQUIRIES_FILE, {})
     cutoff = time.time() - MAX_AGE
     return {k: v for k, v in data.items() if v.get("ts", 0) > cutoff}
 

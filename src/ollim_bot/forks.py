@@ -21,7 +21,7 @@ from ollim_bot.fork_state import (
     set_busy,
     set_in_fork,
 )
-from ollim_bot.storage import STATE_DIR, atomic_write
+from ollim_bot.storage import STATE_DIR, atomic_write, safe_json_load
 
 log = logging.getLogger(__name__)
 
@@ -55,7 +55,7 @@ async def append_update(message: str) -> None:
     oldest entries are dropped when the cap is exceeded.
     """
     async with _updates_lock:
-        updates = json.loads(_UPDATES_FILE.read_text()) if _UPDATES_FILE.exists() else []
+        updates = safe_json_load(_UPDATES_FILE, [])
         updates.append({"ts": datetime.now(TZ).isoformat(), "message": message})
         if len(updates) > MAX_PENDING_UPDATES:
             # Keep the most-recent (MAX_PENDING_UPDATES - 1) real entries and
@@ -74,9 +74,7 @@ async def append_update(message: str) -> None:
 
 def peek_pending_updates() -> list[PendingUpdate]:
     """Read pending updates without clearing."""
-    if not _UPDATES_FILE.exists():
-        return []
-    updates = json.loads(_UPDATES_FILE.read_text())
+    updates = safe_json_load(_UPDATES_FILE, [])
     return [PendingUpdate(ts=u["ts"], message=u["message"]) for u in updates]
 
 
@@ -98,11 +96,12 @@ async def pop_pending_updates() -> list[PendingUpdate]:
     without it a bg fork's append can re-introduce already-popped updates.
     """
     async with _updates_lock:
-        if not _UPDATES_FILE.exists():
+        updates = safe_json_load(_UPDATES_FILE, None)
+        if updates is None:
             log.debug("pop_pending_updates: file does not exist")
             return []
-        updates = json.loads(_UPDATES_FILE.read_text())
-        _UPDATES_FILE.unlink()
+        if _UPDATES_FILE.exists():
+            _UPDATES_FILE.unlink()
         log.info("popped %d pending update(s)", len(updates))
         return [PendingUpdate(ts=u["ts"], message=u["message"]) for u in updates]
 
