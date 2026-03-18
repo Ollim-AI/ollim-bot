@@ -48,9 +48,7 @@ class PendingUpdate(NamedTuple):
 
 
 async def append_update(message: str) -> None:
-    """Append a timestamped update to the pending updates file.
-
-    Lock protects the read-modify-write cycle so concurrent bg forks
+    """Lock protects the read-modify-write cycle so concurrent bg forks
     don't lose each other's updates.  Capped at MAX_PENDING_UPDATES —
     oldest entries are dropped when the cap is exceeded.
     """
@@ -73,7 +71,6 @@ async def append_update(message: str) -> None:
 
 
 def peek_pending_updates() -> list[PendingUpdate]:
-    """Read pending updates without clearing."""
     updates = safe_json_load(_UPDATES_FILE, [])
     return [PendingUpdate(ts=u["ts"], message=u["message"]) for u in updates]
 
@@ -138,7 +135,6 @@ def _tag_to_human_name(tag: str) -> str:
 async def _notify_fork_failure(
     channel: discord.abc.Messageable, tag: str, *, timed_out: bool = False, timeout_seconds: int = 0
 ) -> None:
-    """Best-effort DM notification when a bg fork fails or times out."""
     name = _tag_to_human_name(tag)
     if timed_out:
         msg = f"{name} timed out after {timeout_seconds // 60} minutes."
@@ -262,7 +258,6 @@ async def send_agent_dm(
     *,
     chain_ctx: ChainContext | None = None,
 ) -> None:
-    """Inject a prompt into the agent session and stream the response as a DM."""
     from ollim_bot.agent_tools import set_chain_context
     from ollim_bot.streamer import stream_to_channel
 
