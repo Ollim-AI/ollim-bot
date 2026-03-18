@@ -68,7 +68,6 @@ def _count_md_files(directory: Path) -> int:
 
 
 def check_routines() -> list[CheckResult]:
-    """Parse routines, validate cron, compute next fire times — single pass."""
     from ollim_bot.scheduling.preamble import _routine_next_fire
     from ollim_bot.scheduling.routines import ROUTINES_DIR
 
@@ -336,7 +335,6 @@ def _print_results(sections: list[tuple[str, list[CheckResult]]]) -> int:
 
 
 def run_doctor_command(args: list[str]) -> None:
-    """Entry point for ``ollim-bot doctor``."""
     from dotenv import load_dotenv
 
     from ollim_bot.storage import PROJECT_DIR
