@@ -52,7 +52,6 @@ class StreamParser:
         self.active_task_label: str | None = None
 
     async def feed(self, event: dict[str, Any]) -> AsyncGenerator[str | StreamStatus, None]:
-        """Process one SSE event dict."""
         etype = event.get("type")
 
         if etype == "content_block_start":

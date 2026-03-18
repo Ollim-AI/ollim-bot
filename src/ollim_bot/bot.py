@@ -55,7 +55,7 @@ def get_owner_id() -> int | None:
 
 
 def is_owner(user_id: int) -> bool:
-    """Check if user is the bot owner. Allows all when owner not yet resolved."""
+    """Allows all when owner not yet resolved (before on_ready)."""
     return _owner_id is None or user_id == _owner_id
 
 
@@ -85,7 +85,6 @@ def _detect_image_type(data: bytes) -> _ImageMime | None:
 async def _process_attachments(
     attachments: list[discord.Attachment],
 ) -> tuple[list[dict[str, str]], list[Path]]:
-    """Base64-encode images, save other attachments to disk."""
     if not attachments:
         return [], []
     raw_bytes = await asyncio.gather(*(att.read() for att in attachments))
@@ -109,7 +108,6 @@ _MAX_QUOTE_LEN = 500
 
 
 def _quote_message(msg: discord.Message) -> str:
-    """Extract quotable text from a message's content or embeds."""
     if msg.content:
         text = msg.content
     elif msg.embeds:
@@ -130,7 +128,6 @@ def _quote_message(msg: discord.Message) -> str:
 
 
 def create_bot() -> commands.Bot:
-    """Image attachments are sniffed by magic bytes rather than Discord's unreliable content_type."""
     intents = discord.Intents.default()
     intents.message_content = True
 
@@ -151,7 +148,7 @@ def create_bot() -> commands.Bot:
         *,
         images: list[dict[str, str]] | None = None,
     ) -> None:
-        """typing -> stream (stream_to_channel sets channel). Caller must hold agent.lock()."""
+        """Caller must hold agent.lock()."""
         await channel.typing()
         await stream_to_channel(channel, agent.stream_chat(prompt, images=images))
 
