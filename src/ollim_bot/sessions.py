@@ -1,6 +1,7 @@
 """Persist Agent SDK session ID so conversations survive bot restarts."""
 
 import json
+import logging
 import time
 from contextvars import ContextVar
 from dataclasses import dataclass
@@ -9,6 +10,8 @@ from typing import Literal, NamedTuple, TypedDict
 
 from ollim_bot.config import TZ as _TZ
 from ollim_bot.storage import STATE_DIR, append_jsonl, atomic_write, safe_json_load
+
+log = logging.getLogger(__name__)
 
 SESSIONS_FILE = STATE_DIR / "sessions.json"
 HISTORY_FILE = STATE_DIR / "session_history.jsonl"
@@ -57,7 +60,11 @@ def session_start_time() -> datetime | None:
     for line in HISTORY_FILE.read_text(encoding="utf-8").splitlines():
         if not line.strip():
             continue
-        entry = json.loads(line)
+        try:
+            entry = json.loads(line)
+        except json.JSONDecodeError:
+            log.warning("Skipping corrupt line in session history: %s", line)
+            continue
         if entry.get("event") == "created":
             last_created = entry["timestamp"]
     if last_created is None:

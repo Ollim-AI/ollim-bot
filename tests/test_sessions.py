@@ -12,6 +12,7 @@ from ollim_bot.sessions import (
     log_session_event,
     lookup_fork_session,
     save_session_id,
+    session_start_time,
     set_swap_in_progress,
     start_message_collector,
     track_message,
@@ -62,6 +63,27 @@ def test_log_session_event_appends(history):
 
     lines = history.read_text().strip().splitlines()
     assert len(lines) == 2
+
+
+# --- session_start_time corrupt JSONL ---
+
+
+def test_session_start_time_skips_corrupt_lines(history):
+    valid = json.dumps(
+        {"session_id": "abc", "event": "created", "timestamp": "2026-01-01T00:00:00+00:00", "parent_session_id": None}
+    )
+    history.write_text(f"{{corrupt\n{valid}\n")
+
+    result = session_start_time()
+
+    assert result is not None
+    assert result.year == 2026
+
+
+def test_session_start_time_all_corrupt(history):
+    history.write_text("{{corrupt\nnot json\n")
+
+    assert session_start_time() is None
 
 
 # --- save_session_id auto-detection ---
