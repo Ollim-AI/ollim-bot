@@ -1,8 +1,4 @@
-"""Message context helpers for the Agent SDK wrapper.
-
-Stateless functions that prepare timestamps, format durations, assemble
-pending updates, and build ThinkingConfig dicts.
-"""
+"""Message context helpers for the Agent SDK wrapper."""
 
 from __future__ import annotations
 
@@ -33,7 +29,6 @@ def _format_duration(seconds: float) -> str:
 
 
 def format_compact_stats(result: ResultMessage | None, pre_tokens: int | None) -> str:
-    """Format compaction result as productivity stats."""
     parts: list[str] = []
     if result:
         parts.append(f"{result.num_turns} turns")
@@ -48,6 +43,7 @@ def format_compact_stats(result: ResultMessage | None, pre_tokens: int | None) -
 
 
 def timestamp() -> str:
+    """e.g. '[2026-03-18 Wed 02:30 PM PT]'."""
     return datetime.now(_TZ).strftime("[%Y-%m-%d %a %I:%M %p PT]")
 
 
@@ -89,7 +85,6 @@ async def prepend_context(message: str, *, clear: bool = True) -> str:
 
 
 def thinking_mode(enabled: bool) -> str:
-    """Convert a bool thinking flag to a mode string."""
     return "adaptive" if enabled else "off"
 
 

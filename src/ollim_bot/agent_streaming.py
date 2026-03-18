@@ -1,8 +1,4 @@
-"""Streaming response consumer — extracted from Agent.stream_chat.
-
-Free function that handles the SDK message loop, auto-compaction retry,
-fork interrupt, and fallback tiers.  Zero knowledge of Agent.
-"""
+"""Streaming response consumer -- extracted from Agent.stream_chat."""
 
 from __future__ import annotations
 
@@ -94,7 +90,6 @@ async def stream_response(
     fork_session_notified = False
 
     async def _consume(response):
-        """Process messages from one receive_response() call."""
         nonlocal \
             streamed, \
             fork_interrupted, \
