@@ -185,7 +185,7 @@ def _register_routine(
             ),
             id=f"routine_{routine.id}",
         )
-    except (ValueError, KeyError):
+    except (ValueError, KeyError, IndexError):
         log.exception("Failed to register routine %s (cron: %s)", routine.id, routine.cron)
         problem_key = f"routine_reg_{routine.id}"
         if problem_key not in _reported_problems:
