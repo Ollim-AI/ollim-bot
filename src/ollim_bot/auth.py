@@ -15,7 +15,6 @@ _URL_PATTERN = re.compile(r"https://\S+")
 
 
 def _find_bundled_cli() -> str:
-    """Locate the Claude CLI bundled with claude-agent-sdk."""
     import claude_agent_sdk
 
     bundled = Path(claude_agent_sdk.__file__).parent / "_bundled" / _CLI_NAME
@@ -26,7 +25,6 @@ def _find_bundled_cli() -> str:
 
 
 def is_authenticated() -> bool:
-    """Check if Claude CLI is authenticated."""
     cli = _find_bundled_cli()
     result = subprocess.run([cli, "auth", "status", "--json"], capture_output=True, text=True, check=False)
     if result.returncode != 0:
@@ -36,7 +34,7 @@ def is_authenticated() -> bool:
 
 
 def start_login() -> tuple[str, subprocess.Popen[bytes]]:
-    """Start login flow with browser suppressed. Returns (auth_url, process).
+    """Start login flow with browser suppressed.
 
     The process blocks until the user completes auth via the URL.
     Caller must wait on the process after presenting the URL to the user.

@@ -1,10 +1,4 @@
-"""User profile: IDENTITY.md and USER.md in DATA_DIR.
-
-IDENTITY.md defines the bot's persona -- how it speaks and relates to the user.
-USER.md provides context about the user -- who the bot is serving.
-
-Both are appended to the system prompt and editable by the agent.
-"""
+"""User profile files: IDENTITY.md (bot persona) and USER.md (user context)."""
 
 import logging
 
