@@ -29,7 +29,6 @@ class BudgetState:
 
 
 def _refill(state: BudgetState) -> BudgetState:
-    """Compute accumulated refills since last_refill, cap at capacity."""
     now = datetime.now(TZ)
     last = datetime.fromisoformat(state.last_refill)
     elapsed_minutes = (now - last).total_seconds() / 60
@@ -39,7 +38,6 @@ def _refill(state: BudgetState) -> BudgetState:
 
 
 def _reset_daily(state: BudgetState) -> BudgetState:
-    """Reset daily counters if date is stale."""
     today = datetime.now(TZ).date().isoformat()
     if state.critical_reset_date != today:
         state = replace(state, critical_used=0, critical_reset_date=today)
@@ -49,7 +47,7 @@ def _reset_daily(state: BudgetState) -> BudgetState:
 
 
 def load() -> BudgetState:
-    """Read budget from disk; refill based on elapsed time; create defaults if missing."""
+    """Refill-on-read: reads state, applies time-based refill, and writes back."""
     now = datetime.now(TZ)
     today = now.date().isoformat()
 
@@ -81,7 +79,6 @@ def save(state: BudgetState) -> None:
 
 
 def try_use() -> bool:
-    """Consume 1 ping if available. Returns False if insufficient."""
     state = load()
     if state.available < 1.0:
         return False
@@ -96,7 +93,6 @@ def record_critical() -> None:
 
 
 def get_status() -> str:
-    """Formatted budget status for preamble injection."""
     state = load()
     avail = int(state.available)
     base = f"budget: {avail}/{state.capacity}"
@@ -109,7 +105,6 @@ def get_status() -> str:
 
 
 def get_full_status() -> str:
-    """Extended status for /ping-budget command (includes daily totals)."""
     state = load()
     status = get_status()
     parts = [status]
@@ -121,19 +116,16 @@ def get_full_status() -> str:
 
 
 def set_capacity(capacity: int) -> None:
-    """Update capacity, preserving other state."""
     state = load()
     save(replace(state, capacity=capacity))
 
 
 def set_refill_rate(minutes: int) -> None:
-    """Update refill rate, preserving other state."""
     state = load()
     save(replace(state, refill_rate_minutes=minutes))
 
 
 def minutes_to_next_refill() -> int | None:
-    """Minutes until next ping refill, or None if at capacity."""
     state = load()
     if state.available >= state.capacity:
         return None

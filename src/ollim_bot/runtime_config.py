@@ -70,7 +70,6 @@ VALID_KEYS = frozenset(_KEY_META)
 
 
 def _migrate_thinking(value: object) -> str:
-    """Convert legacy bool thinking values to string mode."""
     if value is True:
         return "adaptive"
     if value is False:
@@ -79,7 +78,6 @@ def _migrate_thinking(value: object) -> str:
 
 
 def load() -> RuntimeConfig:
-    """Read config from disk; return defaults if missing or corrupt."""
     data = safe_json_load(CONFIG_FILE)
     if not data:
         return _DEFAULTS
@@ -97,7 +95,6 @@ def save(config: RuntimeConfig) -> None:
 
 
 def _parse_value(key: str, raw: str) -> str | int | bool | None:
-    """Parse a raw string value for the given key. Raises ValueError on invalid input."""
     meta = _KEY_META[key]
     if meta.kind == "model":
         lowered = raw.lower().strip()
@@ -145,7 +142,6 @@ def _parse_value(key: str, raw: str) -> str | int | bool | None:
 
 
 def set_value(key: str, raw: str) -> RuntimeConfig:
-    """Parse, validate, save, and return the updated config."""
     if key not in _KEY_META:
         raise ValueError(f"unknown key: {key}")
     parsed = _parse_value(key, raw)
@@ -156,7 +152,6 @@ def set_value(key: str, raw: str) -> RuntimeConfig:
 
 
 def _format_value(key: str, value: str | int | bool | None) -> str:
-    """Format a single value for display."""
     meta = _KEY_META[key]
     default = getattr(_DEFAULTS, key)
     is_default = value == default
@@ -196,7 +191,6 @@ def _format_value(key: str, value: str | int | bool | None) -> str:
 
 
 def format_all() -> str:
-    """Formatted display of all settings."""
     config = load()
     lines: list[str] = []
     for key, meta in _KEY_META.items():
@@ -209,7 +203,6 @@ def format_all() -> str:
 
 
 def format_one(key: str) -> str:
-    """Formatted display of one setting."""
     config = load()
     meta = _KEY_META[key]
     value = getattr(config, key)

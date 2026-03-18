@@ -112,7 +112,6 @@ def _could_match_state_dir(glob_pattern: str) -> bool:
 
 
 def validate_pattern(pattern: str) -> list[str]:
-    """Return error messages for a single tool pattern. Empty list = valid."""
     errors: list[str] = []
 
     pattern = pattern.strip()
@@ -140,7 +139,6 @@ def validate_pattern(pattern: str) -> list[str]:
 
 
 def validate_tool_set(patterns: list[str], source: str) -> list[ToolPatternError]:
-    """Validate a complete tool set declaration."""
     results: list[ToolPatternError] = []
     for pattern in patterns:
         for msg in validate_pattern(pattern):
@@ -155,8 +153,6 @@ def validate_tool_set(patterns: list[str], source: str) -> list[ToolPatternError
 
 
 def scan_all(tool_sets: dict[str, list[str]]) -> list[ToolPatternError]:
-    """Validate all tool declarations."""
-
     errors: list[ToolPatternError] = []
     for source, tools in tool_sets.items():
         errors.extend(validate_tool_set(tools, source))
@@ -226,7 +222,6 @@ DEFAULT_BG_TOOLS: list[str] = [
 
 
 def validate_dispatch(allowed_tools: list[str] | None, source: str) -> bool:
-    """Validate tool patterns before background fork dispatch. Returns True if valid."""
     if allowed_tools is None:
         return True
     errors = validate_tool_set(allowed_tools, source=source)
@@ -285,7 +280,6 @@ def _yaml_config_path() -> Path:
 
 
 def reset_yaml_cache() -> None:
-    """Reset the YAML config cache. For tests."""
     global _yaml_cache_mtime, _yaml_cache_data
     _yaml_cache_mtime = 0.0
     _yaml_cache_data = {}
