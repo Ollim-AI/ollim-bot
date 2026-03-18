@@ -2,7 +2,7 @@
 
 import pytest
 
-from ollim_bot.permissions import _denied_labels, is_denied, reset
+from ollim_bot.permissions import _denied_labels, _errored_labels, is_denied, reset
 from ollim_bot.streamer import StreamParser, StreamStatus
 
 
@@ -166,6 +166,46 @@ async def test_multi_tool_denied_label_matched_correctly():
     write_label = next(lab for lab in labels if "Write" in lab)
     assert "denied" in write_label
     assert "~~" in write_label
+
+
+@pytest.mark.asyncio
+async def test_errored_tool_shows_strikethrough():
+    """An errored tool label gets strikethrough and '— error' suffix."""
+    reset()
+    _errored_labels.add("Read(b/c.md)")
+    parser = StreamParser()
+
+    await _collect(parser, _block_start("tool_use", name="Read", id="1"))
+    await _collect(parser, _input_delta('{"file_path": "/a/b/c.md"}'))
+    await _collect(parser, _block_stop())
+
+    items = await _collect(parser, _block_start("text"))
+
+    labels = [i for i in items if isinstance(i, str) and "Read" in i]
+    assert len(labels) == 1
+    assert "~~" in labels[0]
+    assert "error" in labels[0]
+    assert "denied" not in labels[0]
+
+
+@pytest.mark.asyncio
+async def test_errored_label_does_not_shadow_denied():
+    """A denied label takes precedence over errored — 'denied' shown, not 'error'."""
+    reset()
+    _denied_labels.add("Read(b/c.md)")
+    _errored_labels.add("Read(b/c.md)")
+    parser = StreamParser()
+
+    await _collect(parser, _block_start("tool_use", name="Read", id="1"))
+    await _collect(parser, _input_delta('{"file_path": "/a/b/c.md"}'))
+    await _collect(parser, _block_stop())
+
+    items = await _collect(parser, _block_start("text"))
+
+    labels = [i for i in items if isinstance(i, str) and "Read" in i]
+    assert len(labels) == 1
+    assert "denied" in labels[0]
+    assert "error" not in labels[0]
 
 
 # --- is_denied consumes entry ---

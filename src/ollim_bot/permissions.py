@@ -31,6 +31,7 @@ log = logging.getLogger(__name__)
 _session_allowed: set[str] = set()
 _dont_ask: bool = True
 _denied_labels: set[str] = set()
+_errored_labels: set[str] = set()
 
 # Emoji constants
 APPROVE = "\N{WHITE HEAVY CHECK MARK}"
@@ -61,6 +62,22 @@ def is_denied(label: str) -> bool:
         _denied_labels.discard(label)
         return True
     return False
+
+
+def is_errored(label: str) -> bool:
+    """Check (and consume) whether a tool label errored."""
+    if label in _errored_labels:
+        _errored_labels.discard(label)
+        return True
+    return False
+
+
+def mark_errored(tool_name: str, tool_input: dict) -> None:
+    _errored_labels.add(format_tool_label(tool_name, json.dumps(tool_input)))
+
+
+def clear_errored() -> None:
+    _errored_labels.clear()
 
 
 def clear_denied() -> None:
@@ -108,6 +125,7 @@ def reset() -> None:
     cancel_pending()
     _session_allowed.clear()
     _denied_labels.clear()
+    _errored_labels.clear()
 
 
 # ---------------------------------------------------------------------------

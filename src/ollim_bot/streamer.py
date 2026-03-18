@@ -14,7 +14,7 @@ import discord
 
 from ollim_bot.fork_state import enter_fork_requested
 from ollim_bot.formatting import format_tool_label
-from ollim_bot.permissions import is_denied
+from ollim_bot.permissions import is_denied, is_errored
 from ollim_bot.sessions import track_message
 
 log = logging.getLogger(__name__)
@@ -105,6 +105,8 @@ class StreamParser:
             for label in self._deferred_labels:
                 if is_denied(label):
                     yield f"\n-# *~~{label}~~ — denied (use /permissions ask to approve)*\n"
+                elif is_errored(label):
+                    yield f"\n-# *~~{label}~~ — error*\n"
                 else:
                     yield f"\n-# *{label}*\n"
             self._deferred_labels.clear()

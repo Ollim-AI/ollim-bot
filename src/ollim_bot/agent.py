@@ -37,10 +37,11 @@ from ollim_bot.fork_state import (
     touch_activity,
 )
 from ollim_bot.forks import peek_pending_updates
-from ollim_bot.hooks import auto_commit_hook, state_dir_guard
+from ollim_bot.hooks import auto_commit_hook, state_dir_guard, tool_error_hook, tool_failure_hook
 from ollim_bot.permissions import (
     cancel_pending,
     clear_denied,
+    clear_errored,
     handle_tool_permission,
     set_dont_ask,
 )
@@ -94,7 +95,11 @@ class Agent:
             hooks={
                 "Stop": [HookMatcher(hooks=[require_report_hook])],
                 "PreToolUse": [HookMatcher(matcher="Write|Edit", hooks=[state_dir_guard])],
-                "PostToolUse": [HookMatcher(matcher="Write|Edit", hooks=[auto_commit_hook])],
+                "PostToolUse": [
+                    HookMatcher(matcher="Write|Edit", hooks=[auto_commit_hook]),
+                    HookMatcher(hooks=[tool_error_hook]),
+                ],
+                "PostToolUseFailure": [HookMatcher(hooks=[tool_failure_hook])],
             },
         )
 
@@ -477,6 +482,7 @@ class Agent:
         images: list[dict[str, str]] | None = None,
     ) -> AsyncGenerator[str | StreamStatus, None]:
         clear_denied()
+        clear_errored()
         client, message = await self._resolve_client(message)
         try:
             async for item in stream_response(
