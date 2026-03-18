@@ -8,7 +8,6 @@ from ollim_bot.profile import load_profile
 
 
 def build_system_prompt() -> str:
-    """Assemble the system prompt from profile files and operational instructions."""
     profile = load_profile()
 
     operational = f"""\
@@ -250,7 +249,6 @@ def fork_bg_resume_prompt(inquiry_prompt: str) -> str:
 
 
 def fork_resume_notice(fork_ts: float | None) -> str:
-    """Build the staleness notice for a resumed bg fork."""
     age = ""
     if fork_ts is not None:
         iso = datetime.fromtimestamp(fork_ts, tz=TZ).isoformat()

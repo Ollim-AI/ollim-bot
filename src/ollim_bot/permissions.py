@@ -56,7 +56,7 @@ def set_dont_ask(value: bool) -> None:
 
 
 def is_denied(label: str) -> bool:
-    """Check (and consume) whether a tool label was denied by canUseTool."""
+    """Consumes the denial on read — returns True at most once per label."""
     if label in _denied_labels:
         _denied_labels.discard(label)
         return True
@@ -64,7 +64,7 @@ def is_denied(label: str) -> bool:
 
 
 def clear_denied() -> None:
-    """Clear stale denied labels. Called before each new response."""
+    """Called before each new response."""
     _denied_labels.clear()
 
 
@@ -87,7 +87,7 @@ def session_allow(tool_name: str) -> None:
 
 
 def resolve_approval(message_id: int, emoji: str) -> None:
-    """Resolve a pending approval. Safe to call from any context."""
+    """Safe to call from any context (no-op if no pending approval)."""
     entry = _pending.get(message_id)
     if entry is None or entry.event.is_set():
         return
@@ -104,7 +104,7 @@ def cancel_pending() -> None:
 
 
 def reset() -> None:
-    """Clear session-allowed set and cancel all pending approvals. Called on /clear."""
+    """Called on /clear."""
     cancel_pending()
     _session_allowed.clear()
     _denied_labels.clear()
