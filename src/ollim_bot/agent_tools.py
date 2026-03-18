@@ -1,5 +1,6 @@
 """MCP tool definitions for agent interactions (embeds, buttons, chains, forks)."""
 
+import asyncio
 import subprocess
 import sys
 from contextvars import ContextVar
@@ -297,7 +298,7 @@ async def follow_up_chain(args: dict[str, Any]) -> dict[str, Any]:
         cmd.extend(["--allowed-tools", *ctx.allowed_tools])
     if ctx.skills:
         cmd.extend(["--skills", *ctx.skills])
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    result = await asyncio.to_thread(subprocess.run, cmd, capture_output=True, text=True)
     if result.returncode != 0:
         return _resp(f"Error scheduling follow-up: {result.stderr}")
     return _resp(f"Follow-up scheduled in {minutes} minutes")
