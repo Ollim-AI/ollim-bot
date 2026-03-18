@@ -7,7 +7,7 @@ import subprocess
 from pathlib import Path
 from unittest.mock import patch
 
-from ollim_bot.updater import apply_update
+from ollim_bot.updater import apply_update, format_error
 
 
 def test_apply_update_runs_all_commands(tmp_path: Path) -> None:
@@ -61,3 +61,33 @@ def test_apply_update_aborts_on_upgrade_failure(tmp_path: Path) -> None:
         ["git", "pull", "--ff-only"],
         ["uv", "tool", "upgrade", "ollim-bot"],
     ]
+
+
+def test_format_error_with_str_stderr() -> None:
+    """format_error handles str stderr (from text=True subprocess calls)."""
+    exc = subprocess.CalledProcessError(1, ["git", "pull", "--ff-only"], stderr="fatal: not a git repo\n")
+    result = format_error(exc)
+    assert "`git pull --ff-only` returned 1" in result
+    assert "fatal: not a git repo" in result
+
+
+def test_format_error_with_bytes_stderr() -> None:
+    """format_error handles bytes stderr (from capture_output without text=True)."""
+    exc = subprocess.CalledProcessError(1, ["git", "pull", "--ff-only"], stderr=b"fatal: not a git repo\n")
+    result = format_error(exc)
+    assert "`git pull --ff-only` returned 1" in result
+    assert "fatal: not a git repo" in result
+
+
+def test_format_error_without_stderr() -> None:
+    """format_error works when stderr is None."""
+    exc = subprocess.CalledProcessError(1, ["git", "pull", "--ff-only"])
+    result = format_error(exc)
+    assert result == "`git pull --ff-only` returned 1"
+
+
+def test_format_error_timeout() -> None:
+    """format_error handles TimeoutExpired."""
+    exc = subprocess.TimeoutExpired(["git", "fetch", "origin"], timeout=60)
+    result = format_error(exc)
+    assert result == "`git fetch origin` timed out after 60s"
