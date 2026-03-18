@@ -121,24 +121,22 @@ class _ForkMessageRecord(TypedDict):
 
 
 def start_message_collector() -> None:
-    """Initialize a contextvar list to collect Discord message IDs during a bg fork."""
     _msg_collector.set([])
 
 
 def cancel_message_collector() -> None:
-    """Discard any collected message IDs without writing. Safe to call if already flushed."""
+    """Safe to call if already flushed."""
     _msg_collector.set(None)
 
 
 def track_message(message_id: int) -> None:
-    """Append a Discord message ID to the active collector. No-op if no collector."""
+    """No-op if no collector is active."""
     collector = _msg_collector.get()
     if collector is not None:
         collector.append(message_id)
 
 
 def flush_message_collector(fork_session_id: str, parent_session_id: str | None) -> None:
-    """Write collected message IDs to fork_messages.json and clear the collector."""
     collector = _msg_collector.get()
     _msg_collector.set(None)
     if not collector:
@@ -158,17 +156,13 @@ def flush_message_collector(fork_session_id: str, parent_session_id: str | None)
 
 
 class ForkLookup(NamedTuple):
-    """Result of looking up a fork session by Discord message ID."""
-
     session_id: str | None
     expired: bool
     ts: float | None = None
 
 
 def lookup_fork_session(message_id: int) -> ForkLookup:
-    """Look up a fork session by Discord message ID.
-
-    Returns (session_id, expired=False) for live records,
+    """Returns (session_id, expired=False) for live records,
     (None, expired=True) for TTL-expired records,
     (None, expired=False) for unknown message IDs.
     """
