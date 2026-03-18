@@ -1,4 +1,4 @@
-"""Entry point for ollim-bot."""
+"""CLI entry point and command router."""
 
 from __future__ import annotations
 
@@ -65,12 +65,7 @@ examples:
 
 
 def _ensure_sdk_layout() -> None:
-    """Set up the SDK-expected directory structure in DATA_DIR.
-
-    - Copies bundled agent specs to .claude/agents/ (with template expansion)
-    - Symlinks .claude/skills/ -> ../skills/ for SDK skill discovery
-    - Symlinks spec docs into DATA_DIR for agent access
-    """
+    """Set up the SDK-expected directory structure in DATA_DIR."""
     from ollim_bot.profile import bootstrap_identity
     from ollim_bot.subagents import install_agents
 
@@ -111,7 +106,6 @@ def _ensure_sdk_layout() -> None:
 
 
 def _is_bot_running(pid: int) -> bool:
-    """Check if a process is alive, with platform-specific verification."""
     if sys.platform == "win32":
         # Windows: OpenProcess returns 0 for non-existent processes
         import ctypes
@@ -155,7 +149,6 @@ def _check_already_running() -> None:
 
 
 def _dispatch_subcommand() -> bool:
-    """Route CLI subcommands. Returns True if handled."""
     if len(sys.argv) < 2:
         return False
     cmd = sys.argv[1]
@@ -189,7 +182,6 @@ log = logging.getLogger(__name__)
 
 
 async def _notify_exit(bot: Bot, reason: str) -> None:
-    """Best-effort DM to owner before the process exits."""
     from ollim_bot.bot import get_owner_id
 
     owner_id = get_owner_id()
@@ -202,7 +194,6 @@ async def _notify_exit(bot: Bot, reason: str) -> None:
 
 
 async def _run(bot: Bot, token: str) -> None:
-    """Run the bot, DM the owner on unexpected exits."""
     loop = asyncio.get_running_loop()
     _background_tasks: set[asyncio.Task[None]] = set()
 
@@ -249,7 +240,6 @@ async def _run(bot: Bot, token: str) -> None:
 
 
 def _discord_api(token: str, method: str, path: str, body: dict | None = None) -> dict:
-    """Make a Discord REST API call."""
     url = f"https://discord.com/api/v10{path}"
     headers = {"Authorization": f"Bot {token}", "Content-Type": "application/json"}
     data = json.dumps(body).encode() if body else None
@@ -277,7 +267,6 @@ def _discord_api(token: str, method: str, path: str, body: dict | None = None) -
 
 
 def _dm_owner(token: str, message: str) -> None:
-    """Send a DM to the bot owner via Discord REST API."""
     app = _discord_api(token, "GET", "/oauth2/applications/@me")
     owner_id = app["owner"]["id"]
     channel = _discord_api(token, "POST", "/users/@me/channels", {"recipient_id": owner_id})

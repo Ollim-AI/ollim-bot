@@ -28,7 +28,6 @@ class UpdateStatus:
 
 
 def _get_remote_ref(project_dir: Path) -> str:
-    """Resolve the remote tracking ref for the current branch."""
     result = subprocess.run(
         ["git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
         cwd=project_dir,
@@ -120,7 +119,6 @@ def apply_update(project_dir: Path) -> None:
 
 
 def format_error(exc: subprocess.CalledProcessError | subprocess.TimeoutExpired) -> str:
-    """Human-readable error message for a failed subprocess call."""
     cmd = shlex.join(exc.cmd) if isinstance(exc.cmd, list) else exc.cmd
     if isinstance(exc, subprocess.TimeoutExpired):
         return f"`{cmd}` timed out after {exc.timeout}s"
@@ -133,7 +131,6 @@ def format_error(exc: subprocess.CalledProcessError | subprocess.TimeoutExpired)
 
 
 def format_commit_summary(commit_summary: str, *, max_lines: int = 5) -> str:
-    """Truncate a multi-line commit log for display."""
     lines = commit_summary.splitlines()
     summary = "\n".join(lines[:max_lines])
     if len(lines) > max_lines:
@@ -142,7 +139,6 @@ def format_commit_summary(commit_summary: str, *, max_lines: int = 5) -> str:
 
 
 def log_and_restart() -> None:
-    """Log a restarting event (if session exists) and replace the process."""
     from ollim_bot.sessions import load_session_id, log_session_event
 
     session_id = load_session_id()
