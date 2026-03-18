@@ -7,12 +7,14 @@ from typing import cast
 from claude_agent_sdk.types import (
     HookContext,
     HookInput,
+    PostToolUseFailureHookInput,
     PostToolUseHookInput,
     PreToolUseHookInput,
     SyncHookJSONOutput,
 )
 
 from ollim_bot import storage
+from ollim_bot.permissions import mark_errored
 from ollim_bot.storage import git_commit
 
 
@@ -42,6 +44,30 @@ async def state_dir_guard(
                 "permissionDecisionReason": "state/ is write-protected",
             }
         }
+    return {}
+
+
+async def tool_error_hook(
+    input_data: HookInput,
+    tool_use_id: str | None,
+    context: HookContext,
+) -> SyncHookJSONOutput:
+    """Mark tool label as errored when a tool returns is_error: True."""
+    data = cast(PostToolUseHookInput, input_data)
+    if isinstance(data["tool_response"], dict) and data["tool_response"].get("is_error"):
+        mark_errored(data["tool_name"], data["tool_input"])
+    return {}
+
+
+async def tool_failure_hook(
+    input_data: HookInput,
+    tool_use_id: str | None,
+    context: HookContext,
+) -> SyncHookJSONOutput:
+    """Mark tool label as errored on hard execution failure (PostToolUseFailure)."""
+    data = cast(PostToolUseFailureHookInput, input_data)
+    if not data.get("is_interrupt"):
+        mark_errored(data["tool_name"], data["tool_input"])
     return {}
 
 
