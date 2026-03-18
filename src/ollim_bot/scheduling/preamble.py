@@ -71,14 +71,17 @@ _TRUNCATE_LEN = 60
 
 def _routine_next_fire(routine: Routine, after: datetime) -> datetime | None:
     parts = routine.cron.split()
-    trigger = CronTrigger(
-        minute=parts[0],
-        hour=parts[1],
-        day=parts[2],
-        month=parts[3],
-        day_of_week=_convert_dow(parts[4]),
-        timezone=str(TZ),
-    )
+    try:
+        trigger = CronTrigger(
+            minute=parts[0],
+            hour=parts[1],
+            day=parts[2],
+            month=parts[3],
+            day_of_week=_convert_dow(parts[4]),
+            timezone=str(TZ),
+        )
+    except (ValueError, KeyError, IndexError):
+        return None
     return trigger.get_next_fire_time(None, after)
 
 
