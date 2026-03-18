@@ -24,7 +24,6 @@ log = logging.getLogger(__name__)
 
 
 def atomic_write(path: Path, data: bytes) -> None:
-    """Write data to path atomically via tempfile + os.replace."""
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
     try:
@@ -35,7 +34,6 @@ def atomic_write(path: Path, data: bytes) -> None:
 
 
 def safe_json_load(path: Path, default: Any = None) -> Any:
-    """Load JSON from path, returning *default* on missing file or decode error."""
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError:
@@ -46,10 +44,7 @@ def safe_json_load(path: Path, default: Any = None) -> Any:
 
 
 def save_attachment(filename: str, data: bytes) -> Path:
-    """Save attachment bytes to downloads dir, returning the path.
-
-    Handles filename collisions with numeric suffixes (file-2.txt, file-3.txt).
-    """
+    """Handles filename collisions with numeric suffixes."""
     DOWNLOADS_DIR.mkdir(parents=True, exist_ok=True)
     target = DOWNLOADS_DIR / filename
     if target.exists():
@@ -63,7 +58,6 @@ def save_attachment(filename: str, data: bytes) -> Path:
 
 
 def _find_repo(filepath: Path) -> Path | None:
-    """Walk up from filepath to find the nearest git repo root."""
     for parent in filepath.parents:
         if (parent / ".git").is_dir():
             return parent
@@ -89,7 +83,7 @@ def git_commit(filepath: Path, message: str) -> None:
 
 
 def git_rm_commit(filepath: Path, message: str) -> None:
-    """Remove a file from git and commit. No-op when no git repo is found."""
+    """No-op when no git repo is found."""
     repo = _find_repo(filepath)
     if repo is None:
         return
@@ -110,7 +104,7 @@ def git_rm_commit(filepath: Path, message: str) -> None:
 
 
 def parse_frontmatter(text: str) -> dict[str, object]:
-    """Extract YAML frontmatter as a dict. Returns {} on any parse failure."""
+    """Returns empty dict on any parse failure."""
     parts = text.split("---", 2)
     if len(parts) < 3:
         return {}
@@ -125,7 +119,6 @@ def parse_frontmatter(text: str) -> dict[str, object]:
 
 
 def _slugify(text: str, max_len: int = 50) -> str:
-    """Convert text to a filesystem-safe slug."""
     slug = text.lower()
     slug = re.sub(r"[^a-z0-9]+", "-", slug)
     slug = slug.strip("-")
@@ -169,7 +162,6 @@ def _serialize_md(item: T) -> str:
 
 
 def parse_md(text: str, cls: type[T]) -> T:
-    """Parse a single markdown file with YAML frontmatter into a dataclass."""
     parts = text.split("---", 2)
     if len(parts) < 3:
         raise ValueError("Missing YAML frontmatter delimiters")
@@ -196,7 +188,6 @@ def parse_md(text: str, cls: type[T]) -> T:
 
 
 def read_md_dir(dir_path: Path, cls: type[T]) -> list[T]:
-    """Read all .md files in a directory into dataclass instances."""
     if not dir_path.is_dir():
         return []
     result: list[T] = []
@@ -210,7 +201,6 @@ def read_md_dir(dir_path: Path, cls: type[T]) -> list[T]:
 
 
 def write_md(dir_path: Path, item: T, commit_msg: str) -> None:
-    """Write a single item as a .md file with a slug-based filename. Atomic write."""
     dir_path.mkdir(parents=True, exist_ok=True)
     slug = _slugify(item.message)  # type: ignore[attr-defined]
     target = dir_path / f"{slug}.md"
@@ -272,7 +262,6 @@ def append_jsonl(filepath: Path, item: T, commit_msg: str) -> None:
 
 
 def remove_jsonl(filepath: Path, item_id: str, cls: type[T], commit_msg: str) -> bool:
-    """Atomic write (temp file + rename) to prevent data loss on concurrent access."""
     items = read_jsonl(filepath, cls)
     filtered = [i for i in items if i.id != item_id]  # type: ignore[attr-defined]
     if len(filtered) == len(items):
