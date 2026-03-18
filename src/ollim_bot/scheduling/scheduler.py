@@ -273,7 +273,7 @@ def _register_reminder(
             raise
         finally:
             set_chain_context(None)
-            remove_reminder(reminder.id)
+            await asyncio.to_thread(remove_reminder, reminder.id)
             _registered_reminders.discard(reminder.id)
 
     run_at = datetime.fromisoformat(reminder.run_at)

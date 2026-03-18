@@ -1,5 +1,6 @@
 """MCP tool definitions for reminder management (add, list, cancel)."""
 
+import asyncio
 from datetime import datetime
 from typing import Any
 
@@ -92,7 +93,7 @@ async def add_reminder(args: dict[str, Any]) -> dict[str, Any]:
         description=args.get("description", ""),
         max_chain=args.get("max_chain", 0),
     )
-    append_reminder(reminder)
+    await asyncio.to_thread(append_reminder, reminder)
 
     fire_dt = datetime.fromisoformat(reminder.run_at)
     fire_str = fire_dt.strftime("%I:%M %p").lstrip("0")
@@ -135,6 +136,7 @@ async def list_reminders_tool(args: dict[str, Any]) -> dict[str, Any]:
 )
 async def cancel_reminder(args: dict[str, Any]) -> dict[str, Any]:
     reminder_id = args["reminder_id"]
-    if remove_reminder(reminder_id):
+    removed = await asyncio.to_thread(remove_reminder, reminder_id)
+    if removed:
         return _resp(f"Reminder {reminder_id} cancelled.")
     return _resp(f"Error: no reminder found with ID {reminder_id}.")
