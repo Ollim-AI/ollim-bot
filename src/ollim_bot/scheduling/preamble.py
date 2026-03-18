@@ -53,8 +53,6 @@ def _convert_dow(dow: str) -> str:
 
 @dataclass(frozen=True, slots=True)
 class ScheduleEntry:
-    """One upcoming bg task in the forward schedule."""
-
     id: str
     fire_time: datetime
     label: str  # e.g. "Chore-time routine" or "Chain reminder (2/4)"
@@ -72,7 +70,6 @@ _TRUNCATE_LEN = 60
 
 
 def _routine_next_fire(routine: Routine, after: datetime) -> datetime | None:
-    """Get next fire time for a routine after a given datetime."""
     parts = routine.cron.split()
     trigger = CronTrigger(
         minute=parts[0],
@@ -95,7 +92,6 @@ def _routine_prev_fire(routine: Routine, now: datetime) -> datetime | None:
 
 
 def _entry_description(item: Routine | Reminder) -> str:
-    """Use YAML description if available, else truncate message."""
     if item.description:
         return item.description
     msg = item.message.replace("\n", " ").strip()
@@ -105,7 +101,6 @@ def _entry_description(item: Routine | Reminder) -> str:
 
 
 def _entry_label(item: Routine | Reminder) -> str:
-    """Build the label prefix."""
     if isinstance(item, Routine):
         return item.description or "Routine"
     if item.max_chain > 0:
@@ -116,7 +111,6 @@ def _entry_label(item: Routine | Reminder) -> str:
 
 
 def _entry_file_path(item: Routine | Reminder) -> str:
-    """Relative file path for the agent to Read."""
     if isinstance(item, Routine):
         return f"routines/{item.id}.md"
     return f"reminders/{item.id}.md"
@@ -128,7 +122,6 @@ def build_upcoming_schedule(
     *,
     current_id: str,
 ) -> list[ScheduleEntry]:
-    """Build the forward schedule for the bg preamble."""
     now = datetime.now(TZ)
     base_cutoff = now + timedelta(hours=_BASE_WINDOW_HOURS)
     max_cutoff = now + timedelta(hours=_MAX_WINDOW_HOURS)
@@ -199,7 +192,6 @@ def build_bg_preamble(
     busy: bool = False,
     bg_config: BgForkConfig | None = None,
 ) -> str:
-    """Build BG_PREAMBLE with budget status, schedule, and config."""
     now = datetime.now(TZ)
     config = bg_config or BgForkConfig()
 

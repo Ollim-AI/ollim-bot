@@ -39,7 +39,6 @@ class _SilentHandler(wsgiref.simple_server.WSGIRequestHandler):
 
 
 def get_credentials() -> Credentials:
-    """First run opens a browser for consent. Subsequent runs use token.json."""
     creds = None
     if TOKEN_FILE.exists():
         creds = Credentials.from_authorized_user_file(str(TOKEN_FILE), SCOPES)
@@ -72,16 +71,11 @@ def get_credentials() -> Credentials:
 
 
 def get_service(api: str, version: str) -> Resource:
-    """Credentials are obtained (and refreshed) on every call via get_credentials()."""
     return _build(api, version, credentials=get_credentials())
 
 
 def is_google_connected() -> bool:
-    """True if a Google token exists that doesn't require a new consent flow.
-
-    Does not attempt a network refresh — a stale token that can refresh still
-    returns True; actual refresh happens lazily via get_credentials().
-    """
+    """Does not attempt a network refresh; a stale but refreshable token returns True."""
     if not TOKEN_FILE.exists():
         return False
     creds = Credentials.from_authorized_user_file(str(TOKEN_FILE), SCOPES)
@@ -89,11 +83,6 @@ def is_google_connected() -> bool:
 
 
 def check_and_clear_revoked() -> bool:
-    """Return True and delete the marker if a token revocation was detected.
-
-    Written by get_credentials() on non-retryable RefreshError (invalid_grant).
-    Consumed by the scheduler to trigger a user-facing ping.
-    """
     if not _REVOKED_MARKER.exists():
         return False
     _REVOKED_MARKER.unlink(missing_ok=True)
