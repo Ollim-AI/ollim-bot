@@ -25,7 +25,6 @@ _AGENTS_DIR = DATA_DIR / ".claude" / "agents"
 
 
 def _expand(text: str) -> str:
-    """Expand {USER_NAME} and {BOT_NAME} template variables."""
     return text.replace("{USER_NAME}", USER_NAME).replace("{BOT_NAME}", BOT_NAME)
 
 
@@ -46,7 +45,6 @@ def install_agents() -> None:
 
 
 def _extract_tools(path: Path) -> tuple[str, list[str]] | None:
-    """Extract (name, tools) from a single agent spec's YAML frontmatter."""
     try:
         text = path.read_text(encoding="utf-8")
     except OSError as exc:
@@ -70,7 +68,6 @@ def _extract_tools(path: Path) -> tuple[str, list[str]] | None:
 
 
 def load_agent_tool_sets() -> dict[str, list[str]]:
-    """Read tool declarations from installed agent specs for policy validation."""
     tool_sets: dict[str, list[str]] = {}
     if not _AGENTS_DIR.is_dir():
         return tool_sets

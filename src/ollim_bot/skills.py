@@ -57,7 +57,6 @@ def skill_name(item: Routine | Reminder | WebhookSpec) -> str:
 
 
 def _build_skills_instruction(skill_names: list[str]) -> str:
-    """Format a REQUIRED SKILLS instruction block for the SKILL.md body."""
     lines = ["REQUIRED SKILLS: You must invoke these skills before proceeding:"]
     for name in skill_names:
         lines.append(f"  - Skill({name})")
@@ -65,7 +64,6 @@ def _build_skills_instruction(skill_names: list[str]) -> str:
 
 
 def build_skill_md(item: Routine | Reminder | WebhookSpec, *, name: str | None = None) -> str:
-    """Generate SKILL.md content from a Routine, Reminder, or WebhookSpec."""
     if name is None:
         name = skill_name(item)
     description = getattr(item, "description", "") or name
@@ -101,7 +99,6 @@ def build_skill_md(item: Routine | Reminder | WebhookSpec, *, name: str | None =
 
 
 def ensure_skill(item: Routine | Reminder | WebhookSpec) -> str:
-    """Write SKILL.md for the item. Returns skill name."""
     name = skill_name(item)
     skill_dir = SKILLS_DIR / name
     skill_dir.mkdir(parents=True, exist_ok=True)
@@ -110,7 +107,6 @@ def ensure_skill(item: Routine | Reminder | WebhookSpec) -> str:
 
 
 def remove_skill(name: str) -> None:
-    """Remove a generated skill directory."""
     skill_dir = SKILLS_DIR / name
     if skill_dir.is_dir():
         shutil.rmtree(skill_dir)
@@ -118,7 +114,6 @@ def remove_skill(name: str) -> None:
 
 
 def cleanup_stale_skills(active_names: set[str]) -> None:
-    """Remove generated skill dirs not in the active set."""
     if not SKILLS_DIR.is_dir():
         return
     for path in SKILLS_DIR.iterdir():
