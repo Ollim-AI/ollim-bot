@@ -324,3 +324,55 @@ def test_parse_md_accepts_legacy_snake_case_keys():
 
     assert item.allowed_tools == ["Bash(ollim-bot help)"]
     assert item.allow_ping is False
+
+
+# --- Bug 4: YAML string escaping ---
+
+
+def test_serialize_md_escapes_quotes_in_strings():
+    item = MdItem(id="abc", message="test", tag='say "hello"')
+
+    output = _serialize_md(item)
+    parsed = parse_md(output, MdItem)
+
+    assert parsed.tag == 'say "hello"'
+
+
+def test_serialize_md_escapes_quotes_in_list_entries(tmp_path):
+    item = MdItemWithList(
+        id="abc",
+        message="test",
+        tags=['value with "quotes"', "normal"],
+    )
+
+    output = _serialize_md(item)
+    parsed = parse_md(output, MdItemWithList)
+
+    assert parsed.tags == ['value with "quotes"', "normal"]
+
+
+# --- Bug 5: parse_md str coercion ---
+
+
+def test_parse_md_coerces_int_to_str():
+    """YAML parses bare 123 as int; parse_md should coerce to str for str fields."""
+    text = "---\nid: 123\n---\nhello"
+
+    item = parse_md(text, MdItem)
+
+    assert item.id == "123"
+    assert isinstance(item.id, str)
+
+
+# --- Bug 10: read_jsonl skips corrupt lines ---
+
+
+def test_read_jsonl_skips_corrupt_lines(tmp_path):
+    filepath = tmp_path / "items.jsonl"
+    filepath.write_text('{"id": "a", "name": "x", "count": 0}\nnot valid json\n{"id": "b", "name": "y", "count": 1}\n')
+
+    result = read_jsonl(filepath, Item)
+
+    assert len(result) == 2
+    assert result[0].id == "a"
+    assert result[1].id == "b"

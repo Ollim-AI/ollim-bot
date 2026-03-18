@@ -127,6 +127,10 @@ def _slugify(text: str, max_len: int = 50) -> str:
     return slug
 
 
+def _yaml_escape(value: str) -> str:
+    return value.replace("\\", "\\\\").replace('"', '\\"')
+
+
 def _serialize_md(item: T) -> str:
     """Build YAML frontmatter + markdown body from a dataclass with a `message` field."""
     data = asdict(item)  # type: ignore[call-overload]
@@ -147,13 +151,16 @@ def _serialize_md(item: T) -> str:
             continue
         yaml_key = key.replace("_", "-")
         if isinstance(value, str):
-            lines.append(f'{yaml_key}: "{value}"')
+            lines.append(f'{yaml_key}: "{_yaml_escape(value)}"')
         elif isinstance(value, bool):
             lines.append(f"{yaml_key}: {str(value).lower()}")
         elif isinstance(value, list):
             lines.append(f"{yaml_key}:")
             for entry in value:
-                lines.append(f'  - "{entry}"' if isinstance(entry, str) else f"  - {entry}")
+                if isinstance(entry, str):
+                    lines.append(f'  - "{_yaml_escape(entry)}"')
+                else:
+                    lines.append(f"  - {entry}")
         else:
             lines.append(f"{yaml_key}: {value}")
     lines.append("---")
@@ -179,7 +186,7 @@ def parse_md(text: str, cls: type[T]) -> T:
         if key not in fields:
             continue
         expected = fields[key].type
-        if expected == "str" or expected == "str | None":
+        if expected is str or expected == (str | None):
             filtered[key] = str(value) if value is not None else None
         else:
             filtered[key] = value
@@ -249,7 +256,11 @@ def read_jsonl(filepath: Path, cls: type[T]) -> list[T]:
         stripped = line.strip()
         if not stripped or not stripped.startswith("{"):
             continue
-        data = json.loads(stripped)
+        try:
+            data = json.loads(stripped)
+        except json.JSONDecodeError:
+            log.warning("Skipping corrupt JSONL line in %s", filepath)
+            continue
         result.append(cls(**{k: v for k, v in data.items() if k in fields}))
     return result
 
