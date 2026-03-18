@@ -56,27 +56,30 @@ def set_dont_ask(value: bool) -> None:
     _dont_ask = value
 
 
-def is_denied(label: str) -> bool:
-    """Consumes the denial on read — returns True at most once per label."""
-    if label in _denied_labels:
-        _denied_labels.discard(label)
+def _check_and_consume(label: str, state_set: set[str]) -> bool:
+    if label in state_set:
+        state_set.discard(label)
         return True
     return False
+
+
+def is_denied(label: str) -> bool:
+    """Consumes the denial on read — returns True at most once per label."""
+    return _check_and_consume(label, _denied_labels)
 
 
 def is_errored(label: str) -> bool:
-    """Check (and consume) whether a tool label errored."""
-    if label in _errored_labels:
-        _errored_labels.discard(label)
-        return True
-    return False
+    """Consumes the error on read — returns True at most once per label."""
+    return _check_and_consume(label, _errored_labels)
 
 
-def mark_errored(tool_name: str, tool_input: dict) -> None:
+def mark_errored(tool_name: str, tool_input: dict[str, Any]) -> None:
+    """Called from PostToolUse hooks."""
     _errored_labels.add(format_tool_label(tool_name, json.dumps(tool_input)))
 
 
 def clear_errored() -> None:
+    """Called before each new response."""
     _errored_labels.clear()
 
 
