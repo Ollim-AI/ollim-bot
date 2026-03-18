@@ -80,12 +80,7 @@ def _check_corrupt_files(
     kind: Literal["routine", "reminder"],
     all_files: list[Path],
 ) -> None:
-    """Surface corrupt routine/reminder files to the agent via pending_updates.
-
-    Compares the number of .md files on disk to the number successfully parsed.
-    Reports once per directory (deduped by kind); clears when the problem resolves.
-    *all_files* is passed from the caller to avoid re-globbing the directory.
-    """
+    """Surface corrupt routine/reminder files to the agent via pending_updates."""
     skipped = len(all_files) - loaded_count
     problem_key = f"corrupt_{kind}_files"
 
@@ -113,12 +108,7 @@ def _check_corrupt_files(
 
 
 def _merge_skill_tools(config: BgForkConfig, skill_names: list[str] | None) -> BgForkConfig:
-    """Add Skill(<name> *) patterns to allowed_tools for background fork dispatch.
-
-    The SDK handles skill content loading and allowed-tools enforcement
-    natively (resolved before can_use_tool callback). We only need to
-    ensure the Skill tool itself is permitted for each skill name.
-    """
+    """Add Skill(<name> *) patterns to allowed_tools for background fork dispatch."""
     if not skill_names:
         return config
     additions = [f"Skill({name} *)" for name in skill_names]
@@ -311,7 +301,6 @@ _INTERNAL_JOBS = {"sync_all", "check_fork_timeout", "check_for_update"}
 
 
 def _on_job_missed(event: JobExecutionEvent) -> None:
-    """Surface user-facing job misfires to pending_updates."""
     job_id: str = event.job_id
     if job_id in _INTERNAL_JOBS:
         return
