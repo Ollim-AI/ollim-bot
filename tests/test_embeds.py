@@ -4,7 +4,14 @@ import asyncio
 
 import discord
 
-from ollim_bot.embeds import fork_enter_embed, fork_enter_view
+from ollim_bot.embeds import (
+    ButtonConfig,
+    EmbedConfig,
+    build_embed,
+    build_view,
+    fork_enter_embed,
+    fork_enter_view,
+)
 from ollim_bot.prompts import fork_bg_resume_prompt
 
 
@@ -86,6 +93,27 @@ def test_fork_resume_notice_includes_age():
     assert "2d ago" in result
     assert "save_context" in result
     assert "report_updates" in result
+
+
+def test_build_embed_invalid_color_falls_back_to_blue():
+    config = EmbedConfig(title="Test", color="magenta")  # type: ignore[arg-type]
+
+    embed = build_embed(config)
+
+    assert embed.color == discord.Color.blue()
+
+
+def test_build_view_invalid_style_falls_back_to_secondary():
+    buttons = (ButtonConfig(label="Go", action="do_thing", style="link"),)  # type: ignore[arg-type]
+
+    async def _go():
+        return build_view(buttons)
+
+    view = _run(_go())
+
+    assert view is not None
+    btn = view.children[0]
+    assert btn.style == discord.ButtonStyle.secondary
 
 
 def test_fork_resume_notice_no_ts():
