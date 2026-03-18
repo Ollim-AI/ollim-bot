@@ -57,22 +57,22 @@ def test_timestamp_format():
 # -- relative_time --
 
 
-def testrelative_time_just_now():
+def test_relative_time_just_now():
     now = datetime.now(TZ).isoformat()
     assert relative_time(now) == "just now"
 
 
-def testrelative_time_minutes_ago():
+def test_relative_time_minutes_ago():
     five_min_ago = (datetime.now(TZ) - timedelta(minutes=5)).isoformat()
     assert relative_time(five_min_ago) == "5m ago"
 
 
-def testrelative_time_hours_ago():
+def test_relative_time_hours_ago():
     three_hours_ago = (datetime.now(TZ) - timedelta(hours=3)).isoformat()
     assert relative_time(three_hours_ago) == "3h ago"
 
 
-def testrelative_time_days_ago():
+def test_relative_time_days_ago():
     two_days_ago = (datetime.now(TZ) - timedelta(days=2)).isoformat()
     assert relative_time(two_days_ago) == "2d ago"
 
