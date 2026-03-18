@@ -51,7 +51,6 @@ class Reminder:
         allowed_tools: list[str] | None = None,
         skills: list[str] | None = None,
     ) -> "Reminder":
-        """Create a reminder, auto-setting chain_parent to own ID for chain roots."""
         run_at = (datetime.now(TZ) + timedelta(minutes=delay_minutes)).isoformat()
         rid = uuid4().hex[:8]
         assert chain_depth <= max_chain, f"chain_depth ({chain_depth}) > max_chain ({max_chain})"

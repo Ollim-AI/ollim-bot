@@ -96,13 +96,13 @@ def _fmt_date(internal_date: str) -> str:
 
 
 def _short_sender(from_header: str) -> str:
-    """Extract display name from 'Name <email>' format."""
     if "<" in from_header:
         return from_header.split("<")[0].strip().strip('"')
     return from_header
 
 
 def _decode_body(payload: dict, mime_type: str) -> str:
+    """Recursively search MIME parts for mime_type and return decoded content."""
     mime = payload.get("mimeType", "")
 
     if mime == mime_type and payload.get("body", {}).get("data"):
