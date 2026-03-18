@@ -306,7 +306,8 @@ async def follow_up_chain(args: dict[str, Any]) -> dict[str, Any]:
 @tool(
     "save_context",
     "Promote the current interactive fork to the main session. "
-    "Only call when the user explicitly asks to save or keep the fork context.",
+    "NEVER call proactively — only on an explicit user request "
+    "(e.g. 'save this', 'keep context'). Do not infer intent.",
     {
         "type": "object",
         "properties": {},
