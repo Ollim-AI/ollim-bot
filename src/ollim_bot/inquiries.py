@@ -18,8 +18,7 @@ MAX_AGE = 7 * 24 * 3600  # 7 days
 
 
 def register(prompt: str) -> str:
-    """IDs are 8 hex chars; short enough for custom_id but collision risk is negligible at this scale."""
-    uid = uuid4().hex[:8]
+    uid = uuid4().hex[:8]  # 8 hex chars: short enough for custom_id, collision-safe at this scale
     data = _read()
     data[uid] = {"prompt": prompt, "ts": time.time()}
     _write(data)
@@ -27,7 +26,6 @@ def register(prompt: str) -> str:
 
 
 def peek(uid: str) -> str | None:
-    """Check if an inquiry exists without consuming it."""
     data = _read()
     entry = data.get(uid)
     return entry["prompt"] if entry else None
