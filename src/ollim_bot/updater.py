@@ -124,7 +124,8 @@ def format_error(exc: subprocess.CalledProcessError | subprocess.TimeoutExpired)
         return f"`{cmd}` timed out after {exc.timeout}s"
     msg = f"`{cmd}` returned {exc.returncode}"
     if exc.stderr:
-        stderr = exc.stderr.decode(errors="replace").strip()
+        stderr = exc.stderr if isinstance(exc.stderr, str) else exc.stderr.decode(errors="replace")
+        stderr = stderr.strip()
         if stderr:
             msg += f"\n```\n{stderr}\n```"
     return msg
