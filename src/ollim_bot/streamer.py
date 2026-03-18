@@ -140,7 +140,7 @@ async def stream_to_channel(
             return f"-# *{label}...*"
         return f"-# *{label}... ({secs}s)*"
 
-    async def _set_status(label: str) -> None:
+    async def _set_status(label: str, *, force: bool = False) -> None:
         nonlocal status_msg, status_label, status_start, status_last_edit
         new_label = label or "Thinking"
         now = time.monotonic()
@@ -151,6 +151,8 @@ async def stream_to_channel(
             status_start = now
         status_label = new_label
         status_last_edit = now
+        if msg is not None and not force:
+            return
         text = _status_text()
         if status_msg is None:
             status_msg = await channel.send(text)
@@ -274,7 +276,7 @@ async def stream_to_channel(
                     await _finalize_compact()
                 if item.kind == "compact_start":
                     await flush()  # commit pre-compaction content to its own msg
-                    await _set_status(item.label)
+                    await _set_status(item.label, force=True)
                     _compact_tokens = item.compact_tokens
                     in_compact = True
                     was_compacted = True
