@@ -17,7 +17,6 @@ from ollim_bot.storage import git_commit
 
 
 def _resolve_tool_path(data: PreToolUseHookInput | PostToolUseHookInput) -> Path | None:
-    """Resolve ``file_path`` from tool input, returning None if absent."""
     file_path_str: str = data["tool_input"].get("file_path", "")
     if not file_path_str:
         return None
@@ -33,7 +32,6 @@ async def state_dir_guard(
     tool_use_id: str | None,
     context: HookContext,
 ) -> SyncHookJSONOutput:
-    """Block Write/Edit to the protected state/ directory."""
     data = cast(PreToolUseHookInput, input_data)
     resolved = _resolve_tool_path(data)
     if resolved is not None and resolved.is_relative_to(storage.STATE_DIR.resolve()):
@@ -52,7 +50,6 @@ async def auto_commit_hook(
     tool_use_id: str | None,
     context: HookContext,
 ) -> SyncHookJSONOutput:
-    """Auto-commit files after Write/Edit tool calls in DATA_DIR."""
     data = cast(PostToolUseHookInput, input_data)
     resolved = _resolve_tool_path(data)
     if resolved is None:

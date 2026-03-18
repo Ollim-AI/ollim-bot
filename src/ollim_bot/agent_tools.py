@@ -66,23 +66,21 @@ _chain_context_var: ContextVar[ChainContext | None] = ContextVar("_chain_context
 
 
 def set_chain_context(ctx: ChainContext | None) -> None:
-    """Set chain context global — used by foreground reminders."""
+    """Foreground reminders — global for the main thread."""
     global _chain_context
     _chain_context = ctx
 
 
 def set_fork_chain_context(ctx: ChainContext | None) -> None:
-    """Set chain context via contextvar — used by bg reminders."""
+    """Background reminders — contextvar-scoped per fork."""
     _chain_context_var.set(ctx)
 
 
 def _resp(text: str) -> dict[str, Any]:
-    """Build an MCP tool response dict."""
     return {"content": [{"type": "text", "text": text}]}
 
 
 def _source() -> Literal["main", "bg", "fork"]:  # duplicate-ok
-    """Return the execution context: main session, bg fork, or interactive fork."""
     if in_bg_fork():
         return "bg"
     if in_interactive_fork():
@@ -491,7 +489,7 @@ async def update_names(args: dict[str, Any]) -> dict[str, Any]:
 
 
 def build_agent_server() -> Any:
-    """Build the discord MCP server. Lazy to avoid circular import via scheduling.__init__."""
+    """Lazy to avoid circular import via scheduling.__init__."""
     from ollim_bot.reminder_tools import add_reminder, cancel_reminder, list_reminders_tool
 
     return create_sdk_mcp_server(
