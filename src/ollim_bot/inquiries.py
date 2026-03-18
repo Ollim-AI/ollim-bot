@@ -44,7 +44,7 @@ def pop(uid: str) -> str | None:
 def _read() -> dict[str, _InquiryEntry]:
     data = safe_json_load(INQUIRIES_FILE, {})
     cutoff = time.time() - MAX_AGE
-    return {k: v for k, v in data.items() if v.get("ts", 0) > cutoff}
+    return {k: v for k, v in data.items() if v["ts"] > cutoff}
 
 
 def _write(data: dict[str, _InquiryEntry]) -> None:

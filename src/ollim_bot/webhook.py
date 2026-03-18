@@ -231,7 +231,7 @@ async def _handle_webhook(request: web.Request) -> web.Response:
 
     try:
         data = await request.json()
-    except Exception:
+    except json_mod.JSONDecodeError:
         return web.json_response({"error": "invalid json"}, status=400)
 
     errors = validate_payload(spec.fields, data)

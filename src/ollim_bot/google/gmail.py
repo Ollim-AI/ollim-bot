@@ -36,12 +36,12 @@ def run_gmail_command(argv: list[str]) -> None:
     args = parser.parse_args(argv)
 
     if args.action == "unread":
-        query = "is:unread" if getattr(args, "all", False) else "is:unread category:primary"
+        query = "is:unread" if args.all else "is:unread category:primary"
         _handle_list(query=query, max_results=args.max)
     elif args.action == "read":
         _handle_read(args.id)
     elif args.action == "search":
-        query = args.query if getattr(args, "all", False) else f"{args.query} category:primary"
+        query = args.query if args.all else f"{args.query} category:primary"
         _handle_list(query=query, max_results=args.max)
     elif args.action == "labels":
         _handle_labels()
