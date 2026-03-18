@@ -105,13 +105,13 @@ class TestProperties:
 class TestSessionCapture:
     def test_try_capture_first_call_sets(self, agent):
         with patch("ollim_bot.agent.log_session_event"), patch("ollim_bot.agent.load_session_id", return_value=None):
-            agent._try_capture_fork_session("fork-1")
+            _run(agent._try_capture_fork_session("fork-1"))
         assert agent._fork_session_id == "fork-1"
 
     def test_try_capture_idempotent(self, agent):
         with patch("ollim_bot.agent.log_session_event"), patch("ollim_bot.agent.load_session_id", return_value=None):
-            agent._try_capture_fork_session("fork-1")
-            agent._try_capture_fork_session("fork-2")
+            _run(agent._try_capture_fork_session("fork-1"))
+            _run(agent._try_capture_fork_session("fork-2"))
         assert agent._fork_session_id == "fork-1"
 
     def test_capture_fork_session_returns_callback_for_fork_client(self, agent):

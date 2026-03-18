@@ -226,7 +226,8 @@ async def run_agent_background(
             assert client is not None
             try:
                 fork_session_id = await agent.run_on_client(client, prompt, prepend_updates=not isolated)
-                log_session_event(
+                await asyncio.to_thread(
+                    log_session_event,
                     fork_session_id,
                     "isolated_bg" if isolated else "bg_fork",
                     parent_session_id=None if isolated else main_session_id,

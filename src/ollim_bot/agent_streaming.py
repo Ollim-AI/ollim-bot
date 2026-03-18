@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import contextlib
 import logging
-from collections.abc import AsyncGenerator, Callable
+from collections.abc import AsyncGenerator, Awaitable, Callable
 
 from claude_agent_sdk import (
     AssistantMessage,
@@ -62,8 +62,8 @@ async def stream_response(
     message: str,
     *,
     images: list[dict[str, str]] | None = None,
-    on_fork_session: Callable[[str], None] | None = None,
-    on_result_session: Callable[[ClaudeSDKClient, ResultMessage], None] | None = None,
+    on_fork_session: Callable[[str], None | Awaitable[None]] | None = None,
+    on_result_session: Callable[[ClaudeSDKClient, ResultMessage], None | Awaitable[None]] | None = None,
 ) -> AsyncGenerator[str | StreamStatus, None]:
     """Stream a single agent response, yielding text deltas and status signals.
 
@@ -127,7 +127,9 @@ async def stream_response(
 
                     if on_fork_session is not None and not fork_session_notified:
                         fork_session_notified = True
-                        on_fork_session(msg.session_id)
+                        result = on_fork_session(msg.session_id)
+                        if result is not None:
+                            await result
 
                     async for item in parser.feed(msg.event):
                         streamed = True
@@ -143,7 +145,9 @@ async def stream_response(
                     if msg.result:
                         result_text = msg.result
                     if on_result_session is not None:
-                        on_result_session(client, msg)
+                        result = on_result_session(client, msg)
+                        if result is not None:
+                            await result
         except CLIConnectionError:
             if not fork_interrupted:
                 raise

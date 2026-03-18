@@ -3,7 +3,7 @@
 import asyncio
 import contextlib
 import logging
-from collections.abc import AsyncGenerator, Callable
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from dataclasses import replace
 
 from claude_agent_sdk import (
@@ -154,7 +154,7 @@ class Agent:
             await self.exit_interactive_fork(ForkExitAction.EXIT)
         current = load_session_id()
         if current:
-            log_session_event(current, "cleared")
+            await asyncio.to_thread(log_session_event, current, "cleared")
         await self._drop_client()
         delete_session_id()
 
@@ -243,10 +243,10 @@ class Agent:
         self._client = client
         set_swap_in_progress(True)
         try:
-            save_session_id(session_id)
+            await asyncio.to_thread(save_session_id, session_id)
         finally:
             set_swap_in_progress(False)
-        log_session_event(session_id, "swapped", parent_session_id=old_session_id)
+        await asyncio.to_thread(log_session_event, session_id, "swapped", parent_session_id=old_session_id)
         if old:
             with contextlib.suppress(CLIConnectionError):
                 await old.interrupt()
@@ -408,7 +408,7 @@ class Agent:
             elif isinstance(msg, ResultMessage):
                 result_msg = msg
                 if self._client is client:
-                    save_session_id(msg.session_id)
+                    await asyncio.to_thread(save_session_id, msg.session_id)
 
         return format_compact_stats(result_msg, pre_tokens)
 
@@ -431,7 +431,7 @@ class Agent:
                 if msg.result:
                     parts.append(msg.result)
                 if self._client is client:
-                    save_session_id(msg.session_id)
+                    await asyncio.to_thread(save_session_id, msg.session_id)
 
         return parts, result_msg
 
@@ -457,20 +457,20 @@ class Agent:
         client = await self._get_client()
         return client, message
 
-    def _try_capture_fork_session(self, session_id: str) -> None:
+    async def _try_capture_fork_session(self, session_id: str) -> None:
         """Idempotent -- first call wins."""
         if self._fork_session_id is not None:
             return
         self._fork_session_id = session_id
-        log_session_event(session_id, "interactive_fork", parent_session_id=load_session_id())
+        await asyncio.to_thread(log_session_event, session_id, "interactive_fork", parent_session_id=load_session_id())
 
-    def _save_result_session(self, client: ClaudeSDKClient, msg: ResultMessage) -> None:
+    async def _save_result_session(self, client: ClaudeSDKClient, msg: ResultMessage) -> None:
         if self._fork_client is not None and client is self._fork_client:
-            self._try_capture_fork_session(msg.session_id)
+            await self._try_capture_fork_session(msg.session_id)
         elif self._client is client:
-            save_session_id(msg.session_id)
+            await asyncio.to_thread(save_session_id, msg.session_id)
 
-    def _capture_fork_session(self, client: ClaudeSDKClient) -> Callable[[str], None] | None:
+    def _capture_fork_session(self, client: ClaudeSDKClient) -> Callable[[str], Awaitable[None]] | None:
         if self._fork_client is None or client is not self._fork_client:
             return None
         return self._try_capture_fork_session
