@@ -1,9 +1,4 @@
-"""Fork state: enums, dataclasses, contextvars, and accessor functions.
-
-Pure state management — no I/O, no async execution. Separated from forks.py
-so that consumers needing only fork state (permissions, streamer, embeds, etc.)
-don't depend on the heavier fork execution module.
-"""
+"""Fork state: enums, dataclasses, contextvars, and accessor functions."""
 
 from __future__ import annotations
 
@@ -136,8 +131,6 @@ def get_bg_fork_config() -> BgForkConfig:
 
 @dataclass(slots=True)
 class InteractiveForkContext:
-    """Mutable state for the active interactive fork. Created on entry, None on exit."""
-
     idle_timeout: int
     main_gen_snapshot: int
     updates_gen_snapshot: int
@@ -161,19 +154,16 @@ _enter_fork_timeout: int = 10
 
 
 def bump_main_generation() -> None:
-    """Increment main-session generation (call on each user message to main)."""
     global _main_generation
     _main_generation += 1
 
 
 def bump_updates_generation() -> None:
-    """Increment updates generation (call on each append_update)."""
     global _updates_generation
     _updates_generation += 1
 
 
 def main_generation() -> int:
-    """Current main-session generation counter."""
     return _main_generation
 
 
@@ -196,7 +186,6 @@ def in_interactive_fork() -> bool:
 
 
 def is_resumed_fork() -> bool:
-    """True if the current interactive fork was resumed from a prior bg session."""
     if _fork_ctx is None:
         return False
     return _fork_ctx.resume_session_id is not None
@@ -208,7 +197,6 @@ def set_interactive_fork(
     idle_timeout: int | None = None,
     resume_session_id: str | None = None,
 ) -> None:
-    """Enter or exit interactive fork mode."""
     from ollim_bot import runtime_config
 
     global _fork_ctx
@@ -237,13 +225,11 @@ def pop_exit_action() -> ForkExitAction:
 
 
 def bump_fork_turn() -> None:
-    """Increment the fork turn counter (call after each user message to fork)."""
     assert _fork_ctx is not None
     _fork_ctx.turn_count += 1
 
 
 def is_first_fork_turn() -> bool:
-    """True if the interactive fork is still on its first turn (turn 0)."""
     assert _fork_ctx is not None
     return _fork_ctx.turn_count < 1
 
@@ -260,7 +246,6 @@ def request_enter_fork(topic: str | None, *, idle_timeout: int) -> None:
 
 
 def pop_enter_fork() -> tuple[str | None, int]:
-    """Read and clear the enter-fork request. Returns (topic, idle_timeout)."""
     from ollim_bot import runtime_config
 
     cfg_timeout = runtime_config.load().fork_idle_timeout
@@ -286,7 +271,6 @@ def touch_activity() -> None:
 
 
 def is_idle() -> bool:
-    """True if interactive fork has been idle longer than idle_timeout."""
     if _fork_ctx is None:
         return False
     return time.monotonic() - _fork_ctx.last_activity > _fork_ctx.idle_timeout * 60
