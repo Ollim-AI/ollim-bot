@@ -62,7 +62,6 @@ log = logging.getLogger(__name__)
 
 
 def _with_thinking(opts: ClaudeAgentOptions, mode: str) -> ClaudeAgentOptions:
-    """Apply a thinking mode string to options."""
     return replace(opts, thinking=_thinking(mode))
 
 
@@ -155,7 +154,7 @@ class Agent:
         delete_session_id()
 
     async def set_model(self, model: ModelName) -> None:
-        """Updates shared options (affects future connections) and switches any live client in-place."""
+        """Also switches any live client in-place (no reconnect needed)."""
         self.options = replace(self.options, model=model)
         if self._client:
             await self._client.set_model(model)
@@ -163,7 +162,7 @@ class Agent:
             await self._fork_client.set_model(model)
 
     async def set_thinking(self, mode: str) -> None:
-        """Set thinking mode. Drops clients to apply (no live setter)."""
+        """Drops clients to apply -- no live setter available."""
         self.options = _with_thinking(self.options, mode)
         await self._drop_client()
         if self._fork_client:
@@ -178,7 +177,7 @@ class Agent:
                 await fork.disconnect()
 
     async def set_permission_mode(self, mode: str) -> None:
-        """Switch SDK permission mode. Fork-scoped when in interactive fork."""
+        """Fork-scoped: only affects the active fork client when in interactive fork."""
         if self._fork_client:
             await self._fork_client.set_permission_mode(mode)
         elif self._client:
@@ -188,7 +187,6 @@ class Agent:
             self.options = replace(self.options, permission_mode=mode)
 
     async def apply_config(self, key: str) -> None:
-        """Apply a config change to live clients where possible."""
         from ollim_bot import permissions
 
         cfg = runtime_config.load()
@@ -235,7 +233,6 @@ class Agent:
             await client.disconnect()
 
     async def swap_client(self, client: ClaudeSDKClient, session_id: str) -> None:  # duplicate-ok
-        """Promote a forked client to the main client, replacing the old one."""
         old = self._client
         old_session_id = load_session_id()
         self._client = client
@@ -254,7 +251,6 @@ class Agent:
     async def enter_interactive_fork(
         self, *, idle_timeout: int | None = None, resume_session_id: str | None = None
     ) -> None:
-        """Create an interactive fork client and switch routing to it."""
         cfg = runtime_config.load()
         if idle_timeout is None:
             idle_timeout = cfg.fork_idle_timeout
@@ -298,7 +294,6 @@ class Agent:
         return False
 
     async def pop_fork_exit(self) -> tuple[ForkExitAction, str | None] | None:
-        """Pop pending exit action, exit the fork, return (action, summary) or None."""
         action = pop_exit_action()
         if action is ForkExitAction.NONE:
             return None
@@ -367,7 +362,7 @@ class Agent:
         return client
 
     async def run_on_client(self, client: ClaudeSDKClient, message: str, *, prepend_updates: bool = True) -> str:
-        """Send a message on an explicit client, discard output, return session_id."""
+        """Discards streaming output -- only the session_id is captured."""
         if prepend_updates:
             message = await prepend_context(message, clear=False)
         else:
@@ -394,7 +389,6 @@ class Agent:
         return "\n".join(parts) if parts else "done."
 
     async def compact(self, instructions: str | None = None) -> str:
-        """Run /compact and return productivity stats."""
         client = await self._get_client()
         cmd = f"/compact {instructions}" if instructions else "/compact"
         await client.query(cmd)
@@ -414,7 +408,6 @@ class Agent:
         return format_compact_stats(result_msg, pre_tokens)
 
     async def _run_slash(self, client: ClaudeSDKClient, command: str) -> tuple[list[str], ResultMessage | None]:
-        """Send a slash command, return (text parts, ResultMessage)."""
         await client.query(command)
 
         parts: list[str] = []
@@ -447,7 +440,7 @@ class Agent:
         return self._client
 
     async def _resolve_client(self, message: str) -> tuple[ClaudeSDKClient, str]:
-        """Pick the active client (fork or main) and prepend context."""
+        """Uses fork client if active; otherwise uses main client with update injection."""
         if self._fork_client is not None:
             message = await prepend_context(message, clear=False)
             return self._fork_client, message
@@ -460,21 +453,19 @@ class Agent:
         return client, message
 
     def _try_capture_fork_session(self, session_id: str) -> None:
-        """Capture fork session ID idempotently (first call wins)."""
+        """Idempotent -- first call wins."""
         if self._fork_session_id is not None:
             return
         self._fork_session_id = session_id
         log_session_event(session_id, "interactive_fork", parent_session_id=load_session_id())
 
     def _save_result_session(self, client: ClaudeSDKClient, msg: ResultMessage) -> None:
-        """Save session ID from a ResultMessage."""
         if self._fork_client is not None and client is self._fork_client:
             self._try_capture_fork_session(msg.session_id)
         elif self._client is client:
             save_session_id(msg.session_id)
 
     def _capture_fork_session(self, client: ClaudeSDKClient) -> Callable[[str], None] | None:
-        """Return a callback for fork session capture, or None if not in a fork."""
         if self._fork_client is None or client is not self._fork_client:
             return None
         return self._try_capture_fork_session
@@ -485,7 +476,6 @@ class Agent:
         *,
         images: list[dict[str, str]] | None = None,
     ) -> AsyncGenerator[str | StreamStatus, None]:
-        """Yield text deltas and StreamStatus signals for live progress display."""
         clear_denied()
         client, message = await self._resolve_client(message)
         try:
