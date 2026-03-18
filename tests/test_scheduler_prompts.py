@@ -7,6 +7,7 @@ from ollim_bot.fork_state import BgForkConfig
 from ollim_bot.scheduling.preamble import (
     ScheduleEntry,
     _convert_dow,
+    _routine_next_fire,
     build_bg_preamble,
     build_reminder_prompt,
     build_routine_prompt,
@@ -561,3 +562,29 @@ def test_reminder_prompt_no_overdue_no_late_notice():
     prompt = build_reminder_prompt(reminder, skill_name="reminder-r1", reminders=[], routines=[])
 
     assert "[late:" not in prompt
+
+
+# --- Malformed cron handling ---
+
+
+def test_routine_next_fire_short_cron_returns_none():
+    """Cron with fewer than 5 fields should return None, not raise IndexError."""
+    routine = Routine(id="bad", message="Broken", cron="* * *")
+    result = _routine_next_fire(routine, datetime.now(TZ))
+    assert result is None
+
+
+def test_schedule_skips_routine_with_short_cron(monkeypatch):
+    """build_upcoming_schedule gracefully skips routines with malformed cron."""
+    fixed_now = datetime.now(TZ).replace(hour=10, minute=0, second=0, microsecond=0)
+    _patch_now(monkeypatch, fixed_now)
+    routines = [
+        Routine(id="bad", message="Broken", cron="* * *", background=True),
+        Routine(id="good", message="OK", cron="0 12 * * *", background=True),
+    ]
+
+    entries = build_upcoming_schedule(routines, [], current_id="other")
+
+    ids = [e.id for e in entries]
+    assert "bad" not in ids
+    assert "good" in ids

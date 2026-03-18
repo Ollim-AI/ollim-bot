@@ -68,7 +68,7 @@ def _count_md_files(directory: Path) -> int:
 
 
 def check_routines() -> list[CheckResult]:
-    from ollim_bot.scheduling.preamble import _routine_next_fire
+    from ollim_bot.scheduling.preamble import _convert_dow, _routine_next_fire
     from ollim_bot.scheduling.routines import ROUTINES_DIR
 
     results: list[CheckResult] = []
@@ -91,20 +91,33 @@ def check_routines() -> list[CheckResult]:
 
     now = datetime.now(TZ)
     for routine in routines:
-        try:
-            nxt = _routine_next_fire(routine, now)
-        except (ValueError, KeyError) as exc:
-            results.append(
-                CheckResult(
-                    "FAIL",
-                    routine.id,
-                    f"invalid cron '{routine.cron}': {exc}",
-                )
-            )
-            continue
+        nxt = _routine_next_fire(routine, now)
 
         if nxt is None:
-            results.append(CheckResult("WARN", routine.id, f"no upcoming fire time (cron: {routine.cron})"))
+            # Distinguish malformed cron from legitimately no upcoming fire
+            parts = routine.cron.split()
+            if len(parts) != 5:
+                results.append(
+                    CheckResult(
+                        "FAIL", routine.id, f"invalid cron '{routine.cron}': expected 5 fields, got {len(parts)}"
+                    )
+                )
+            else:
+                # Try constructing CronTrigger to surface the actual error
+                from apscheduler.triggers.cron import CronTrigger
+
+                try:
+                    CronTrigger(
+                        minute=parts[0],
+                        hour=parts[1],
+                        day=parts[2],
+                        month=parts[3],
+                        day_of_week=_convert_dow(parts[4]),
+                        timezone=str(TZ),
+                    )
+                    results.append(CheckResult("WARN", routine.id, f"no upcoming fire time (cron: {routine.cron})"))
+                except (ValueError, KeyError, IndexError) as exc:
+                    results.append(CheckResult("FAIL", routine.id, f"invalid cron '{routine.cron}': {exc}"))
         else:
             local_time = nxt.strftime("%I:%M %p").lstrip("0")
             delta = nxt - now
