@@ -780,3 +780,29 @@ def test_bg_tracking_mutations():
     assert t2.reported is True
     assert t2.output_sent is True
     assert t2.ping_count == 1
+
+
+def test_model_forwarded_to_forked_client(data_dir, monkeypatch):
+    """model= must be forwarded to create_forked_client (non-isolated path)."""
+    from ollim_bot import runtime_config
+    from ollim_bot.channel import init_channel
+    from ollim_bot.runtime_config import RuntimeConfig
+
+    channel = AsyncMock()
+    channel.send = AsyncMock()
+    init_channel(channel)
+
+    agent = AsyncMock()
+    agent.lock = MagicMock(return_value=asyncio.Lock())
+
+    client = AsyncMock()
+    agent.create_forked_client = AsyncMock(return_value=client)
+    agent.run_on_client = AsyncMock(return_value="fork-session-id")
+
+    monkeypatch.setattr(runtime_config, "load", lambda: RuntimeConfig())
+
+    _run(run_agent_background(agent, "[routine-bg:test] do stuff", model="haiku"))
+
+    agent.create_forked_client.assert_awaited_once()
+    call_kwargs = agent.create_forked_client.call_args.kwargs
+    assert call_kwargs["model"] == "haiku"
