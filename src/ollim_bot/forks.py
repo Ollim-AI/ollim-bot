@@ -203,6 +203,7 @@ async def run_agent_background(
                         )
                     else:
                         client = await agent.create_forked_client(
+                            model=model,
                             thinking=thinking,
                             allowed_tools=allowed,
                             bg=True,
