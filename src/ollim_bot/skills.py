@@ -7,6 +7,7 @@ gitignored (derived artifacts).
 
 from __future__ import annotations
 
+import importlib.resources
 import logging
 import shutil
 from pathlib import Path
@@ -26,25 +27,45 @@ _BUNDLED_SOURCE_DIR = Path(__file__).parent / "skills"
 _GENERATED_PREFIXES = ("routine-", "reminder-", "webhook-")
 
 
+_PACKAGE_SKILLS: dict[str, tuple[str, str]] = {
+    # skill-name → (package, resource-filename)
+    "claude-history": ("claude_history", "SKILL.md"),
+}
+
+
 def install_bundled_skills() -> None:
     """Copy bundled skill specs from source to skills/ for SDK discovery.
 
+    Installs from two sources:
+    - Local specs in src/ollim_bot/skills/*.md
+    - Package-bundled specs defined in _PACKAGE_SKILLS
+
     Skips files that already exist (user customizations persist across updates).
     """
-    if not _BUNDLED_SOURCE_DIR.is_dir():
-        return
     SKILLS_DIR.mkdir(parents=True, exist_ok=True)
-    for source in sorted(_BUNDLED_SOURCE_DIR.glob("*.md")):
-        name = source.stem
-        target_dir = SKILLS_DIR / name
+    if _BUNDLED_SOURCE_DIR.is_dir():
+        for source in sorted(_BUNDLED_SOURCE_DIR.glob("*.md")):
+            name = source.stem
+            target_dir = SKILLS_DIR / name
+            target = target_dir / "SKILL.md"
+            try:
+                target_dir.mkdir(parents=True, exist_ok=True)
+                with open(target, "x", encoding="utf-8") as f:
+                    f.write(source.read_text(encoding="utf-8"))
+            except FileExistsError:
+                continue
+            log.info("Installed bundled skill: %s", name)
+
+    for skill_name_key, (package, resource) in _PACKAGE_SKILLS.items():
+        target_dir = SKILLS_DIR / skill_name_key
         target = target_dir / "SKILL.md"
-        try:
-            target_dir.mkdir(parents=True, exist_ok=True)
-            with open(target, "x", encoding="utf-8") as f:
-                f.write(source.read_text(encoding="utf-8"))
-        except FileExistsError:
+        if target.exists():
             continue
-        log.info("Installed bundled skill: %s", name)
+        ref = importlib.resources.files(package).joinpath(resource)
+        content = ref.read_text(encoding="utf-8")
+        target_dir.mkdir(parents=True, exist_ok=True)
+        target.write_text(content, encoding="utf-8")
+        log.info("Installed package skill: %s (from %s)", skill_name_key, package)
 
 
 def skill_name(item: Routine | Reminder | WebhookSpec) -> str:

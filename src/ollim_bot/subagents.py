@@ -33,6 +33,9 @@ def _expand(text: str) -> str:
 # linger after auto-update. Safe to trim entries after a few release cycles.
 _MIGRATIONS: dict[str, str | None] = {
     "guide.md": "ollim-bot-guide.md",
+    # Force reinstall: inline command docs replaced with preloaded claude-history skill
+    "history-reviewer.md": "history-reviewer.md",
+    "responsiveness-reviewer.md": "responsiveness-reviewer.md",
 }
 
 

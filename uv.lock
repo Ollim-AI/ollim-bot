@@ -409,7 +409,7 @@ wheels = [
 [[package]]
 name = "claude-history"
 version = "0.1.0"
-source = { git = "https://github.com/Ollim-AI/claude-history.git#4ae031fe977d9e3613f26521de0de3829867b23b" }
+source = { git = "https://github.com/Ollim-AI/claude-history.git#00017e1d1b621f30af6105b53d7dccc47e3f1e0f" }
 
 [[package]]
 name = "click"
