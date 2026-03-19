@@ -26,7 +26,7 @@ log = logging.getLogger(__name__)
 @dataclass(frozen=True, slots=True)
 class ToolPatternError:
     pattern: str
-    source: str  # e.g. "routine:heartbeat", "subagent:guide", "main"
+    source: str  # e.g. "routine:heartbeat", "subagent:ollim-bot-guide", "main"
     message: str
     severity: Literal["error", "warning"]
 

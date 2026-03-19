@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Setup Wizard
 
-Walk the user through configuring their bot. Do all steps yourself in this session — do not delegate to subagents or the Task tool. Only defer to the guide subagent if the user asks something outside the scope of this wizard.
+Walk the user through configuring their bot. Do all steps yourself in this session — do not delegate to subagents or the Task tool. Only defer to the ollim-bot-guide subagent if the user asks something outside the scope of this wizard.
 
 ## Reference: file locations and tools
 
