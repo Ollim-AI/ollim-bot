@@ -82,6 +82,7 @@ Never write working data into the source repo or source code into `~/.ollim-bot/
 - `setting_sources=["project"]` — SDK loads agents and skills from `.claude/` (relative to `cwd=DATA_DIR`)
 - Two MCP servers: `discord` (agent_tools.py — 11 tools) and `docs` (remote, `docs.ollim.ai/mcp`)
 - Subagents: bundled specs in `src/ollim_bot/subagents/*.md`, installed to `~/.ollim-bot/.claude/agents/` at init (skip existing)
+- Subagent migrations: `_MIGRATIONS` in `subagents.py` deletes stale agent files before install. **Content-only updates require a self-migration** (e.g., `"foo.md": "foo.md"`) to force reinstall, since `install_agents()` skips existing files.
 - `ResultMessage.result` is a fallback — don't double-count with `AssistantMessage` text blocks
 
 ### SDK behavioral gotchas
@@ -171,6 +172,13 @@ uv run ty check            # Type check
 ```
 
 Pre-commit hooks (ruff lint, ruff format, ty) run automatically on commit.
+
+Before committing, every change goes through these gates:
+
+1. **One logical change per commit** — split unrelated changes into separate commits.
+2. **Review for complexity** (`/simplify`) — run on all code changes. Skip for docs-only or config-only changes.
+3. **Review agent-facing text** (`/improve-prompt`) — run when a commit adds or modifies system prompts, subagent specs, skill definitions, or MCP tool descriptions, because the bot treats these as instructions. Skip when changes don't alter agent-visible text.
+4. **Add behavior tests** — for any change that adds, removes, or alters runtime behavior. Skip for internal refactors with existing test coverage.
 
 Required env vars (set in `.env`): `DISCORD_TOKEN`, `OLLIM_USER_NAME`, `OLLIM_BOT_NAME`
 
