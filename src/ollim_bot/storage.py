@@ -118,7 +118,7 @@ def parse_frontmatter(text: str) -> dict[str, object]:
 # --- Markdown I/O ---
 
 
-def _slugify(text: str, max_len: int = 50) -> str:
+def slugify(text: str, max_len: int = 50) -> str:
     slug = text.lower()
     slug = re.sub(r"[^a-z0-9]+", "-", slug)
     slug = slug.strip("-")
@@ -209,7 +209,7 @@ def read_md_dir(dir_path: Path, cls: type[T]) -> list[T]:
 
 def write_md(dir_path: Path, item: T, commit_msg: str) -> None:
     dir_path.mkdir(parents=True, exist_ok=True)
-    slug = _slugify(item.message)  # type: ignore[attr-defined]
+    slug = slugify(item.message)  # type: ignore[attr-defined]
     target = dir_path / f"{slug}.md"
 
     # Handle slug collisions: allow overwrite if same id, else bump suffix

@@ -9,6 +9,7 @@ from claude_agent_sdk import tool
 from ollim_bot.config import TZ
 from ollim_bot.scheduling.reminders import Reminder, append_reminder, remove_reminder
 from ollim_bot.scheduling.reminders import list_reminders as _list_reminders
+from ollim_bot.storage import slugify
 
 
 def _resp(text: str) -> dict[str, Any]:
@@ -116,7 +117,7 @@ async def list_reminders_tool(args: dict[str, Any]) -> dict[str, Any]:
         time_str = fire_dt.strftime("%Y-%m-%d %I:%M %p")
         mode = "fg" if not r.background else "bg"
         desc = r.description or "(no description)"
-        lines.append(f"- {r.id} [{mode}] {time_str} — {desc}  (reminders/{r.id}.md)")
+        lines.append(f"- {r.id} [{mode}] {time_str} — {desc}  (reminders/{slugify(r.message)}.md)")
     return _resp("\n".join(lines))
 
 

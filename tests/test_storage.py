@@ -5,7 +5,6 @@ from dataclasses import dataclass
 
 from ollim_bot.storage import (
     _serialize_md,
-    _slugify,
     append_jsonl,
     parse_md,
     read_jsonl,
@@ -13,6 +12,9 @@ from ollim_bot.storage import (
     remove_jsonl,
     remove_md,
     write_md,
+)
+from ollim_bot.storage import (
+    slugify as _slugify,
 )
 
 

@@ -12,6 +12,7 @@ from ollim_bot.config import TZ
 from ollim_bot.fork_state import BgForkConfig
 from ollim_bot.scheduling.reminders import Reminder
 from ollim_bot.scheduling.routines import Routine
+from ollim_bot.storage import slugify
 
 # Standard cron: 0=Sunday. APScheduler CronTrigger: 0=Monday.
 # Convert numeric values to named days to avoid the mismatch.
@@ -114,9 +115,8 @@ def _entry_label(item: Routine | Reminder) -> str:
 
 
 def _entry_file_path(item: Routine | Reminder) -> str:
-    if isinstance(item, Routine):
-        return f"routines/{item.id}.md"
-    return f"reminders/{item.id}.md"
+    directory = "routines" if isinstance(item, Routine) else "reminders"
+    return f"{directory}/{slugify(item.message)}.md"
 
 
 def build_upcoming_schedule(
