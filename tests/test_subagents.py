@@ -65,6 +65,18 @@ def test_install_agents_skips_existing(tmp_path, monkeypatch):
     assert (agents_dir / "ollim-bot-guide.md").read_text() == "custom content"
 
 
+def test_install_agents_removes_migrated_files(tmp_path, monkeypatch):
+    agents_dir = tmp_path / "agents"
+    agents_dir.mkdir(parents=True)
+    (agents_dir / "guide.md").write_text("old guide content")
+    monkeypatch.setattr(subagents_mod, "_AGENTS_DIR", agents_dir)
+
+    install_agents()
+
+    assert not (agents_dir / "guide.md").exists()
+    assert (agents_dir / "ollim-bot-guide.md").exists()
+
+
 def test_install_agents_creates_target_dir(tmp_path, monkeypatch):
     agents_dir = tmp_path / "nested" / "agents"
     monkeypatch.setattr(subagents_mod, "_AGENTS_DIR", agents_dir)

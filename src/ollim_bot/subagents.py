@@ -28,19 +28,30 @@ def _expand(text: str) -> str:
     return text.replace("{USER_NAME}", USER_NAME).replace("{BOT_NAME}", BOT_NAME)
 
 
+# Bundled agents that were renamed or removed. Maps old filename → replacement
+# (or None if removed entirely). Cleaned up on install so stale agents don't
+# linger after auto-update. Safe to trim entries after a few release cycles.
+_MIGRATIONS: dict[str, str | None] = {
+    "guide.md": "ollim-bot-guide.md",
+}
+
+
 def install_agents() -> None:
     """Copy bundled agent specs to .claude/agents/ with template expansion.
 
     Skips files that already exist (user customizations persist across updates).
     """
     _AGENTS_DIR.mkdir(parents=True, exist_ok=True)
+    for old_name, new_name in _MIGRATIONS.items():
+        old_path = _AGENTS_DIR / old_name
+        if old_path.is_file():
+            old_path.unlink()
+            log.info("Migrated agent: %s → %s", old_name, new_name or "(removed)")
     for source in sorted(_SOURCE_DIR.glob("*.md")):
         target = _AGENTS_DIR / source.name
-        try:
-            with open(target, "x", encoding="utf-8") as f:
-                f.write(_expand(source.read_text(encoding="utf-8")))
-        except FileExistsError:
+        if target.exists():
             continue
+        target.write_text(_expand(source.read_text(encoding="utf-8")), encoding="utf-8")
         log.info("Installed bundled agent: %s", source.name)
 
 
