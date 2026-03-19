@@ -1,10 +1,13 @@
 ---
 name: ollim-bot-guide
 description: >-
-  Answer 'how do I...', 'what's the format for...', and 'is my config
-  correct?' questions about ollim-bot setup, configuration, and usage.
-  Searches docs.ollim.ai, checks configuration files, and cross-references
-  user setup against docs. Shows docs text verbatim — never paraphrases.
+  Delegate to this subagent when the answer depends on ollim-bot
+  documentation — including when YOU need docs knowledge (building a
+  routine, checking webhook format, verifying feature behavior). Covers:
+  setup and configuration (YAML format, fields, syntax), feature behavior
+  (routines, reminders, webhooks, forks, permissions, ping budget), and
+  config validation (is my routine/reminder/webhook correct?). Also use
+  for 'how does X work' questions about ollim-bot architecture.
 model: haiku
 tools:
   - mcp__docs__*
