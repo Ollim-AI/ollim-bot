@@ -37,7 +37,7 @@ def test_install_agents_copies_bundled_specs(tmp_path, monkeypatch):
     install_agents()
 
     installed = sorted(p.name for p in agents_dir.glob("*.md"))
-    assert "guide.md" in installed
+    assert "ollim-bot-guide.md" in installed
     assert "gmail-reader.md" in installed
     assert len(installed) == 5
 
@@ -57,12 +57,12 @@ def test_install_agents_expands_templates(tmp_path, monkeypatch):
 def test_install_agents_skips_existing(tmp_path, monkeypatch):
     agents_dir = tmp_path / "agents"
     agents_dir.mkdir(parents=True)
-    (agents_dir / "guide.md").write_text("custom content")
+    (agents_dir / "ollim-bot-guide.md").write_text("custom content")
     monkeypatch.setattr(subagents_mod, "_AGENTS_DIR", agents_dir)
 
     install_agents()
 
-    assert (agents_dir / "guide.md").read_text() == "custom content"
+    assert (agents_dir / "ollim-bot-guide.md").read_text() == "custom content"
 
 
 def test_install_agents_creates_target_dir(tmp_path, monkeypatch):
@@ -148,14 +148,14 @@ def test_extract_tools_name_defaults_to_stem(tmp_path):
 def test_load_agent_tool_sets_from_installed(tmp_path):
     agents_dir = tmp_path / ".claude" / "agents"
     agents_dir.mkdir(parents=True)
-    (agents_dir / "guide.md").write_text("---\nname: guide\ntools:\n  - mcp__docs__*\n---\nbody")
+    (agents_dir / "ollim-bot-guide.md").write_text("---\nname: ollim-bot-guide\ntools:\n  - mcp__docs__*\n---\nbody")
     (agents_dir / "reader.md").write_text("---\nname: reader\ntools:\n  - Read\n---\nbody")
 
     with patch("ollim_bot.subagents._AGENTS_DIR", agents_dir):
         tool_sets = load_agent_tool_sets()
 
     assert tool_sets == {
-        "subagent:guide": ["mcp__docs__*"],
+        "subagent:ollim-bot-guide": ["mcp__docs__*"],
         "subagent:reader": ["Read"],
     }
 
