@@ -11,22 +11,11 @@ and make it their own.
 **[Quickstart](https://docs.ollim.ai/getting-started/quickstart)** |
 **[Design Philosophy](https://docs.ollim.ai/getting-started/design-philosophy)**
 
-## Features
-
-- **Persistent conversations** — context carries across sessions with
-  automatic compaction. The agent remembers what's going on.
-- **Routines & reminders** — recurring crons and one-shot chainable reminders
-  that run as background forks with a configurable ping budget.
-- **Conversation forks** — branch into interactive or background forks. Save
-  context back, report a summary, or discard entirely.
-- **Google integration** — Tasks, Calendar, and Gmail (read-only) via shared
-  OAuth. Manage tasks and events from Discord.
-- **Webhooks** — HTTP endpoints for external triggers with JSON Schema
-  validation and Haiku screening.
-- **Slash commands** — model switching, context management, forking,
-  permissions, and ping budget control.
-
 ## Quickstart
+
+Follow the [quickstart guide](https://docs.ollim.ai/getting-started/quickstart)
+to create a Discord bot and get running. It covers everything from installing
+to sending your first message.
 
 Requires Python 3.11+ and [uv](https://docs.astral.sh/uv/).
 
@@ -55,10 +44,24 @@ Run:
 ollim-bot
 ```
 
-See the [quickstart](https://docs.ollim.ai/getting-started/quickstart) to
-create a Discord bot and get running, then
+After the bot is running, see
 [Google integration](https://docs.ollim.ai/getting-started/google-integration)
 for Tasks, Calendar, and Gmail.
+
+## Features
+
+- **Persistent conversations** — context carries across sessions with
+  automatic compaction. The agent remembers what's going on.
+- **Routines & reminders** — recurring crons and one-shot chainable reminders
+  that run as background forks with a configurable ping budget.
+- **Conversation forks** — branch into interactive or background forks. Save
+  context back, report a summary, or discard entirely.
+- **Google integration** — Tasks, Calendar, and Gmail (read-only) via shared
+  OAuth. Manage tasks and events from Discord.
+- **Webhooks** — HTTP endpoints for external triggers with JSON Schema
+  validation and Haiku screening.
+- **Slash commands** — model switching, context management, forking,
+  permissions, and ping budget control.
 
 ## Development
 
