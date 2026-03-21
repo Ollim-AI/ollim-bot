@@ -1,144 +1,127 @@
 ---
 name: feature-development
-description: Use when building new features or significant enhancements that touch multiple files or introduce new patterns — new commands, new integrations, new routines, cross-module work. Not for bugs, refactoring, or review. Five phases: understand, explore, clarify, implement, review.
-argument-hint: [feature description]
-disable-model-invocation: true
-hooks:
-  Stop:
-    - hooks:
-        - type: prompt
-          prompt: >-
-            Check if this feature-development run covered all 5 phases:
-            Understand, Explore, Clarify, Implement, Review.
-            Clarify may be explicitly skipped with justification — that counts.
-            Implementation without prior Explore is always a failure.
-            Respond {"ok": true} if all addressed,
-            or {"ok": false, "reason": "Skipped: <phases>. <next step>."}.
-          timeout: 30
-  PostToolUse:
-    - matcher: "Edit|Write"
-      hooks:
-        - type: command
-          command: |
-            FILE=$(jq -r '.tool_input.file_path' < /dev/stdin)
-            case "$FILE" in *.py) ;; *) exit 0;; esac
-            uv run ruff check --fix "$FILE" 2>&1 && uv run ruff format "$FILE" 2>&1
-          timeout: 30
+description: Orchestrate specialist agents to produce a refined implementation plan for a feature. Use when developing a new feature or fixing a bug that benefits from multiple specialist perspectives (context engineering, UX, prompt quality, product alignment). Triggers a full specialist review automatically.
+argument-hint: <feature description or bug to fix>
+allowed-tools: Read, Write, Grep, Glob, Bash, Agent, AskUserQuestion, EnterPlanMode, ExitPlanMode
 ---
 
-# Feature Development
+Produce a refined implementation plan by orchestrating specialist agents. Challenge first, then build.
 
-Systematic feature development in five phases. Use `AskUserQuestion` for every user decision — structured multi-choice questions over open-ended text.
+## Phase 1: Enter plan mode and run the critic
 
-## Codebase snapshot
+Call `EnterPlanMode` immediately.
 
-Recent changes: !`git diff --stat HEAD~5 2>/dev/null || echo "(< 5 commits)"`
-Python files: !`find src -name '*.py' | wc -l`
-Largest modules: !`wc -l src/ollim_bot/*.py 2>/dev/null | sort -rn | head -10`
-
-## Phase 1: Understand
-
-Confirm what needs to be built before exploring code.
-
-1. If `$ARGUMENTS` is clear, summarize your understanding in 2-3 sentences
-2. Check existing docs and plans for prior discussion of this feature
-3. **Confirm** via `AskUserQuestion` — for clear requests, a single "Does this match what you want?" with proceed/adjust options suffices
-
-If ambiguous, use `AskUserQuestion` to narrow scope (what problem, what behavior, constraints).
-
-## Phase 2: Explore
-
-Understand the relevant codebase deeply before designing.
-
-**Dispatch 2-3 parallel Explore agents** (`Agent` tool, `subagent_type="Explore"`, `run_in_background=true`), each with a focused prompt:
-
-- **Similar features**: "Load `/design-principles` first. Find features similar to $ARGUMENTS and trace their implementation — entry points, data flow, integration patterns. Evaluate whether existing patterns should be reused or extended."
-- **Architecture & abstractions**: "Load `/design-principles` first. Map the architecture and abstractions relevant to $ARGUMENTS — module boundaries, shared state, execution contexts. Flag boundary violations or coupling concerns."
-- **Integration points**: "Load `/design-principles` first. Identify all integration points for $ARGUMENTS — what modules/patterns does this need to connect with? Note where new boundaries or interfaces are needed."
-
-Each agent must end its response with:
+Run the critic agent before any exploration:
 
 ```
-## Result
-- **key_files**: [5-10 absolute file paths]
-- **patterns**: [2-4 codebase patterns/conventions discovered]
-- **concerns**: [0-3 potential issues or constraints]
+Agent task: "You are a product critic for ollim-bot. Your job is to challenge feature requests before the team invests in elaboration.
+
+Read the product philosophy section from /home/julius/ollim-bot/CLAUDE.md (the section starting with 'Product philosophy'). Pay particular attention to the 4 core beliefs and their priority order.
+
+Feature request:
+<FEATURE_DESCRIPTION>
+
+Challenge this feature on 5 dimensions:
+
+1. **Problem framing**: Is this actually the problem, or a symptom? What is the real user experience failure?
+2. **Solution fit**: Is the proposed solution the minimum effective intervention? Are there simpler alternatives?
+3. **Product philosophy alignment**: Score each of the 4 core beliefs (1-5, where 5 = perfect fit). Show your scoring.
+4. **Scope risk**: What is the smallest version of this fix? What is the biggest this could grow into?
+5. **Verdict**: One of: (a) proceed as described, (b) proceed with scope reduction [specify what to cut], (c) reconsider — here is a better framing [provide reframe]
+
+Be direct. A good critic finds the flaw in the obvious solution. A great critic also shows what the right solution is when the obvious one misses."
+
+Tools: Read
 ```
 
-**Wait for all agents**, then:
-1. Deduplicate key_files across all results
-2. Read all identified key files
-3. Merge patterns and concerns into a single summary
+Read the critic's output. Extract:
+- The verdict (proceed / reduce scope / reconsider)
+- The recommended framing (if different from the original)
+- The scope boundaries (minimum viable version vs. maximum risk version)
 
-**Exploration decision tree:**
-- If feature touches multiple execution contexts (main/interactive fork/bg fork) → load `/async-principles`, map contextvar boundaries
-- If feature needs new Discord message sending → verify channel-sync invariant via `stream_chat` entry points (see CLAUDE.md)
-- If feature introduces module-level mutable state → load `/async-principles`, decide contextvar vs lock, document choice
-- If feature produces user-visible output → load `/ux-principles`, note output format and trigger conditions
+## Phase 2: Conditional user gate
 
-**Use `SearchOllimBot`** (the `docs` MCP server) for architecture and convention questions — e.g., "how does ping budget work", "how to add an MCP tool". Prefer it over grep for "how does X work" questions; use code exploration for implementation details.
+If the critic's verdict is **proceed as described**: skip this gate. Record the feature as stated.
 
-**Phase 2 output** — present before proceeding:
-1. Key files (grouped by role: entry point, data, integration)
-2. Patterns to reuse (with file:line references)
-3. Decision tree results (which branches fired, what was loaded)
-4. If the solution is prompt/routine/doc changes rather than code → state this explicitly, skip Phase 4, and document what to change and where
+If the critic's verdict is **reduce scope** or **reconsider**: present the challenge to the user:
 
-## Phase 3: Clarify
+```
+AskUserQuestion: "Before building the plan, the product critic flagged a concern:
 
-Surface design decisions the user should weigh in on.
+[critic's verdict and reframe, concise — 3-5 sentences]
 
-**Skip when** exploration reveals a single clear path with no meaningful alternatives. State that you're skipping and why.
+Options:
+- Proceed as originally described
+- [paste critic's scope reduction if they suggested one]
+- Use the critic's reframe: [paste critic's alternative framing]
+- Describe your own direction"
+```
 
-**When clarification is needed:**
+If the user response is ambiguous or auto-approved with no meaningful answer, default to the critic's recommended framing.
 
-1. Review exploration findings against the original request
-2. Identify genuine decisions: approach alternatives, scope boundaries, edge-case strategies, integration choices
-3. **Present via `AskUserQuestion`** — batch related decisions (up to 4 questions per call):
-   - 2-4 concrete options with short tradeoff descriptions
-   - Recommended option first (add "(Recommended)" to the label)
-   - Multi-select for non-exclusive choices
+Record the confirmed direction.
 
-**Don't ask when:**
-- Existing codebase conventions dictate the approach
-- The decision is easily reversible and won't surprise the user
+## Phase 3: Integrated planning agent
 
-## Phase 4: Implement
+Launch one planning agent with the full context. The agent loads specialist skills inline.
 
-1. Load `/python-principles`
-2. If concurrency involved: load `/async-principles`
-3. If user-facing: load `/ux-principles`
-4. If architectural decisions: load `/design-principles`
-5. Follow CLAUDE.md code health rules
-6. Implement following chosen architecture and codebase conventions
+```
+Agent task: "You are a senior engineer planning a feature implementation for ollim-bot. You hold four specialist roles simultaneously: context engineer, UX engineer (ADHD-aware), prompt quality reviewer, and implementer.
 
-If implementation reveals a design fork not covered in Phase 3 — where both paths are reasonable and conventions don't decide — use `AskUserQuestion` before continuing.
+Start by reading:
+1. /home/julius/ollim-bot/CLAUDE.md (architecture overview — read the full file)
+2. /home/julius/ollim-bot/.claude/skills/ux-principles/SKILL.md
+3. /home/julius/.claude/skills/improve-prompt/SKILL.md
 
-## Phase 5: Review
+Feature: <FEATURE_DESCRIPTION>
+Confirmed direction: <CONFIRMED_DIRECTION_FROM_PHASE_2>
+Critic notes: <CRITIC_KEY_POINTS>
 
-Two-stage review after implementation.
+Explore the codebase to ground your plan:
+- Use Grep to find files relevant to the feature (search for function names, config keys, file names mentioned in the description)
+- Read the 4-6 most relevant files or sections
+- Identify the specific code path the fix touches
 
-### Stage 1: Spec Compliance
+Then produce an implementation plan and write it to ~/.claude/plans/<feature-slug>.md using Write. Create the directory first with Bash if it does not exist. Use a slug derived from the feature name (lowercase, hyphens).
 
-Did I build what was asked? Check independently — don't trust your own memory.
+The plan must contain these sections:
 
-- **Missing requirements**: are there requirements I skipped or missed?
-- **Extra work**: did I build things that weren't requested? Over-engineer?
-- **Misunderstandings**: did I interpret requirements differently than intended?
+## Problem
+One paragraph grounded in what you found in the code. Name the specific file and function where the failure occurs.
 
-### Stage 2: Code Quality
+## Chosen direction
+The confirmed direction with one-sentence rationale.
 
-Load `/code-review` and run it against the changes (confidence ≥80 filter).
+## Implementation steps
+Numbered steps. Each step must specify: file path, function name or line range, what changes, and how to verify the change worked.
 
-For large changes (5+ files), dispatch a fresh-context review agent (`Agent` tool, `subagent_type="general-purpose"`).
+## Context engineering
+Trace the information flow end-to-end through the fix. Where does information originate, where does it need to arrive? Flag any silent failure risks. Cite specific files and functions.
 
-**Phase 5 output:**
-1. Requirements checklist (each requirement → met / partial / missed)
-2. Code review verdict (confidence score, critical issues if any, files touched)
+## User interaction design
+Every user-visible event the fix produces. Apply ux-principles: acknowledge instantly, one action not a menu, escalate in stages. Write exact Discord message text for any new strings (lowercase, minimal). Note what happens on failure.
 
-## Failure Modes
+## Agent-facing text changes
+Any SKILL.md, agent definition, MCP tool description, or system prompt section the fix adds or modifies. Provide the improved text for anything new. If none, write 'no agent-facing text changes required.'
 
-- **Empty exploration** (agents return no relevant files) → widen search to adjacent modules, or `AskUserQuestion` for entry-point hints
-- **Design fork during implementation** (two reasonable paths, conventions don't decide) → stop, `AskUserQuestion` with options and tradeoffs
-- **Critical review finding** (confidence ≥80 issue violating a code health rule) → fix in-place, re-run Stage 2 on affected files
-- **User skips clarification** (declines or says "you decide") → document assumption inline (`# Assumption: ...`), flag in Phase 5
+## Open questions
+Anything requiring user input before implementation can start. If none, write 'none.'
+
+Ground everything in specific files and line evidence. Prefer 'in bot.py line 42' over 'somewhere in the bot.'"
+
+Tools: Read, Write, Grep, Glob, Bash
+```
+
+## Phase 4: Deliver
+
+Read the planning agent's output. Verify the plan file was written.
+
+Call `ExitPlanMode`.
+
+Present a brief summary:
+- Confirmed direction and why the critic endorsed it (or what scope was cut)
+- The 3 most important implementation steps
+- Any open questions the user must answer before starting
+- Path to the plan file (e.g., `~/.claude/plans/resume-nudge.md`)
+
+Do not ask for approval. If there are open questions, present them as a numbered list and wait for answers before the user begins implementing.
