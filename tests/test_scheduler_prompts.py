@@ -588,3 +588,30 @@ def test_schedule_skips_routine_with_short_cron(monkeypatch):
     ids = [e.id for e in entries]
     assert "bad" not in ids
     assert "good" in ids
+
+
+# --- Google status in preamble ---
+
+
+def test_bg_preamble_google_connected(monkeypatch):
+    monkeypatch.setattr("ollim_bot.scheduling.preamble.is_google_connected", lambda: True)
+    result = build_bg_preamble([])
+    assert "Google" not in result
+
+
+def test_bg_preamble_google_credentials_only(monkeypatch, tmp_path):
+    monkeypatch.setattr("ollim_bot.scheduling.preamble.is_google_connected", lambda: False)
+    creds = tmp_path / "credentials.json"
+    creds.touch()
+    monkeypatch.setattr("ollim_bot.scheduling.preamble.CREDENTIALS_FILE", creds)
+    result = build_bg_preamble([])
+    assert "/google-auth" in result
+    assert "not configured" not in result
+
+
+def test_bg_preamble_google_not_configured(monkeypatch, tmp_path):
+    monkeypatch.setattr("ollim_bot.scheduling.preamble.is_google_connected", lambda: False)
+    monkeypatch.setattr("ollim_bot.scheduling.preamble.CREDENTIALS_FILE", tmp_path / "nope.json")
+    result = build_bg_preamble([])
+    assert "not configured" in result
+    assert "google-integration" in result

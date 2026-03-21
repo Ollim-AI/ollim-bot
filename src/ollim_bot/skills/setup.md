@@ -91,6 +91,12 @@ Before asking anything, check what's already configured:
     - Routine prompt body (below the closing `---`): "Check my Google Calendar and Google Tasks for today. Give me a short briefing: what's on the schedule (with times), any overdue or urgent tasks, and one suggestion for what to start with. Keep it brief — a few lines, not a wall of text."
     - Confirm: "done — morning check-in set for [time] on weekdays. it'll start tomorrow."
   - If no: "no worries — you can set up routines anytime, just ask."
+- After the routine conversation (whether they accepted or declined), mention Google integration:
+  - Check if `state/credentials.json` exists (use Bash: `test -f ~/.ollim-bot/state/credentials.json && echo yes || echo no`)
+  - If credentials exist but token doesn't (`state/token.json`): "by the way, you have Google credentials set up — run `/google-auth` to connect Calendar, Tasks, and Gmail."
+  - If neither exists: "one more thing — connecting Google Calendar and Tasks makes routines way more useful (the morning check-in pulls your schedule and tasks). here's the setup guide: https://docs.ollim.ai/getting-started/google-integration"
+  - If both exist (already connected): skip the mention entirely.
+  - Keep it brief — one message, not a sales pitch. Don't block on it.
 
 ## Rules
 
