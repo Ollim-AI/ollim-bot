@@ -19,7 +19,7 @@ from ollim_bot.agent import Agent
 from ollim_bot.agent_context import ModelName
 from ollim_bot.channel import init_channel
 from ollim_bot.config import BOT_NAME, USER_NAME
-from ollim_bot.embeds import fork_enter_embed, fork_enter_view, fork_exit_embed
+from ollim_bot.embeds import ButtonConfig, build_view, fork_enter_embed, fork_enter_view, fork_exit_embed
 from ollim_bot.fork_state import (
     ForkExitAction,
     bump_fork_turn,
@@ -321,6 +321,22 @@ def create_bot() -> commands.Bot:
         await agent.set_thinking(mode.value)
         await interaction.response.send_message(f"thinking: {mode.name}.")
 
+    def _welcome_view() -> discord.ui.View:
+        buttons = (
+            ButtonConfig(
+                label="Get started \u2014 3 questions",
+                action=(
+                    "agent:Walk me through first-time setup \u2014 "
+                    "my name, the bot's personality, and context about "
+                    "my work and schedule. Use the setup skill."
+                ),
+                style="primary",
+            ),
+        )
+        view = build_view(buttons)
+        assert view is not None
+        return view
+
     @bot.event
     async def on_ready():
         nonlocal _ready_fired
@@ -366,8 +382,9 @@ def create_bot() -> commands.Bot:
         else:
             await dm.send(
                 f"hey {USER_NAME.lower()}, {BOT_NAME} is online. i can set up morning check-ins, "
-                "manage your tasks and calendar, and remind you about things before they slip. "
-                "what's on your plate today?"
+                "manage your tasks and calendar, and remind you about things before they slip.\n\n"
+                "quick setup takes 3 questions \u2014 or just start talking.",
+                view=_welcome_view(),
             )
 
     @bot.event

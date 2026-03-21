@@ -83,7 +83,14 @@ Before asking anything, check what's already configured:
 
 - Summarize what was configured in 3-4 lines
 - If names were changed: mention "use `/restart` to apply the new names everywhere"
-- If this was fresh setup: suggest trying a routine ("want me to set up a morning check-in?")
+- If this was fresh setup, offer to create a morning check-in routine:
+  - First, Glob for `routines/*morning*` or `routines/*check-in*`. If one exists, mention it and ask if they want to adjust it instead of creating a new one.
+  - Ask: "last thing — want me to set up a weekday morning check-in? i'll message you at 9am with your schedule and priorities. you can change the time or skip this."
+  - If yes (or yes with a different time): write `routines/morning-check-in.md` using the Write tool.
+    - YAML frontmatter: generated 8-char hex `id`, `cron` for weekdays at the chosen hour (default `0 9 * * 1-5`), `background: true`, `description: "Morning check-in"`, `update-main-session: on_ping`.
+    - Routine prompt body (below the closing `---`): "Check my Google Calendar and Google Tasks for today. Give me a short briefing: what's on the schedule (with times), any overdue or urgent tasks, and one suggestion for what to start with. Keep it brief — a few lines, not a wall of text."
+    - Confirm: "done — morning check-in set for [time] on weekdays. it'll start tomorrow."
+  - If no: "no worries — you can set up routines anytime, just ask."
 
 ## Rules
 
