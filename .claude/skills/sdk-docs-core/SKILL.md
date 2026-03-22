@@ -39,3 +39,6 @@ Claude Code:
 ## Sessions (A-tier — resume, fork, continue semantics)
 
 !`curl -s https://platform.claude.com/docs/en/agent-sdk/sessions.md`
+
+# Important Read Step - DO NOT SKIP
+Always Read the complete Python SDK Reference before doing work on any SDK related task!

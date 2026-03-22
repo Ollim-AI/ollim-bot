@@ -1,7 +1,6 @@
 ---
 name: sdk-docs-ref
 description: "Preload SDK reference only: Python API surface + doc indexes for all three sites. Use as a lightweight context primer before SDK work."
-disable-model-invocation: true
 allowed-tools: Bash(curl *)
 ---
 
@@ -23,3 +22,6 @@ Claude Code:
 ## Python SDK reference
 
 !`curl -s https://platform.claude.com/docs/en/agent-sdk/python.md`
+
+# Important Read Step - DO NOT SKIP
+Always Read the complete Python SDK Reference before doing work on any SDK related task!

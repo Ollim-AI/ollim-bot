@@ -75,3 +75,6 @@ Claude Code:
 
 ### Session management
 !`curl -s https://docs.ollim.ai/architecture/session-management.md`
+
+# Important Read Step - DO NOT SKIP
+Always Read the complete Python SDK Reference before doing work on any SDK related task!
