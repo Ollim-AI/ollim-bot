@@ -485,6 +485,10 @@ class Agent:
         clear_denied()
         clear_errored()
         client, message = await self._resolve_client(message)
+        from ollim_bot.agent_streaming import _CONTEXT_WINDOWS, _DEFAULT_CONTEXT_WINDOW
+
+        model = self.options.model or ""
+        ctx_window = _CONTEXT_WINDOWS.get(model, _DEFAULT_CONTEXT_WINDOW)
         try:
             async for item in stream_response(
                 client,
@@ -492,6 +496,7 @@ class Agent:
                 images=images,
                 on_fork_session=self._capture_fork_session(client),
                 on_result_session=self._save_result_session,
+                context_window=ctx_window,
             ):
                 if isinstance(item, StreamStatus) and item.kind == "compact_start":
                     self._compacting = True

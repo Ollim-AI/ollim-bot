@@ -23,7 +23,12 @@ from ollim_bot.streamer import StreamParser, StreamStatus
 
 log = logging.getLogger(__name__)
 
-_CONTEXT_WINDOW = 200_000
+_CONTEXT_WINDOWS: dict[str, int] = {
+    "opus": 1_000_000,
+    "sonnet": 1_000_000,
+    "haiku": 200_000,
+}
+_DEFAULT_CONTEXT_WINDOW = 200_000
 _WARN_PCT = 60
 
 
@@ -64,6 +69,7 @@ async def stream_response(
     images: list[dict[str, str]] | None = None,
     on_fork_session: Callable[[str], None | Awaitable[None]] | None = None,
     on_result_session: Callable[[ClaudeSDKClient, ResultMessage], None | Awaitable[None]] | None = None,
+    context_window: int = _DEFAULT_CONTEXT_WINDOW,
 ) -> AsyncGenerator[str | StreamStatus, None]:
     """Stream a single agent response, yielding text deltas and status signals.
 
@@ -162,7 +168,7 @@ async def stream_response(
 
     # Auto-compaction: SDK emits compact_boundary then waits for a new query.
     # Re-send the message so the agent responds against compacted context.
-    if compacted:
+    if compacted and not fork_interrupted:
         log.info("re-sending query after auto-compaction")
         label = "Auto-compacting"
         if compact_tokens is not None:
@@ -184,7 +190,7 @@ async def stream_response(
             yield result_text
 
     if last_input_tokens is not None and not compacted:
-        pct = int(last_input_tokens / _CONTEXT_WINDOW * 100)
+        pct = int(last_input_tokens / context_window * 100)
         if pct >= _WARN_PCT:
             yield StreamStatus(
                 kind="context_warning",

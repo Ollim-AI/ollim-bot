@@ -284,6 +284,28 @@ async def test_cli_error_propagated_without_interrupt():
         await _collect(_stream(client, "hi"))
 
 
+@pytest.mark.asyncio
+async def test_no_compaction_retry_after_fork_interrupt(monkeypatch):
+    """Fork interrupt + compact_boundary in same pass → no re-send."""
+    monkeypatch.setattr(
+        "ollim_bot.agent_streaming.enter_fork_requested",
+        lambda: True,
+    )
+    client = FakeClient(
+        [
+            _stream_event(text="interrupted"),
+            SystemMessage(subtype="compact_boundary", data={"compact_metadata": {}}),
+            _result(),
+        ]
+    )
+
+    items = await _collect(_stream(client, "hi"))
+
+    assert client.interrupted
+    assert len(client.query_calls) == 1  # initial only, no re-send
+    assert not any(isinstance(i, StreamStatus) and i.kind == "compact_start" for i in items)
+
+
 # ---------------------------------------------------------------------------
 # stream_response — on_result_session callback
 # ---------------------------------------------------------------------------
@@ -334,3 +356,43 @@ async def test_build_image_query():
     assert msg["content"][0]["source"]["data"] == "abc123"
     assert msg["content"][1]["type"] == "text"
     assert msg["content"][1]["text"] == "describe this"
+
+
+# ---------------------------------------------------------------------------
+# stream_response — context_window parameter
+# ---------------------------------------------------------------------------
+
+
+def _result_with_usage(input_tokens: int, session_id: str = "s1") -> ResultMessage:
+    return ResultMessage(
+        subtype="result",
+        duration_ms=0,
+        duration_api_ms=0,
+        is_error=False,
+        num_turns=1,
+        session_id=session_id,
+        usage={"input_tokens": input_tokens},
+    )
+
+
+@pytest.mark.asyncio
+async def test_context_warning_uses_custom_window():
+    """context_window=1_000_000 → 120k tokens is only 12%, no warning."""
+    client = FakeClient([_stream_event(text="x"), _result_with_usage(120_000)])
+
+    items = await _collect(_stream(client, "hi", context_window=1_000_000))
+
+    warnings = [i for i in items if isinstance(i, StreamStatus) and i.kind == "context_warning"]
+    assert warnings == []
+
+
+@pytest.mark.asyncio
+async def test_context_warning_fires_at_correct_pct_for_large_window():
+    """context_window=1_000_000 → 600k tokens is 60%, warning fires."""
+    client = FakeClient([_stream_event(text="x"), _result_with_usage(600_000)])
+
+    items = await _collect(_stream(client, "hi", context_window=1_000_000))
+
+    warnings = [i for i in items if isinstance(i, StreamStatus) and i.kind == "context_warning"]
+    assert len(warnings) == 1
+    assert warnings[0].context_pct == 60
