@@ -381,3 +381,52 @@ class TestExitInteractiveFork:
             result = _run(agent.exit_interactive_fork(ForkExitAction.EXIT))
 
         assert result is False
+
+
+# ---------------------------------------------------------------------------
+# Haiku → Sonnet auto-upgrade
+# ---------------------------------------------------------------------------
+
+
+class TestHaikuUpgrade:
+    def test_haiku_upgraded_when_context_exceeds_limit(self, agent):
+        """create_forked_client upgrades haiku→sonnet when tokens > 200k."""
+        agent._last_input_tokens = 250_000
+        mock_cls = MagicMock()
+        mock_cls.return_value.connect = AsyncMock()
+        with patch("ollim_bot.agent.ClaudeSDKClient", mock_cls):
+            _run(agent.create_forked_client(model="haiku"))
+
+        assert agent._last_fork_upgraded is True
+        opts = mock_cls.call_args[0][0]
+        assert opts.model == "sonnet"
+
+    def test_haiku_not_upgraded_when_context_below_limit(self, agent):
+        """create_forked_client keeps haiku when tokens < 200k."""
+        agent._last_input_tokens = 150_000
+        client = AsyncMock()
+        with patch("ollim_bot.agent.ClaudeSDKClient", return_value=client):
+            client.connect = AsyncMock()
+            _run(agent.create_forked_client(model="haiku"))
+
+        assert agent._last_fork_upgraded is False
+
+    def test_sonnet_not_upgraded_regardless_of_tokens(self, agent):
+        """create_forked_client never upgrades sonnet."""
+        agent._last_input_tokens = 500_000
+        client = AsyncMock()
+        with patch("ollim_bot.agent.ClaudeSDKClient", return_value=client):
+            client.connect = AsyncMock()
+            _run(agent.create_forked_client(model="sonnet"))
+
+        assert agent._last_fork_upgraded is False
+
+    def test_no_tokens_tracked_skips_upgrade(self, agent):
+        """create_forked_client skips upgrade when no token data."""
+        assert agent._last_input_tokens is None
+        client = AsyncMock()
+        with patch("ollim_bot.agent.ClaudeSDKClient", return_value=client):
+            client.connect = AsyncMock()
+            _run(agent.create_forked_client(model="haiku"))
+
+        assert agent._last_fork_upgraded is False

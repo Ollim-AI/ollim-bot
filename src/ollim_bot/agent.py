@@ -116,6 +116,8 @@ class Agent:
         self._lock = asyncio.Lock()
         self._compacting = False
         self._bg_tasks: set[asyncio.Task[None]] = set()
+        self._last_input_tokens: int | None = None
+        self._last_fork_upgraded: bool = False
 
     @property
     def in_fork(self) -> bool:
@@ -256,7 +258,8 @@ class Agent:
 
     async def enter_interactive_fork(
         self, *, idle_timeout: int | None = None, resume_session_id: str | None = None
-    ) -> None:
+    ) -> bool:
+        """Enter an interactive fork. Returns True if model was auto-upgraded (haiku→sonnet)."""
         cfg = runtime_config.load()
         if idle_timeout is None:
             idle_timeout = cfg.fork_idle_timeout
@@ -270,6 +273,7 @@ class Agent:
         self._fork_session_id = None
         set_interactive_fork(True, idle_timeout=idle_timeout, resume_session_id=resume_session_id)
         touch_activity()
+        return self._last_fork_upgraded
 
     async def exit_interactive_fork(self, action: ForkExitAction) -> bool:
         """Exit interactive fork: promote (SAVE), report (REPORT), or discard (EXIT).
@@ -327,6 +331,17 @@ class Agent:
         bg=True forces permission_mode="default" so canUseTool is always
         reachable — prevents bypassPermissions from skipping tool gating.
         """
+        from ollim_bot.agent_streaming import _CONTEXT_WINDOWS
+
+        self._last_fork_upgraded = False
+        if (
+            model == "haiku"
+            and self._last_input_tokens
+            and self._last_input_tokens > _CONTEXT_WINDOWS.get("haiku", 200_000)
+        ):
+            log.warning("context %dk exceeds haiku limit, upgrading fork to sonnet", self._last_input_tokens // 1000)
+            model = "sonnet"
+            self._last_fork_upgraded = True
         sid = session_id or load_session_id()
         if sid:
             opts = replace(self.options, resume=sid, fork_session=fork)
@@ -466,6 +481,8 @@ class Agent:
         await asyncio.to_thread(log_session_event, session_id, "interactive_fork", parent_session_id=load_session_id())
 
     async def _save_result_session(self, client: ClaudeSDKClient, msg: ResultMessage) -> None:
+        if msg.usage:
+            self._last_input_tokens = msg.usage.get("input_tokens")
         if self._fork_client is not None and client is self._fork_client:
             await self._try_capture_fork_session(msg.session_id)
         elif self._client is client:

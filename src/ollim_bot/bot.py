@@ -152,8 +152,10 @@ def create_bot() -> commands.Bot:
         await channel.typing()
         await stream_to_channel(channel, agent.stream_chat(prompt, images=images))
 
-    async def _send_fork_enter(channel: discord.abc.Messageable, topic: str | None) -> None:
-        msg = await channel.send(embed=fork_enter_embed(topic), view=fork_enter_view())
+    async def _send_fork_enter(
+        channel: discord.abc.Messageable, topic: str | None, *, upgraded_model: bool = False
+    ) -> None:
+        msg = await channel.send(embed=fork_enter_embed(topic, upgraded_model=upgraded_model), view=fork_enter_view())
         track_message(msg.id)
 
     def _fork_topic_prompt(topic: str) -> str:
@@ -193,9 +195,9 @@ def create_bot() -> commands.Bot:
             topic, timeout = pop_enter_fork()
             if agent.in_fork:
                 return
-            await agent.enter_interactive_fork(idle_timeout=timeout)
+            upgraded = await agent.enter_interactive_fork(idle_timeout=timeout)
             start_message_collector()
-            await _send_fork_enter(channel, topic)
+            await _send_fork_enter(channel, topic, upgraded_model=upgraded)
             prompt = _fork_topic_prompt(topic) if topic else _FORK_NO_TOPIC_PROMPT
             await _dispatch(channel, prompt)
             _flush_fork_messages()
@@ -247,11 +249,11 @@ def create_bot() -> commands.Bot:
             return
         await interaction.response.defer()
         async with agent.lock():
-            await agent.enter_interactive_fork()
+            upgraded = await agent.enter_interactive_fork()
             channel = interaction.channel
             assert isinstance(channel, discord.abc.Messageable)
             start_message_collector()
-            await _send_fork_enter(channel, topic)
+            await _send_fork_enter(channel, topic, upgraded_model=upgraded)
             await interaction.delete_original_response()
             prompt = _fork_topic_prompt(topic) if topic else _FORK_NO_TOPIC_PROMPT
             await _dispatch(channel, prompt)
@@ -443,14 +445,15 @@ def create_bot() -> commands.Bot:
         error_msg: str | None = None
         try:
             async with agent.lock():
+                upgraded = False
                 if fork_session_id:
-                    await agent.enter_interactive_fork(resume_session_id=fork_session_id)
+                    upgraded = await agent.enter_interactive_fork(resume_session_id=fork_session_id)
                     notice = fork_resume_notice(fork_lookup.ts)
                     content = f"{_FORK_REPLY_PREFIX}\n\n{content}\n\n{notice}"
                 if in_interactive_fork() or fork_session_id:
                     start_message_collector()
                 if fork_session_id:
-                    await _send_fork_enter(message.channel, None)
+                    await _send_fork_enter(message.channel, None, upgraded_model=upgraded)
                 await _dispatch(message.channel, content, images=images or None)
                 if in_interactive_fork():
                     _flush_fork_messages()

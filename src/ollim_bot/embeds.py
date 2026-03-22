@@ -58,10 +58,13 @@ def fork_exit_embed(action: ForkExitAction, summary: str | None = None) -> disco
     )
 
 
-def fork_enter_embed(topic: str | None = None) -> discord.Embed:
+def fork_enter_embed(topic: str | None = None, *, upgraded_model: bool = False) -> discord.Embed:
+    desc = f"Topic: {topic}" if topic else "branched conversation — changes stay separate from main."
+    if upgraded_model:
+        desc += "\n⚠️ context exceeds haiku limit — using sonnet"
     return discord.Embed(
         title="Forked Session",
-        description=f"Topic: {topic}" if topic else "branched conversation — changes stay separate from main.",
+        description=desc,
         color=discord.Color.purple(),
     )
 
