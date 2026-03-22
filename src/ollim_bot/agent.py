@@ -171,6 +171,7 @@ class Agent:
         self.options = _with_thinking(self.options, mode)
         await self._drop_client()
         if self._fork_client:
+            set_dont_ask(runtime_config.load().permission_mode == "dontAsk")
             cancel_pending()
             fork = self._fork_client
             self._fork_client = None

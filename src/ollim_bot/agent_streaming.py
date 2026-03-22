@@ -168,7 +168,12 @@ async def stream_response(
         if compact_tokens is not None:
             label += f" {compact_tokens / 1000:.0f}k tokens"
         yield StreamStatus(kind="compact_start", label=label, compact_tokens=compact_tokens)
-        await client.query(message)
+        streamed = False
+        fallback_parts = []
+        if images:
+            await client.query(build_image_query(message, images))
+        else:
+            await client.query(message)
         async for item in _consume(client.receive_response()):
             yield item
 

@@ -44,7 +44,7 @@ def format_compact_stats(result: ResultMessage | None, pre_tokens: int | None) -
 
 def timestamp() -> str:
     """e.g. '[2026-03-18 Wed 02:30 PM PT]'."""
-    return datetime.now(_TZ).strftime("[%Y-%m-%d %a %I:%M %p PT]")
+    return datetime.now(_TZ).strftime("[%Y-%m-%d %a %I:%M %p %Z]")
 
 
 def relative_time(iso_ts: str) -> str:

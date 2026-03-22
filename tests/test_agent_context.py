@@ -20,7 +20,7 @@ from ollim_bot.agent_context import (
 from ollim_bot.config import TZ
 from ollim_bot.forks import PendingUpdate
 
-TS_RE = r"\[\d{4}-\d{2}-\d{2} \w{3} \d{2}:\d{2} [AP]M PT\]"
+TS_RE = r"\[\d{4}-\d{2}-\d{2} \w{3} \d{2}:\d{2} [AP]M \w+\]"
 
 
 # -- _format_duration --
