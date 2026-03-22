@@ -10,7 +10,7 @@ from apscheduler.triggers.cron import CronTrigger
 from ollim_bot import ping_budget
 from ollim_bot.config import TZ
 from ollim_bot.fork_state import BgForkConfig
-from ollim_bot.google.auth import CREDENTIALS_FILE, is_google_connected
+from ollim_bot.google.auth import CREDENTIALS_FILE, SETUP_GUIDE_URL, is_google_connected
 from ollim_bot.scheduling.reminders import Reminder
 from ollim_bot.scheduling.routines import Routine
 
@@ -333,17 +333,17 @@ def build_bg_preamble(
     proxy_line = "For preference decisions, spawn the user-proxy subagent (via Agent tool).\n\n" if can_use_task else ""
 
     # --- Google status ---
-    if is_google_connected():
-        google_section = ""
-    elif CREDENTIALS_FILE.exists():
-        google_section = "Google: credentials configured but not authorized \u2014 /google-auth to connect.\n\n"
-    else:
+    if not CREDENTIALS_FILE.exists():
         google_section = (
             "Google: not configured. Calendar, Tasks, and Gmail commands "
             "will fail. If your task references Google data, skip those "
-            "commands and tell the user: \"Google isn't connected yet \u2014 "
-            'set it up here: https://docs.ollim.ai/getting-started/google-integration"\n\n'
+            "commands and tell the user: 'Google isn't connected yet \u2014 "
+            f"set it up here: {SETUP_GUIDE_URL}'\n\n"
         )
+    elif not is_google_connected():
+        google_section = "Google: credentials configured but not authorized \u2014 /google-auth to connect.\n\n"
+    else:
+        google_section = ""
 
     return f"{ping_section}{update_section}{busy_line}{budget_section}{tools_section}{unavailable_hint}{google_section}{proxy_line}"
 

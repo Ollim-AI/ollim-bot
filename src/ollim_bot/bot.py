@@ -620,12 +620,12 @@ def create_bot() -> commands.Bot:
     @discord.app_commands.check(_owner_check)
     async def slash_google_auth(interaction: discord.Interaction) -> None:
         from ollim_bot.channel import get_channel
-        from ollim_bot.google.auth import CREDENTIALS_FILE, is_google_connected, start_google_auth_flow
+        from ollim_bot.google.auth import CREDENTIALS_FILE, SETUP_GUIDE_URL, is_google_connected, start_google_auth_flow
 
         if not CREDENTIALS_FILE.exists():
             await interaction.response.send_message(
                 f"google credentials not found at `{CREDENTIALS_FILE}`.\n"
-                "follow the [setup guide](https://docs.ollim.ai/getting-started/google-integration) to create OAuth credentials.",
+                f"follow the [setup guide]({SETUP_GUIDE_URL}) to create OAuth credentials.",
                 ephemeral=True,
             )
             return

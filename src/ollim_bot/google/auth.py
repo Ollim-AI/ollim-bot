@@ -31,6 +31,7 @@ SCOPES = [
 CREDENTIALS_FILE = STATE_DIR / "credentials.json"
 TOKEN_FILE = STATE_DIR / "token.json"
 _REVOKED_MARKER = STATE_DIR / "google_auth_revoked"
+SETUP_GUIDE_URL = "https://docs.ollim.ai/getting-started/google-integration"
 
 
 class _SilentHandler(wsgiref.simple_server.WSGIRequestHandler):
@@ -61,7 +62,7 @@ def get_credentials() -> Credentials:
         print(f"Google credentials not found at {CREDENTIALS_FILE}", file=sys.stderr)
         print("", file=sys.stderr)
         print("Follow the setup guide to create OAuth credentials:", file=sys.stderr)
-        print("https://docs.ollim.ai/getting-started/google-integration", file=sys.stderr)
+        print(SETUP_GUIDE_URL, file=sys.stderr)
         raise SystemExit(1)
     flow = InstalledAppFlow.from_client_secrets_file(str(CREDENTIALS_FILE), SCOPES)
     creds = flow.run_local_server(port=0, bind_addr="127.0.0.1")
