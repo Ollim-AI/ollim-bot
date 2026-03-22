@@ -593,7 +593,10 @@ def test_schedule_skips_routine_with_short_cron(monkeypatch):
 # --- Google status in preamble ---
 
 
-def test_bg_preamble_google_connected(monkeypatch):
+def test_bg_preamble_google_connected(monkeypatch, tmp_path):
+    creds = tmp_path / "credentials.json"
+    creds.touch()
+    monkeypatch.setattr("ollim_bot.scheduling.preamble.CREDENTIALS_FILE", creds)
     monkeypatch.setattr("ollim_bot.scheduling.preamble.is_google_connected", lambda: True)
     result = build_bg_preamble([])
     assert "Google" not in result
