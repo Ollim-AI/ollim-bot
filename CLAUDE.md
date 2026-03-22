@@ -171,7 +171,7 @@ uv run ruff format         # Format
 uv run ty check            # Type check
 ```
 
-Pre-commit hooks (ruff lint, ruff format, ty) run automatically on commit.
+Pre-commit hooks via [prek](https://github.com/j178/prek) (ruff lint, ruff format, ty) run automatically on commit.
 
 Before committing, every change goes through these gates:
 
