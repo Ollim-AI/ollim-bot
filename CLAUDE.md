@@ -26,7 +26,7 @@ Two separate trees — never mix them:
 `DATA_DIR` subdivisions:
 - `IDENTITY.md` — bot persona (tone, personality, relationship dynamics); bootstrapped from template, user-editable
 - `USER.md` — context about the user (work, schedule, ADHD patterns, priorities); user-created, not bootstrapped
-- `routines/`, `reminders/`, `webhooks/`, `skills/` — agent-managed markdown files
+- `routines/`, `reminders/`, `webhooks/`, `.claude/skills/` — agent-managed markdown files
 - `state/` (`STATE_DIR`) — code-only infrastructure (sessions, ping budget, inquiries, tokens)
 
 Never write working data into the source repo or source code into `~/.ollim-bot/`.
@@ -35,13 +35,13 @@ Never write working data into the source repo or source code into `~/.ollim-bot/
 - `bot.py` -- Discord interface (DMs, @mentions, slash commands, reaction ack, interrupt-on-new-message)
 - `agent.py` -- Claude Agent SDK brain (persistent sessions, MCP tools, subagents, slash command routing)
 - `agent_streaming.py` -- `stream_response()` free function: streaming loop, auto-compaction retry, fallback tiers, fork interrupt (tested independently)
-- `agent_context.py` -- Message context helpers: `timestamp`, `prepend_context`, `format_compact_stats`, `thinking()`, `ModelName`
+- `agent_context.py` -- Message context helpers (timestamps, thinking config, model names)
 - `main.py` -- CLI entry point and command router (`ollim-bot` dispatches to bot, routines, reminders, tasks, cal, gmail)
 - `auth.py` -- Claude CLI auth via bundled Agent SDK CLI (`is_authenticated`, `start_login`, `ollim-bot auth` subcommands)
 - `profile.py` -- User profile files: IDENTITY.md (bot persona) and USER.md (user context), bootstrap and loading
 - `prompts.py` -- System prompt builder: composes profile + operational instructions; fork prompt helpers
 - `subagents.py` -- Bundled agent installation (`install_agents`) and tool-set extraction (`load_agent_tool_sets`) for policy validation; specs in `subagents/*.md`
-- `agent_tools.py` -- MCP tools: `discord_embed`, `ping_user`, `follow_up_chain`, `save_context`, `report_updates`, `enter_fork`, `exit_fork`, `add_reminder`, `list_reminders`, `cancel_reminder`
+- `agent_tools.py` -- MCP tools for the `discord` server (11 tools — pings, embeds, forks, reminders, context)
 - `reminder_tools.py` -- MCP tool implementations for reminder management (add, list, cancel)
 - `hooks.py` -- Agent SDK hooks: `state_dir_guard` (PreToolUse — blocks Write/Edit to state/), `auto_commit_hook` (PostToolUse — auto-commits .md file changes in DATA_DIR)
 - `channel.py` -- DM channel reference, set once at startup (`init_channel`/`get_channel`)
@@ -49,7 +49,7 @@ Never write working data into the source repo or source code into `~/.ollim-bot/
 - `fork_state.py` -- Pure fork state: enums (`ForkExitAction`), dataclasses (`BgForkConfig`), contextvars, accessors (zero internal imports — leaf dependency)
 - `forks.py` -- Fork I/O: pending updates, `run_agent_background`, `send_agent_dm` (state moved to `fork_state.py`)
 - `views.py` -- Persistent button handlers via `DynamicItem` (delegates to google/, forks, and streamer)
-- `storage.py` -- Shared JSONL I/O, markdown I/O (`read_md_dir`/`write_md`/`remove_md`), git auto-commit, and path constants (`DATA_DIR` for agent workspace, `STATE_DIR` for code-only infrastructure in `~/.ollim-bot/state/`)
+- `storage.py` -- Shared JSONL I/O, markdown I/O, git auto-commit, and path constants (`DATA_DIR`, `STATE_DIR`)
 - `streamer.py` -- Streams agent responses to Discord (throttled edits, 2000-char overflow, tool label rendering with denial strikethrough)
 - `sessions.py` -- Persists Agent SDK session ID (plain string file) + session history JSONL log (lifecycle events)
 - `permissions.py` -- Discord-based tool approval (canUseTool callback, reaction-based approval, session-allowed set)
@@ -124,14 +124,13 @@ Never write working data into the source repo or source code into `~/.ollim-bot/
 - `_session_allowed` set: shared across main + interactive forks, reset on `/clear`
 
 ## Ping budget
-See `SearchOllimBot` for full mechanics. Key rules:
+See docs site for full mechanics. Key rules:
 - Scope: bg forks only — main session and interactive fork pings are never counted
 - `critical=True` bypasses budget but is tracked
 - Quiet when busy: `_busy` contextvar set when `agent.lock()` held; non-critical pings return errors
 
 ## Routines & reminders
 Format spec: see docs site. Key implementation details:
-- Files: `~/.ollim-bot/routines/<slug>.md` and `reminders/<slug>.md` (YAML frontmatter + markdown)
 - Agent manages files directly (Glob/Read/Write/Edit) — no CLI required
 - Scheduler polls both directories every 10s, registers/removes APScheduler jobs
 - Background forks: `run_agent_background` creates disposable forked client (`fork_session=True`)
