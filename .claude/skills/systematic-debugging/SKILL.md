@@ -2,13 +2,14 @@
 name: systematic-debugging
 description: Use when encountering any bug, test failure, or unexpected behavior — before proposing fixes. For runtime investigation of what the bot actually did, use debug-bot-history instead.
 argument-hint: [description of the issue]
+allowed-tools: Read, Grep, Glob, Bash, AskUserQuestion
 ---
 
 # Systematic Debugging
 
 Find the root cause before attempting fixes. Random fixes waste time and create new bugs.
 
-**Iron law: no fixes without root cause investigation first.** If you haven't completed Phase 1, you cannot propose fixes.
+**Iron law: no fixes without root cause investigation first.** If you haven't completed Phases 1-3 and written a root cause statement, you cannot write any fix code.
 
 ## How to Use
 
@@ -59,15 +60,40 @@ Complete each phase before proceeding to the next.
 
 2. **Test minimally** — make the smallest possible change to test the hypothesis. One variable at a time. Don't fix multiple things at once.
 
-3. **Evaluate** — did it work? Yes: proceed to Phase 4. No: form a NEW hypothesis. Don't add more fixes on top.
+3. **Evaluate** — did it work? Yes: proceed to root cause statement. No: form a NEW hypothesis. Don't add more fixes on top.
 
 4. **When you don't know** — say "I don't understand X." Don't pretend to know. Research more or ask for help.
 
+### Root Cause Statement (required gate before Phase 4)
+
+Before writing any fix, output this block in your response. It must be specific — "probably in the streaming layer" is not a root cause.
+
+**For behavior bugs:**
+```
+Root cause: [file:line] — [what the code does] instead of [what it should do]
+Evidence: [quote the specific lines or describe the exact mechanism]
+```
+
+**For capability gaps (missing functionality):**
+```
+Gap: [what is missing]
+Existing foundation: [what already exists that this builds on — be specific: function names, file paths]
+Candidate signals/approaches: [enumerate options with reliability and crash-safety notes for each]
+Minimal change surface: [files and what changes in each]
+Design tradeoffs: [1-3 questions the user should weigh]
+```
+
+**Gate:** If you cannot write a complete statement from your investigation — the evidence is insufficient. Return to Phase 1 and read more files. Do not write fix code without a complete statement.
+
+If the root cause is unclear after reading all named files: `AskUserQuestion` — "I've traced execution through [files] and the divergence isn't clear at [specific point]. Can you tell me more about when exactly this happens?"
+
 ### Phase 4: Fix
+
+Only after the root cause statement is written.
 
 1. **Write a failing test** that reproduces the bug. Simplest possible reproduction.
 
-2. **Implement a single fix** addressing the root cause. One change at a time. No "while I'm here" improvements.
+2. **Implement a single fix** addressing the root cause statement exactly. One change at a time. No "while I'm here" improvements.
 
 3. **Verify** — test passes now? No other tests broken? Issue actually resolved?
 
@@ -89,7 +115,6 @@ If you catch yourself thinking any of these, you're rationalizing. STOP.
 | "I see the problem, let me fix it" | Seeing symptoms is not understanding root cause. |
 | "One more fix attempt" (after 2+ failures) | 3+ failures = architectural problem. Question the pattern, don't fix again. |
 | "Skip the test, I'll manually verify" | Untested fixes don't stick. Test first proves it. |
-| "Pattern says X but I'll adapt it differently" | Partial understanding of patterns guarantees bugs. Read completely. |
 | "Here are the main problems: [lists fixes]" | Proposing solutions before investigation is guessing. |
 
 ## When to Ask for Clarification
