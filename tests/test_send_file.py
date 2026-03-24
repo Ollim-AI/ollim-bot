@@ -156,6 +156,7 @@ def test_send_file_tilde_expansion(tmp_path: Path, monkeypatch):
     f = tmp_path / "resume.pdf"
     f.write_bytes(b"%PDF-fake")
     monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))  # Windows uses USERPROFILE
     ch = InMemoryChannel()
     init_channel(ch)
 
