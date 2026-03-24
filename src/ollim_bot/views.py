@@ -180,6 +180,7 @@ async def _handle_fork_save_confirm(interaction: discord.Interaction, _data: str
 
 
 async def _handle_fork_save(interaction: discord.Interaction, _data: str) -> None:
+    """Save Context button on the fork-enter embed (user-initiated shortcut)."""
     await _do_fork_save(interaction, delete_trigger=False)
 
 
@@ -192,7 +193,7 @@ async def _do_fork_save(interaction: discord.Interaction, *, delete_trigger: boo
     assert _agent is not None
     await interaction.response.defer()
     if delete_trigger:
-        with contextlib.suppress(discord.NotFound):
+        with contextlib.suppress(discord.HTTPException):
             assert interaction.message is not None
             await interaction.message.delete()
     async with _agent.lock():
