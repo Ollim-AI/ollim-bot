@@ -41,7 +41,7 @@ Never write working data into the source repo or source code into `~/.ollim-bot/
 - `profile.py` -- User profile files: IDENTITY.md (bot persona) and USER.md (user context), bootstrap and loading
 - `prompts.py` -- System prompt builder: composes profile + operational instructions; fork prompt helpers
 - `subagents.py` -- Bundled agent installation (`install_agents`) and tool-set extraction (`load_agent_tool_sets`) for policy validation; specs in `subagents/*.md`
-- `agent_tools.py` -- MCP tools for the `discord` server (11 tools — pings, embeds, forks, reminders, context)
+- `agent_tools.py` -- MCP tools for the `discord` server (12 tools — pings, embeds, forks, reminders, context)
 - `reminder_tools.py` -- MCP tool implementations for reminder management (add, list, cancel)
 - `hooks.py` -- Agent SDK hooks: `state_dir_guard` (PreToolUse — blocks Write/Edit to state/), `auto_commit_hook` (PostToolUse — auto-commits .md file changes in DATA_DIR)
 - `channel.py` -- DM channel reference, set once at startup (`init_channel`/`get_channel`)
@@ -80,7 +80,7 @@ Never write working data into the source repo or source code into `~/.ollim-bot/
 - Auth: Claude Code OAuth (no API key needed)
 - Single `ClaudeSDKClient` for persistent conversation with auto-compaction
 - `setting_sources=["project"]` — SDK loads agents and skills from `.claude/` (relative to `cwd=DATA_DIR`)
-- Two MCP servers: `discord` (agent_tools.py — 11 tools) and `docs` (remote, `docs.ollim.ai/mcp`)
+- Two MCP servers: `discord` (agent_tools.py — 12 tools) and `docs` (remote, `docs.ollim.ai/mcp`)
 - Subagents: bundled specs in `src/ollim_bot/subagents/*.md`, installed to `~/.ollim-bot/.claude/agents/` at init (skip existing)
 - Subagent migrations: `_MIGRATIONS` in `subagents.py` deletes stale agent files before install. **Content-only updates require a self-migration** (e.g., `"foo.md": "foo.md"`) to force reinstall, since `install_agents()` skips existing files.
 - `ResultMessage.result` is a fallback — don't double-count with `AssistantMessage` text blocks

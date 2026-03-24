@@ -1,12 +1,15 @@
 """MCP tool definitions for agent interactions (embeds, buttons, chains, forks)."""
 
 import asyncio
+import stat as stat_mod
 import subprocess
 import sys
 from contextvars import ContextVar
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Literal
 
+import discord
 from claude_agent_sdk import create_sdk_mcp_server, tool
 from claude_agent_sdk.types import HookContext, HookInput, SyncHookJSONOutput
 
@@ -493,6 +496,74 @@ async def update_names(args: dict[str, Any]) -> dict[str, Any]:
     return _resp(f"Names updated: user={user_name}, bot={bot_name}. Changes take full effect after /restart.")
 
 
+_MAX_FILE_SIZE = 25 * 1024 * 1024  # 25 MB (Discord non-Nitro limit)
+
+
+@tool(
+    "send_file",
+    "Available in all contexts. Send a file from the local filesystem as a Discord "
+    "attachment. Use for documents, images, logs, or any file the user needs. "
+    "Max 25 MB (Discord limit).",
+    {
+        "type": "object",
+        "properties": {
+            "file_path": {
+                "type": "string",
+                "description": "Path to the file (absolute or ~/...)",
+            },
+            "message": {
+                "type": "string",
+                "description": "Optional message to accompany the file",
+            },
+            "critical": {
+                "type": "boolean",
+                "description": "Set true only when the user would be devastated if they missed this",
+            },
+        },
+        "required": ["file_path"],
+    },
+)
+async def send_file(args: dict[str, Any]) -> dict[str, Any]:
+    channel = get_channel()
+    if channel is None:
+        return _resp("Error: no active channel")
+
+    source = _source()
+    if source == "bg":
+        if not get_bg_fork_config().allow_ping:
+            return _resp("Pinging is disabled for this background task.")
+        if budget_error := _check_bg_budget(args):
+            return budget_error
+
+    path = Path(args["file_path"]).expanduser().resolve()
+    try:
+        st = path.stat()
+    except OSError:
+        return _resp(f"Error: file not found: {path}")
+    if not stat_mod.S_ISREG(st.st_mode):
+        return _resp(f"Error: not a regular file: {path}")
+
+    if st.st_size > _MAX_FILE_SIZE:
+        size_mb = st.st_size / 1024**2
+        return _resp(f"Error: file is {size_mb:.1f} MB, exceeds Discord's 25 MB limit.")
+
+    content = args.get("message")
+    if source == "bg" and content:
+        content = f"[bg] {content}"
+    elif source == "bg":
+        content = f"[bg] 📎 {path.name}"
+
+    msg = await channel.send(content=content, file=discord.File(path))
+    track_message(msg.id)
+    if source == "bg" and (tracking := get_bg_tracking()):
+        tracking.output_sent = True
+        tracking.ping_count += 1
+
+    size = st.st_size
+    size_str = f"{size / 1024:.0f} KB" if size < 1024**2 else f"{size / 1024**2:.1f} MB"
+    return _resp(f"File sent: {path.name} ({size_str})")
+
+
 def build_agent_server() -> Any:
     """Lazy to avoid circular import via scheduling.__init__."""
     from ollim_bot.reminder_tools import add_reminder, cancel_reminder, list_reminders_tool
@@ -508,6 +579,7 @@ def build_agent_server() -> Any:
             enter_fork,
             exit_fork,
             update_names,
+            send_file,
             add_reminder,
             list_reminders_tool,
             cancel_reminder,
