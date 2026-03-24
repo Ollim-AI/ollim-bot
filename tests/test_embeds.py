@@ -11,6 +11,8 @@ from ollim_bot.embeds import (
     build_view,
     fork_enter_embed,
     fork_enter_view,
+    save_context_embed,
+    save_context_view,
 )
 from ollim_bot.prompts import fork_bg_resume_prompt
 
@@ -57,6 +59,32 @@ def test_fork_enter_view_button_styles():
 
 async def _build_view() -> discord.ui.View:
     return fork_enter_view()
+
+
+def test_save_context_embed():
+    embed = save_context_embed()
+
+    assert embed.title == "save context?"
+    assert embed.description is not None and "replaces your main session" in embed.description
+    assert embed.color == discord.Color.yellow()
+
+
+def test_save_context_view_buttons():
+    view = _run(_build_save_context_view())
+
+    labels = {item.custom_id: item.label for item in view.children}
+    styles = {item.custom_id: item.style for item in view.children}
+    assert set(labels) == {"act:fork_save_confirm:_", "act:fork_report:_", "act:fork_save_dismiss:_"}
+    assert labels["act:fork_save_confirm:_"] == "Confirm"
+    assert labels["act:fork_report:_"] == "Report Instead"
+    assert labels["act:fork_save_dismiss:_"] == "Dismiss"
+    assert styles["act:fork_save_confirm:_"] == discord.ButtonStyle.success
+    assert styles["act:fork_report:_"] == discord.ButtonStyle.primary
+    assert styles["act:fork_save_dismiss:_"] == discord.ButtonStyle.secondary
+
+
+async def _build_save_context_view() -> discord.ui.View:
+    return save_context_view()
 
 
 def test_fork_bg_resume_prompt_contains_fork_started_tag():

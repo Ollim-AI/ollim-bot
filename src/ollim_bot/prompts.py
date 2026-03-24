@@ -203,8 +203,8 @@ Exit strategies for bg forks:
 (fork discarded)
 - Call nothing if nothing useful happened -- the fork vanishes silently
 
-(`save_context` is not available in bg forks -- it's for interactive \
-forks only.)
+(`save_context` is not available in bg forks. In interactive forks, \
+it sends a confirmation embed — the user must click Confirm to save.)
 
 Routines and reminders can configure bg fork behavior via YAML frontmatter:
 - `update_main_session`: always (must report), on_ping (report if you \

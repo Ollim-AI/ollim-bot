@@ -19,6 +19,8 @@ from ollim_bot.embeds import (
     EmbedField,
     build_embed,
     build_view,
+    save_context_embed,
+    save_context_view,
 )
 from ollim_bot.fork_state import (
     ForkExitAction,
@@ -34,10 +36,7 @@ from ollim_bot.fork_state import (
     request_enter_fork,
     set_exit_action,
 )
-from ollim_bot.forks import (
-    append_update,
-    clear_pending_updates,
-)
+from ollim_bot.forks import append_update
 from ollim_bot.sessions import track_message
 
 # ---------------------------------------------------------------------------
@@ -306,9 +305,9 @@ async def follow_up_chain(args: dict[str, Any]) -> dict[str, Any]:
 
 @tool(
     "save_context",
-    "Promote the current interactive fork to the main session. "
-    "NEVER call proactively — only on an explicit user request "
-    "(e.g. 'save this', 'keep context'). Do not infer intent.",
+    "Request to promote the current interactive fork to the main session. "
+    "Sends a confirmation embed to Discord — the user must click to confirm. "
+    "Only call when the user explicitly asks (e.g. 'save this', 'keep context').",
     {
         "type": "object",
         "properties": {},
@@ -338,9 +337,13 @@ async def save_context(args: dict[str, Any]) -> dict[str, Any]:
             "Promoting would discard that history. Use report_updates to summarize findings instead."
         )
 
-    set_exit_action(ForkExitAction.SAVE)
-    await clear_pending_updates()
-    return _resp("Context saved. Fork will be promoted to main session after you finish responding.")
+    channel = get_channel()
+    await channel.send(embed=save_context_embed(), view=save_context_view())
+    return _resp(
+        "Confirmation sent. The user must click Confirm to promote the fork, "
+        "Report Instead to summarize, or Dismiss to continue. "
+        "Do not assume the save happened."
+    )
 
 
 @tool(

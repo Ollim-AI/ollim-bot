@@ -95,6 +95,40 @@ def fork_enter_view() -> View:
     return view
 
 
+def save_context_embed() -> discord.Embed:
+    return discord.Embed(
+        title="save context?",
+        description="this replaces your main session with the fork. main history is lost.",
+        color=discord.Color.yellow(),
+    )
+
+
+def save_context_view() -> View:
+    view = View(timeout=None)
+    view.add_item(
+        Button(
+            label="Confirm",
+            style=discord.ButtonStyle.success,
+            custom_id="act:fork_save_confirm:_",
+        )
+    )
+    view.add_item(
+        Button(
+            label="Report Instead",
+            style=discord.ButtonStyle.primary,
+            custom_id="act:fork_report:_",
+        )
+    )
+    view.add_item(
+        Button(
+            label="Dismiss",
+            style=discord.ButtonStyle.secondary,
+            custom_id="act:fork_save_dismiss:_",
+        )
+    )
+    return view
+
+
 STYLE_MAP: dict[ButtonStyle, discord.ButtonStyle] = {
     "primary": discord.ButtonStyle.primary,
     "secondary": discord.ButtonStyle.secondary,

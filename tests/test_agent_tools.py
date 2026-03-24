@@ -282,13 +282,17 @@ def test_report_updates_allowed_in_bg_fork_regardless_of_turn(data_dir):
 # --- save_context (interactive fork mode) ---
 
 
-def test_save_context_in_interactive_fork(data_dir):
+def test_save_context_in_interactive_fork(data_dir, monkeypatch):
     set_interactive_fork(True, idle_timeout=10)
+    chan = InMemoryChannel()
+    monkeypatch.setattr("ollim_bot.agent_tools.get_channel", lambda: chan)
 
     result = _run(_save_ctx({}))
 
-    assert "promoted" in result["content"][0]["text"].lower()
-    assert pop_exit_action() is ForkExitAction.SAVE
+    assert "confirmation" in result["content"][0]["text"].lower()
+    assert pop_exit_action() is ForkExitAction.NONE  # no immediate save
+    assert len(chan.messages) == 1
+    assert chan.messages[0]["embed"].title == "save context?"
     set_interactive_fork(False)
 
 
@@ -333,14 +337,17 @@ def test_save_context_blocked_when_new_updates(data_dir):
     _run(pop_pending_updates())
 
 
-def test_save_context_allowed_with_preexisting_updates(data_dir):
+def test_save_context_allowed_with_preexisting_updates(data_dir, monkeypatch):
     _run(append_update("pre-fork update"))
     set_interactive_fork(True, idle_timeout=10)
+    chan = InMemoryChannel()
+    monkeypatch.setattr("ollim_bot.agent_tools.get_channel", lambda: chan)
 
     result = _run(_save_ctx({}))
 
-    assert "promoted" in result["content"][0]["text"].lower()
-    assert pop_exit_action() is ForkExitAction.SAVE
+    assert "confirmation" in result["content"][0]["text"].lower()
+    assert pop_exit_action() is ForkExitAction.NONE
+    assert len(chan.messages) == 1
     set_interactive_fork(False)
     _run(pop_pending_updates())
 
@@ -362,13 +369,17 @@ def test_save_context_blocked_when_stale_and_new_updates(data_dir):
     _run(pop_pending_updates())
 
 
-def test_save_context_allowed_when_fresh(data_dir):
+def test_save_context_allowed_when_fresh(data_dir, monkeypatch):
     set_interactive_fork(True, idle_timeout=10)
+    chan = InMemoryChannel()
+    monkeypatch.setattr("ollim_bot.agent_tools.get_channel", lambda: chan)
 
     result = _run(_save_ctx({}))
 
-    assert "promoted" in result["content"][0]["text"].lower()
-    assert pop_exit_action() is ForkExitAction.SAVE
+    assert "confirmation" in result["content"][0]["text"].lower()
+    assert pop_exit_action() is ForkExitAction.NONE
+    assert len(chan.messages) == 1
+    assert chan.messages[0]["embed"].title == "save context?"
     set_interactive_fork(False)
 
 

@@ -76,6 +76,8 @@ class ActionButton(DynamicItem[Button], template=r"act:(?P<action>[a-z_]+):(?P<d
             "agent": _handle_agent_inquiry,
             "dismiss": _handle_dismiss,
             "fork_save": _handle_fork_save,
+            "fork_save_confirm": _handle_fork_save_confirm,
+            "fork_save_dismiss": _handle_dismiss,
             "fork_report": _handle_fork_report,
             "fork_exit": _handle_fork_exit,
         }
@@ -172,7 +174,16 @@ async def _handle_dismiss(interaction: discord.Interaction, _data: str) -> None:
         await interaction.message.delete()
 
 
+async def _handle_fork_save_confirm(interaction: discord.Interaction, _data: str) -> None:
+    """Confirm button on the save-context embed — delete embed, then save."""
+    await _do_fork_save(interaction, delete_trigger=True)
+
+
 async def _handle_fork_save(interaction: discord.Interaction, _data: str) -> None:
+    await _do_fork_save(interaction, delete_trigger=False)
+
+
+async def _do_fork_save(interaction: discord.Interaction, *, delete_trigger: bool) -> None:
     from ollim_bot.fork_state import ForkExitAction, in_interactive_fork
 
     if not in_interactive_fork():
@@ -180,6 +191,10 @@ async def _handle_fork_save(interaction: discord.Interaction, _data: str) -> Non
         return
     assert _agent is not None
     await interaction.response.defer()
+    if delete_trigger:
+        with contextlib.suppress(discord.NotFound):
+            assert interaction.message is not None
+            await interaction.message.delete()
     async with _agent.lock():
         if not in_interactive_fork():
             await interaction.followup.send("fork already ended.", ephemeral=True)
