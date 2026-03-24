@@ -1,7 +1,6 @@
 """MCP tool definitions for agent interactions (embeds, buttons, chains, forks)."""
 
 import asyncio
-import stat as stat_mod
 import subprocess
 import sys
 from contextvars import ContextVar
@@ -536,15 +535,12 @@ async def send_file(args: dict[str, Any]) -> dict[str, Any]:
             return budget_error
 
     path = Path(args["file_path"]).expanduser().resolve()
-    try:
-        st = path.stat()
-    except OSError:
-        return _resp(f"Error: file not found: {path}")
-    if not stat_mod.S_ISREG(st.st_mode):
-        return _resp(f"Error: not a regular file: {path}")
+    if not path.is_file():
+        return _resp(f"Error: file not found or not a regular file: {path}")
 
-    if st.st_size > _MAX_FILE_SIZE:
-        size_mb = st.st_size / 1024**2
+    size = path.stat().st_size
+    if size > _MAX_FILE_SIZE:
+        size_mb = size / 1024**2
         return _resp(f"Error: file is {size_mb:.1f} MB, exceeds Discord's 25 MB limit.")
 
     content = args.get("message")
@@ -553,13 +549,16 @@ async def send_file(args: dict[str, Any]) -> dict[str, Any]:
     elif source == "bg":
         content = f"[bg] 📎 {path.name}"
 
-    msg = await channel.send(content=content, file=discord.File(path))
+    f = discord.File(path)
+    try:
+        msg = await channel.send(content=content, file=f)
+    finally:
+        f.close()
     track_message(msg.id)
     if source == "bg" and (tracking := get_bg_tracking()):
         tracking.output_sent = True
         tracking.ping_count += 1
 
-    size = st.st_size
     size_str = f"{size / 1024:.0f} KB" if size < 1024**2 else f"{size / 1024**2:.1f} MB"
     return _resp(f"File sent: {path.name} ({size_str})")
 

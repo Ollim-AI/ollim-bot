@@ -73,7 +73,7 @@ def test_send_file_not_found():
 
     result = _run(_send({"file_path": "/nonexistent/path/file.txt"}))
 
-    assert "Error: file not found" in _text(result)
+    assert "Error: file not found or not a regular file" in _text(result)
     assert len(ch.messages) == 0
 
 
@@ -83,7 +83,7 @@ def test_send_file_directory(tmp_path: Path):
 
     result = _run(_send({"file_path": str(tmp_path)}))
 
-    assert "Error: not a regular file" in _text(result)
+    assert "Error: file not found or not a regular file" in _text(result)
     assert len(ch.messages) == 0
 
 
