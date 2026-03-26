@@ -454,12 +454,13 @@ def create_bot() -> commands.Bot:
                     start_message_collector()
                 if fork_session_id:
                     await _send_fork_enter(message.channel, None, upgraded_model=upgraded)
+                if in_interactive_fork():
+                    bump_fork_turn()
                 await _dispatch(message.channel, content, images=images or None)
                 if in_interactive_fork():
                     _flush_fork_messages()
                     touch_activity()
                     clear_prompted()
-                    bump_fork_turn()
                 else:
                     cancel_message_collector()
                     bump_main_generation()
