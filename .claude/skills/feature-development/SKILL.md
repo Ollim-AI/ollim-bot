@@ -99,7 +99,9 @@ Tools: Read, Grep, Glob, Bash
 
 ## Phase 4: Exploration-based user checkpoint
 
-Read the exploration agent's report. Extract the design decisions and unknowns.
+Read the exploration agent's report. Cross-check the critic's verdict from Phase 1: does the exploration support or undermine each concern? A critic concern about complexity that the codebase already handles is not a real concern — note any contradictions.
+
+Extract the design decisions and unknowns.
 
 If there are design decisions with meaningful trade-offs OR unknowns that affect implementation direction, ask the user:
 
@@ -125,10 +127,12 @@ Record the user's decisions.
 
 ## Phase 5: Planning agent
 
-Launch the planning agent with the full context including exploration findings and user decisions.
+Launch the planning agent with the full context including exploration findings and user decisions. ultrathink
 
 ```
 Agent task: "You are a senior engineer planning a feature implementation for ollim-bot. You hold four specialist roles simultaneously: context engineer, UX engineer (ADHD-aware), prompt quality reviewer, and implementer.
+
+When specialist perspectives conflict, prioritize: implementation correctness > information flow completeness > user experience > agent text quality.
 
 Start by reading:
 1. /home/julius/ollim-bot/CLAUDE.md (architecture overview — read the full file)
@@ -162,15 +166,18 @@ Numbered steps. Each step must specify: file path, function name or line range, 
 
 ## Context engineering
 Trace the information flow end-to-end through the fix. Where does information originate, where does it need to arrive? Flag any silent failure risks. Cite specific files and functions.
+— Complete when: full chain origin → [each intermediate transform with file:function] → destination. Flags any step where data could be silently lost, corrupted, or stale.
 
 ## User interaction design
 Every user-visible event the fix produces. Apply ux-principles: acknowledge instantly, one action not a menu, escalate in stages. Write exact Discord message text for any new strings (lowercase, minimal). Note what happens on failure.
+— Complete when: lists every user-visible event (message, reaction, embed, error). Provides exact Discord message text for new strings. States failure behavior for each event.
 
 ## Agent-facing text changes
 Any SKILL.md, agent definition, MCP tool description, or system prompt section the fix adds or modifies. Provide the improved text for anything new. If none, write 'no agent-facing text changes required.'
 
 ## Testing strategy
 Specific test names and what each verifies. For runtime behavior changes: behavior tests. For pure logic: unit tests. Include the test file path and a one-line description of each test.
+— Complete when: names each test function, its file path, and what specific behavior it verifies. Distinguishes unit vs. behavior tests with rationale.
 
 ## Review gates
 Which review passes to run before merging: /simplify (always for code changes), /improve-prompt (for agent-facing text), context-engineer review (for information flow changes). List only the applicable ones with a one-sentence rationale for each.
@@ -182,6 +189,32 @@ Grounding rule: every implementation step must reference a file you actually Rea
 
 Tools: Read, Write, Grep, Glob, Bash
 ```
+
+## Phase 5.5: Plan verification
+
+Read the plan file. Spawn a verification agent:
+
+```
+Agent task: "You are verifying an implementation plan for ollim-bot. Read the plan at <PLAN_FILE_PATH>.
+
+Check three things:
+
+1. **Grounding**: Every implementation step cites a specific file and function. Read each cited file to confirm the reference is accurate (function exists, line range is correct, behavior matches what the plan claims).
+
+2. **Section depth**: The following sections must not be single-sentence stubs:
+   - Context engineering: must trace a full origin→destination chain with file:function citations
+   - User interaction design: must list specific events and exact message text
+   - Testing strategy: must name specific test functions with file paths
+   Flag any section that falls short.
+
+3. **Direction alignment**: Compare the plan's 'Chosen direction' with the confirmed direction: <CONFIRMED_DIRECTION>. Flag any drift.
+
+Output: list of issues found, or 'no issues' if the plan passes all checks."
+
+Tools: Read, Grep, Glob
+```
+
+If issues found: fix minor issues (wrong line numbers, typos) inline. For shallow sections, re-generate with a focused agent call.
 
 ## Phase 6: Open questions checkpoint
 
