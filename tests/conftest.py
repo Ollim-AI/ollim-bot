@@ -31,6 +31,7 @@ def data_dir(tmp_path, monkeypatch):
     import ollim_bot.sessions as sessions_mod
     import ollim_bot.storage as storage_mod
 
+    monkeypatch.delenv("OLLIM_DATA_DIR", raising=False)
     state_dir = tmp_path / "state"
     monkeypatch.setattr(storage_mod, "DATA_DIR", tmp_path)
     monkeypatch.setattr(storage_mod, "STATE_DIR", state_dir)

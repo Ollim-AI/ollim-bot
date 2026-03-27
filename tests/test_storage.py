@@ -2,8 +2,10 @@
 
 import json
 from dataclasses import dataclass
+from pathlib import Path
 
 from ollim_bot.storage import (
+    _resolve_data_dir,
     _serialize_md,
     _slugify,
     append_jsonl,
@@ -376,3 +378,22 @@ def test_read_jsonl_skips_corrupt_lines(tmp_path):
     assert len(result) == 2
     assert result[0].id == "a"
     assert result[1].id == "b"
+
+
+# --- DATA_DIR resolution ---
+
+
+def test_resolve_data_dir_override(monkeypatch):
+    monkeypatch.setenv("OLLIM_DATA_DIR", "/tmp/custom-bot")
+
+    result = _resolve_data_dir()
+
+    assert result == Path("/tmp/custom-bot")
+
+
+def test_resolve_data_dir_tilde_expansion(monkeypatch):
+    monkeypatch.setenv("OLLIM_DATA_DIR", "~/custom-bot")
+
+    result = _resolve_data_dir()
+
+    assert result == Path.home() / "custom-bot"

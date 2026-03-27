@@ -13,7 +13,15 @@ from typing import Any, TypeVar
 
 import yaml
 
-DATA_DIR = Path.home() / ".ollim-bot"
+
+def _resolve_data_dir() -> Path:
+    override = os.environ.get("OLLIM_DATA_DIR")
+    if override:
+        return Path(override).expanduser()
+    return Path.home() / ".ollim-bot"
+
+
+DATA_DIR = _resolve_data_dir()
 STATE_DIR = DATA_DIR / "state"
 DOWNLOADS_DIR = DATA_DIR / "downloads"
 PROJECT_DIR = Path(__file__).resolve().parent.parent.parent
