@@ -204,11 +204,12 @@ Optional env vars:
 
 ## Releases
 - Release trigger: manual `workflow_dispatch` with bump type (patch/minor/major)
-- Two workflows: `release.yml` (creates PR with version bump), `release-tag.yml` (tags and creates GitHub Release on merge)
-- Flow: bump `pyproject.toml` version → release PR (with in-workflow CI) → merge → tag `v{X.Y.Z}` → GitHub Release with changelog
+- Single workflow: `release.yml` — bumps `pyproject.toml`, runs checks, commits to main, tags, creates GitHub Release
+- Flow: bump version → lint + test → commit `"release: v{X.Y.Z}"` → tag → push → GitHub Release with changelog
 - Bootstrap: first release requires manual `git tag v0.1.0 && git push origin v0.1.0`
 - Version source of truth: `pyproject.toml` (read at runtime via `importlib.metadata`)
 - Version format: strict `vX.Y.Z` only (no pre-release suffixes)
+- Skill: `/publish-version [patch|minor|major]` — preflight, bump suggestion, trigger, verification
 
 ## Principles
 

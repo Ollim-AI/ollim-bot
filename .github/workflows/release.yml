@@ -17,7 +17,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      pull-requests: write
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
@@ -51,10 +50,10 @@ jobs:
           ")
           echo "next=$NEXT" >> "$GITHUB_OUTPUT"
 
-      - name: Check for duplicate release branch
+      - name: Check tag doesn't already exist
         run: |
-          if git ls-remote --exit-code origin "refs/heads/release/v${{ steps.version.outputs.next }}" 2>/dev/null; then
-            echo "::error::Release branch release/v${{ steps.version.outputs.next }} already exists"
+          if git rev-parse "v${{ steps.version.outputs.next }}" >/dev/null 2>&1; then
+            echo "::error::Tag v${{ steps.version.outputs.next }} already exists"
             exit 1
           fi
 
@@ -95,25 +94,15 @@ jobs:
             echo "CHANGELOG_EOF"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Create release branch and PR
+      - name: Commit, tag, and release
         run: |
           NEXT="v${{ steps.version.outputs.next }}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git checkout -b "release/$NEXT"
           git add pyproject.toml
           git commit -m "release: $NEXT"
-          git push origin "release/$NEXT"
-          gh pr create \
-            --title "release: $NEXT" \
-            --body "$(cat <<PR_EOF
-          ## Release $NEXT
-
-          **Bump type**: ${{ inputs.bump_type }}
-
-          ### Changes since v${{ steps.version.outputs.current }}
-          \`\`\`
-          ${{ steps.changelog.outputs.body }}
-          \`\`\`
-          PR_EOF
-          )"
+          git tag "$NEXT"
+          git push origin main --tags
+          gh release create "$NEXT" \
+            --title "$NEXT" \
+            --notes "${{ steps.changelog.outputs.body }}"

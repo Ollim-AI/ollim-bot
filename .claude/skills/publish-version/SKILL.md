@@ -72,30 +72,26 @@ sleep 3
 gh run list --workflow=release.yml --limit=1 --json databaseId,status,url
 ```
 
-## Monitor the PR
+## Wait for completion
 
-Once the workflow completes, show the release PR:
+Poll until the workflow finishes:
 
 ```bash
-gh pr list --head "release/" --json number,title,url
+gh run watch --exit-status $(gh run list --workflow=release.yml --limit=1 --json databaseId -q '.[0].databaseId')
 ```
 
-Tell the user to review and merge the PR. The merge triggers `release-tag.yml` which creates the git tag and GitHub Release automatically.
-
-## Post-merge verification
-
-After the user confirms they merged, verify:
+On success, verify the release:
 
 ```bash
 git fetch origin --tags
 gh release list --limit 1
 ```
 
-Confirm the new tag and release exist. Report the release URL.
+Report the release URL. On failure, show `gh run view <id> --log-failed`.
 
 ## Gotchas
 
 - **Bootstrap**: the very first release requires `git tag v0.1.0 && git push origin v0.1.0` before this workflow works. If no `v*` tags exist, tell the user.
-- **CI on release PR**: the release PR won't trigger CI from other workflows (GITHUB_TOKEN limitation). Lint and tests run inside the release workflow itself before the PR is created.
-- **Concurrent releases**: only one release workflow should be in-flight at a time. If a `release/` branch already exists, the workflow will fail with a clear error.
+- **Checks run in-workflow**: lint and tests run inside the release workflow before committing. If they fail, no version bump or tag is created.
+- **Duplicate tags**: if the tag already exists, the workflow aborts with a clear error.
 - **Push first**: any commits not yet pushed to `origin/main` won't be included in the release. The preflight check catches this.
