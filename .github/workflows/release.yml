@@ -1,0 +1,119 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump_type:
+        description: "Version bump type"
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: astral-sh/setup-uv@v5
+
+      - name: Compute versions
+        id: version
+        run: |
+          CURRENT=$(python3 -c "
+          import re, pathlib
+          m = re.search(r'version = \"(.+?)\"', pathlib.Path('pyproject.toml').read_text())
+          print(m.group(1))
+          ")
+          echo "current=$CURRENT" >> "$GITHUB_OUTPUT"
+
+          NEXT=$(python3 -c "
+          import sys
+          parts = '$CURRENT'.split('.')
+          bump = '${{ inputs.bump_type }}'
+          if bump == 'major':
+              parts = [str(int(parts[0]) + 1), '0', '0']
+          elif bump == 'minor':
+              parts = [parts[0], str(int(parts[1]) + 1), '0']
+          else:
+              parts = [parts[0], parts[1], str(int(parts[2]) + 1)]
+          print('.'.join(parts))
+          ")
+          echo "next=$NEXT" >> "$GITHUB_OUTPUT"
+
+      - name: Check for duplicate release branch
+        run: |
+          if git ls-remote --exit-code origin "refs/heads/release/v${{ steps.version.outputs.next }}" 2>/dev/null; then
+            echo "::error::Release branch release/v${{ steps.version.outputs.next }} already exists"
+            exit 1
+          fi
+
+      - name: Bump version in pyproject.toml
+        run: |
+          python3 -c "
+          import pathlib, re
+          p = pathlib.Path('pyproject.toml')
+          text = p.read_text()
+          text = re.sub(
+              r'(version = \").+?(\")',
+              r'\g<1>${{ steps.version.outputs.next }}\2',
+              text,
+              count=1,
+          )
+          p.write_text(text)
+          "
+
+      - name: Run checks
+        run: |
+          uv sync --frozen
+          uv run ruff check
+          uv run ruff format --check
+          uv run pytest
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          CURRENT="v${{ steps.version.outputs.current }}"
+          if git rev-parse "$CURRENT" >/dev/null 2>&1; then
+            LOG=$(git log --oneline "$CURRENT..HEAD")
+          else
+            LOG=$(git log --oneline)
+          fi
+          {
+            echo "body<<CHANGELOG_EOF"
+            echo "$LOG"
+            echo "CHANGELOG_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create release branch and PR
+        run: |
+          NEXT="v${{ steps.version.outputs.next }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "release/$NEXT"
+          git add pyproject.toml
+          git commit -m "release: $NEXT"
+          git push origin "release/$NEXT"
+          gh pr create \
+            --title "release: $NEXT" \
+            --body "$(cat <<PR_EOF
+          ## Release $NEXT
+
+          **Bump type**: ${{ inputs.bump_type }}
+
+          ### Changes since v${{ steps.version.outputs.current }}
+          \`\`\`
+          ${{ steps.changelog.outputs.body }}
+          \`\`\`
+          PR_EOF
+          )"
