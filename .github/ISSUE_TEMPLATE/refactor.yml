@@ -1,0 +1,56 @@
+name: Refactor
+description: Improve code structure without changing behavior
+labels: ["refactor"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Writing guidance
+
+        <!--
+        WRITE
+        - State the structural problem and what moves where. That's it.
+        - Refactors need less prose — the code is the argument.
+        - Every sentence: "would someone restructure the wrong thing without this?" If no → cut.
+        - Name the violated code health rule (max 400 lines, no utils, no duplicate logic, one logging system).
+
+        CUT
+        - Significance inflation: "critical refactor" → state what's wrong with the structure.
+        - Vague motivation: "improve code quality" → which code health rule?
+
+        FOR AGENTS
+        - Scope tightly: which files, which responsibility split.
+        - "Behavior unchanged" is necessary but insufficient — state the target structure.
+        - Asymmetric risk: botched refactor breaks behavior (high cost);
+          deferring tolerates suboptimal structure (low cost).
+        -->
+
+        **State the structural problem and what moves where.** Reference the specific code health rule if applicable.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What's wrong with the current structure? Reference code health rules if applicable.
+      placeholder: |
+        `agent_tools.py` is 450 lines with 12 MCP tools spanning discord, forks, reminders, and context. Violates max ~400 lines rule and groups unrelated concerns.
+    validations:
+      required: true
+
+  - type: textarea
+    id: approach
+    attributes:
+      label: Proposed approach
+      description: What moves where? Be specific enough to verify completion.
+      placeholder: |
+        Split into `discord_tools.py` (pings, embeds, channel ops), `fork_tools.py` (enter/exit/save), `reminder_tools.py` (add/list/cancel). Shared helpers stay in `agent_tools.py`.
+    validations:
+      required: false
+
+  - type: textarea
+    id: risk
+    attributes:
+      label: Risk
+      description: What could break? Which tests cover the affected code?
+    validations:
+      required: false

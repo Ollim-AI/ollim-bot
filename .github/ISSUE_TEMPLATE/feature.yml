@@ -1,0 +1,75 @@
+name: Feature Request
+description: Propose new functionality
+labels: ["feat"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Writing guidance
+
+        <!--
+        WRITE
+        - Lead with the problem, not the solution. One sentence for the pain point.
+        - Every sentence: "would someone build the wrong thing without this?" If no → cut.
+        - Include "because" — why this matters survives all cuts.
+        - Include scope qualifiers: "bg forks only", "when idle" — prevent overbuilding.
+        - Include open design decisions — save implementation time.
+        - Skip sections with nothing to say.
+
+        CUT
+        - Filler: "it would be nice if", "I think we should" — state the need directly.
+        - Significance inflation: "this would greatly improve" → state the specific impact.
+        - Challenge-and-prospect: "while X works well, it could be better" → state what's missing.
+        - Gap speculation: "users might want" → do you want it? Say so.
+        - Rhetorical questions — Key Questions is for genuine open decisions only.
+
+        FOR AGENTS
+        - Describe the desired outcome, not the implementation mechanism.
+          "User sees a staleness notice" not "prepend a string to the message array".
+        - Scope the feature: what contexts, what's out of scope.
+        - Acceptance criteria: pair metric with intent — "notice appears AND disappears
+          after context is current".
+        - Surface asymmetric consequences: "building this wrong = permanent UX confusion;
+          not building it = delayed convenience".
+        -->
+
+        **Describe the problem first, then the solution.** Be specific — vague requests produce vague implementations.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What pain point does this address? Why does it matter?
+      placeholder: |
+        Reply-to-fork resumes a bg fork session that may be days stale. The agent has no signal that save_context will discard main session history, so it offers an exit strategy that silently destroys work.
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: How should this work from the user's perspective? Describe the outcome, not the implementation.
+      placeholder: |
+        At resume time, check staleness. If stale, prepend a notice to the first message stating that save_context is unavailable. The notice should inform, not prescribe an exit strategy.
+    validations:
+      required: true
+
+  - type: textarea
+    id: questions
+    attributes:
+      label: Key questions
+      description: Open design decisions. Skip if none.
+      placeholder: |
+        - Should regular forks (not reply-to-fork) also get staleness notices?
+        - Should the notice include pending update content?
+    validations:
+      required: false
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Related issues, alternatives considered, or scope constraints. Only include what changes the design.
+    validations:
+      required: false

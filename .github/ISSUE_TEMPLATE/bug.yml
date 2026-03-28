@@ -1,0 +1,67 @@
+name: Bug Report
+description: Something isn't working as expected
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Writing guidance
+
+        <!--
+        WRITE
+        - Lead with the specific behavior, not background.
+        - Every sentence must carry information you can't get from the code alone.
+          Test: could this describe a different bug unchanged? Cut it.
+        - Include "because" — rationale survives all cuts.
+        - Include scope qualifiers: "only in bg forks", "when lock held".
+        - Include concrete values: error messages, line numbers, timestamps, exact inputs.
+        - Each section: "would someone make worse decisions without this?" If no → cut.
+
+        CUT
+        - Filler: "it should be noted that", "it's worth mentioning", "basically".
+        - Significance inflation: "critical issue", "major problem" — state the impact.
+        - Vague attribution: "sometimes it fails" → when exactly? what input?
+        - Gap speculation: "this might be because..." → trace the code or leave it out.
+        - Reverse promotion: "this completely breaks" → state what happens.
+        - Section intros that restate what the content says.
+
+        FOR AGENTS
+        - Describe the wrong outcome, not the fix or code path — let the agent trace.
+        - File:line references are illustrative, not exhaustive scope.
+        - Acceptance criteria: pair metric with intent — "test passes AND would fail
+          if the bug recurred".
+        -->
+
+        **Be specific and brief.** State what happens, what should happen, and where to look. Every sentence should carry information the reader can't get from the code alone.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What's wrong? Include actual vs expected behavior.
+      placeholder: |
+        `save_context` promotes a stale fork to main, discarding main session history accumulated since the fork was created.
+
+        Expected: staleness check before promotion.
+        Actual: unconditional `swap_client` replaces main session.
+    validations:
+      required: true
+
+  - type: textarea
+    id: investigation
+    attributes:
+      label: Investigation starting points
+      description: Code paths relevant to the bug. Use `file.py:line` format. These are starting points, not exhaustive scope.
+      placeholder: |
+        - `agent.py:272-298` — `exit_interactive_fork`: dispatches without guard
+        - `fork_state.py:136-143` — no creation timestamp in fork state
+    validations:
+      required: false
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Logs, reproduction steps, or related issues. Only include what changes the diagnosis.
+    validations:
+      required: false

@@ -1,0 +1,57 @@
+name: UX Improvement
+description: Improve how the bot communicates or behaves from the user's perspective
+labels: ["ux"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Writing guidance
+
+        <!--
+        WRITE
+        - Focus on observable behavior: what the user sees, hears, experiences.
+        - Every sentence: "would someone design the wrong interaction without this?" If no → cut.
+        - Include specific message text, button labels, embed content — these ARE the UX.
+        - Include timing and trigger conditions: "when idle for 10min", "on first turn only".
+        - Include rationale for tone choices — UX copy needs "because".
+
+        CUT
+        - Promotional tone: "greatly enhance the user experience" → state what changes.
+        - Superficial analysis: "the importance of good UX" → state the friction point.
+        - Copula inflation: "is confusing" is fine. Not "serves as a source of confusion".
+
+        FOR AGENTS
+        - Describe the desired experience, not the code changes.
+        - Include full interaction flow context, not just one code path.
+        - "Feels better" is unevaluable — state what the user sees, when, and what confirms it works.
+        -->
+
+        **Describe the current experience and the desired one.** Include specific message text or interaction flows when relevant.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Current experience
+      description: What does the user see or experience now? What's the friction?
+      placeholder: |
+        Slash commands with no arguments silently succeed with defaults. The user has no way to see the current value without checking config files.
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Desired experience
+      description: What should the user see instead? Include specific message text if relevant.
+      placeholder: |
+        `/model` with no arguments replies with the current model name. `/thinking` with no arguments shows current state (on/off + budget).
+    validations:
+      required: false
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Screenshots, related commands, or interaction sequences.
+    validations:
+      required: false
