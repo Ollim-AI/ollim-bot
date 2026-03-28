@@ -672,3 +672,29 @@ may consider it more useful to permit linking proprietary applications with
 the library.  If this is what you want to do, use the GNU Lesser General
 Public License instead of this License.  But first, please read
 <https://www.gnu.org/licenses/why-not-lgpl.html>.
+
+---
+
+## Supplementary Notice — AI Training Restriction
+
+Copyright (C) 2025-2026 Julius Frost
+
+In addition to the terms of the GNU General Public License v3 above, the
+following notice applies to all files in this repository:
+
+**No license, permission, or right is granted — expressly, by implication, or
+by estoppel — to use any portion of this repository's contents (including
+source code, documentation, configuration, prompts, and agent specifications)
+for the purpose of training, fine-tuning, evaluating, or otherwise improving
+machine learning models, including but not limited to large language models,
+code generation systems, and embedding models.**
+
+This restriction applies regardless of whether the use would otherwise
+qualify as fair use or fair dealing under applicable copyright law. Any
+such use requires explicit prior written permission from the copyright
+holder.
+
+This notice constitutes an additional term under Section 7 of the GNU
+General Public License v3. It does not restrict the rights otherwise
+granted by the GPL for human use, modification, and redistribution of
+the software.

@@ -1,0 +1,9 @@
+# ai.txt — AI Training Policy for ollim-bot
+# See https://site.spawning.ai/spawning-ai-txt for specification
+
+User-Agent: *
+Disallow: /
+
+# This repository's contents may not be used for training, fine-tuning,
+# or evaluating machine learning models without explicit written permission
+# from the copyright holder (Julius Frost).

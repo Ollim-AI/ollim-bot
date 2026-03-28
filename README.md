@@ -77,4 +77,6 @@ See [development guide](https://docs.ollim.ai/development/guide) and
 
 ## License
 
-[GPL-3.0](LICENSE.md)
+[GPL-3.0](LICENSE.md) with an [AI training restriction](LICENSE.md#supplementary-notice--ai-training-restriction).
+This repository's contents may not be used for training machine learning
+models without explicit written permission from the copyright holder.

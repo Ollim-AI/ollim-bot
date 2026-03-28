@@ -1,0 +1,146 @@
+# ollim-bot — AI training opt-out
+# This file signals that automated scraping and AI training on this
+# repository's contents is not permitted without explicit authorization.
+# Named entries exist because some bots only respect their own directive.
+
+# OpenAI
+User-agent: GPTBot
+Disallow: /
+User-agent: ChatGPT-User
+Disallow: /
+User-agent: OAI-SearchBot
+Disallow: /
+
+# Anthropic
+User-agent: ClaudeBot
+Disallow: /
+User-agent: Claude-Web
+Disallow: /
+User-agent: anthropic-ai
+Disallow: /
+
+# Common Crawl (corpus widely used for AI training)
+User-agent: CCBot
+Disallow: /
+
+# Google AI
+User-agent: Google-Extended
+Disallow: /
+User-agent: GoogleOther
+Disallow: /
+User-agent: GoogleOther-Image
+Disallow: /
+User-agent: GoogleOther-Video
+Disallow: /
+
+# Apple AI
+User-agent: Applebot-Extended
+Disallow: /
+
+# Meta
+User-agent: FacebookBot
+Disallow: /
+User-agent: Meta-ExternalAgent
+Disallow: /
+User-agent: meta-externalfetcher
+Disallow: /
+
+# ByteDance
+User-agent: Bytespider
+Disallow: /
+User-agent: ByteDance
+Disallow: /
+
+# Amazon
+User-agent: Amazonbot
+Disallow: /
+
+# Perplexity
+User-agent: PerplexityBot
+Disallow: /
+
+# Cohere
+User-agent: cohere-ai
+Disallow: /
+User-agent: cohere-training
+Disallow: /
+
+# AI2 (Allen Institute)
+User-agent: AI2Bot
+Disallow: /
+User-agent: Ai2Bot-Dolma
+Disallow: /
+
+# AI search engines
+User-agent: YouBot
+Disallow: /
+User-agent: Phind
+Disallow: /
+User-agent: PetalBot
+Disallow: /
+User-agent: Timpibot
+Disallow: /
+User-agent: iaskspider
+Disallow: /
+User-agent: novabot
+Disallow: /
+
+# Data/AI infrastructure
+User-agent: Diffbot
+Disallow: /
+User-agent: Webzio-Extended
+Disallow: /
+User-agent: FriendlyCrawler
+Disallow: /
+User-agent: Kangaroo Bot
+Disallow: /
+User-agent: ICC-Crawler
+Disallow: /
+User-agent: Omgili
+Disallow: /
+User-agent: Omgilibot
+Disallow: /
+User-agent: img2dataset
+Disallow: /
+User-agent: DataForSeoBot
+Disallow: /
+User-agent: Brightbot
+Disallow: /
+User-agent: Deepnoc
+Disallow: /
+User-agent: ImagesiftBot
+Disallow: /
+User-agent: Lensintelligencebot
+Disallow: /
+User-agent: Meltwater
+Disallow: /
+User-agent: Owler
+Disallow: /
+User-agent: PanguBot
+Disallow: /
+User-agent: peer39_crawler
+Disallow: /
+User-agent: SemrushBot
+Disallow: /
+User-agent: Sidetrade indexer bot
+Disallow: /
+User-agent: TurnitinBot
+Disallow: /
+User-agent: VelenPublicWebCrawler
+Disallow: /
+User-agent: WellKnownBot
+Disallow: /
+User-agent: NewsBreakBot
+Disallow: /
+User-agent: Nicecrawler
+Disallow: /
+User-agent: KomodiaBot
+Disallow: /
+User-agent: CopilotLinkedIn
+Disallow: /
+User-agent: ISSCyberRiskCrawler
+Disallow: /
+
+# Catch-all
+User-agent: *
+Disallow: /
