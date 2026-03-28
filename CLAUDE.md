@@ -60,7 +60,7 @@ Never write working data into the source repo or source code into `~/.ollim-bot/
 - `ping_budget.py` -- Refill-on-read ping budget for bg fork notifications (state, enforcement, status formatting)
 - `runtime_config.py` -- Persistent runtime configuration (`~/.ollim-bot/state/config.json`): model/thinking per context, timeouts, permission mode
 - `skills.py` -- Skill data model and directory-based persistence (`skills/*/SKILL.md`), skill index builder for system prompt
-- `updater.py` -- Git-based auto-update: fetch, compare, pull (`--ff-only`), `uv sync`, restart via `os.execv`
+- `updater.py` -- Semver-aware auto-update: fetch tags, compare versions, pull (`--ff-only`), upgrade, restart via `os.execv`
 - `google/` -- Google API integration sub-package
   - `auth.py` -- Shared Google OAuth2 (Tasks + Calendar + Gmail)
   - `tasks.py` -- Google Tasks CLI + API helpers (`complete_task`, `delete_task`)
@@ -113,6 +113,7 @@ Never write working data into the source repo or source code into `~/.ollim-bot/
 - `/permissions <dontAsk|default|acceptEdits|bypassPermissions>` -- switch permission mode (fork-scoped)
 - `/ping-budget [capacity] [refill_rate]` -- view or configure ping budget
 - `/config [key] [value]` -- view or set persistent runtime config
+- `/version` -- show current bot version and build info
 - `/update` -- check for updates and apply immediately (ignores hour window)
 - `/restart` -- restart the bot process immediately
 - Synced via `bot.tree.sync()` in `on_ready`
@@ -195,11 +196,19 @@ Optional env vars:
 ## Auto-update
 - Config: `auto_update` (bool, default off), `auto_update_interval` (int minutes, default 60), `auto_update_hour` (int 0-23, default 6)
 - Scheduler polls every 5 min; actual check respects `auto_update_interval`; apply gated on `auto_update_hour` match
-- Flow: `git fetch` → compare HEAD vs tracking branch → wait for hour window → `git pull --ff-only` → `uv sync` → DM owner → `os.execv`
+- Flow: `git fetch --tags` → compare latest semver tag vs current tag → wait for hour window → `git pull --ff-only` → `uv tool upgrade ollim-bot` → DM owner with version → `os.execv`
 - `/update` bypasses the hour gate and applies immediately; `/restart` restarts without updating
-- Safety: deferred when `agent.lock()` held; `--ff-only` rejects diverged branches
+- Safety: deferred when `agent.lock()` held; `--ff-only` rejects diverged branches; malformed tags logged and skipped
 - `os.execv` replaces process in-place (same PID); PID file deleted before exec (atexit doesn't fire)
 - Logs `restarting` event to `session_history.jsonl` before restart
+
+## Releases
+- Release trigger: manual `workflow_dispatch` with bump type (patch/minor/major)
+- Two workflows: `release.yml` (creates PR with version bump), `release-tag.yml` (tags and creates GitHub Release on merge)
+- Flow: bump `pyproject.toml` version → release PR (with in-workflow CI) → merge → tag `v{X.Y.Z}` → GitHub Release with changelog
+- Bootstrap: first release requires manual `git tag v0.1.0 && git push origin v0.1.0`
+- Version source of truth: `pyproject.toml` (read at runtime via `importlib.metadata`)
+- Version format: strict `vX.Y.Z` only (no pre-release suffixes)
 
 ## Principles
 
