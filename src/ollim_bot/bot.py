@@ -627,7 +627,7 @@ def create_bot() -> commands.Bot:
             return
 
         if not status.available:
-            await interaction.followup.send(f"up to date (v{status.current_version}).")
+            await interaction.followup.send(f"up to date ({status.current_version}).")
             return
 
         try:
@@ -637,7 +637,7 @@ def create_bot() -> commands.Bot:
             return
 
         summary = format_commit_summary(status.commit_summary)
-        await interaction.followup.send(f"updating to v{status.latest_version}...\n```\n{summary}\n```")
+        await interaction.followup.send(f"updating to {status.latest_version}...\n```\n{summary}\n```")
 
         log_and_restart()
 

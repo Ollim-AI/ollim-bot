@@ -190,7 +190,6 @@ def format_version_string(project_dir: Path) -> str:
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
         return f"ollim-bot v{importlib.metadata.version('ollim-bot')}"
 
-    # git describe --tags outputs "v0.2.0" on a tag, "v0.1.0-3-gabc1234" off a tag
     match = re.match(r"^(v\d+\.\d+\.\d+)-\d+-g([0-9a-f]+)$", desc)
     if match:
         return f"ollim-bot {match.group(1)}+dev ({match.group(2)})"
