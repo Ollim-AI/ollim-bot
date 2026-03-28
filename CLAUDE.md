@@ -74,6 +74,12 @@ Never write working data into the source repo or source code into `~/.ollim-bot/
   - `routine_cmd.py` -- Routines CLI (`ollim-bot routine`)
   - `reminder_cmd.py` -- Reminders CLI (`ollim-bot reminder`)
 
+## License
+- `LICENSE.md` — GPL-3.0 with Section 7 AI training restriction (no ML training without written permission)
+- `CLA.md` — Contributor License Agreement (relicensing rights retained by maintainer)
+- `robots.txt` / `ai.txt` — AI crawler opt-out signals
+- All source files carry GPL-3.0 copyright headers — maintain when creating new `.py` files under `src/`
+
 ## Agent SDK config
 - The Agent SDK wraps the Claude Code CLI — Claude Code behavior is ground truth
 - SDK docs: fetch from `https://code.claude.com/docs` (preferred over reading SDK source)
