@@ -3,7 +3,7 @@ name: publish-version
 description: Publish a new semver release of ollim-bot. Use when the user wants to release, bump the version, or ship changes to downstream users.
 argument-hint: [patch|minor|major] — bump type, or omit to auto-suggest from commits
 disable-model-invocation: true
-allowed-tools: Bash(git *), Bash(gh *), Bash(sleep *), Read, Grep
+allowed-tools: Bash(git *), Bash(gh *), Bash(sleep *), Read, Grep, Write, AskUserQuestion
 ---
 
 # Publish Version
@@ -45,18 +45,29 @@ Suggest based on commit prefixes:
 
 Present the suggestion with the commit list and ask the user to confirm.
 
-## Show release preview
+## Draft release notes
 
-Before triggering, show:
+Read the commits since the last tag and write human-readable release notes. These replace the auto-generated changelog on the GitHub Release.
 
-```
-Current version: v0.1.0
-Bump type: minor
-Next version: v0.2.0
+Rules for drafting:
+- Write from the user's perspective — what changed for them, not what code changed
+- Group into **Features** and **Fixes & Improvements** (skip empty sections)
+- One bullet per user-visible change — merge related commits into a single bullet
+- Skip internal/dev-only changes (skills, CI, docs, chore)
+- Keep it concise — 1-2 sentences per bullet max
+- No commit hashes in the notes
 
-Changes:
-  abc1234 feat: add /version command
-  def5678 fix: double v prefix in messages
+Write the draft to `/tmp/release-notes.md`, then show it to the user via AskUserQuestion. Let them request edits. Update the file until they approve.
+
+Example:
+
+```markdown
+### Features
+- Version display: new `/version` command shows the current bot version. Version also appears in the startup greeting.
+- Semver releases: the bot now tracks versions with semver tags instead of raw git commits. Auto-update detects new releases by tag.
+
+### Fixes & Improvements
+- Fixed version numbers showing a double `v` prefix in update messages.
 ```
 
 ## Trigger the release workflow
@@ -80,14 +91,25 @@ Poll until the workflow finishes:
 gh run watch --exit-status $(gh run list --workflow=release.yml --limit=1 --json databaseId -q '.[0].databaseId')
 ```
 
-On success, verify the release:
+On failure, show `gh run view <id> --log-failed` and abort.
+
+## Replace release notes
+
+After the workflow succeeds, replace the auto-generated notes with the drafted ones:
+
+```bash
+TAG=$(gh release list --limit 1 --json tagName -q '.[0].tagName')
+gh release edit "$TAG" --notes-file /tmp/release-notes.md
+```
+
+Verify:
 
 ```bash
 git fetch origin --tags
-gh release list --limit 1
+gh release view "$TAG"
 ```
 
-Report the release URL. On failure, show `gh run view <id> --log-failed`.
+Report the release URL.
 
 ## Gotchas
 
