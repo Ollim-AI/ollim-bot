@@ -477,8 +477,8 @@ def setup_scheduler(bot: discord.Client, agent: Agent, owner: discord.User) -> A
 
         log.info(
             "auto-update: %s -> %s",
-            status.local_sha[:8],
-            status.remote_sha[:8],
+            status.current_version,
+            status.latest_version,
         )
         dm = await owner.create_dm()
 
@@ -490,7 +490,7 @@ def setup_scheduler(bot: discord.Client, agent: Agent, owner: discord.User) -> A
             return
 
         summary = format_commit_summary(status.commit_summary)
-        await dm.send(f"updating and restarting...\n```\n{summary}\n```")
+        await dm.send(f"updating to v{status.latest_version}...\n```\n{summary}\n```")
 
         log_and_restart()
 
