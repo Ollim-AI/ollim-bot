@@ -66,7 +66,9 @@ Read the commits since the last tag and write human-readable release notes.
 
 Write the draft to `/tmp/release-notes.md`.
 
-**Revise pass**: invoke `/revise` on `/tmp/release-notes.md` (audience: non-technical end users, genre: release notes). This catches filler, vague language, and generic positives that self-review misses. Apply the revisions to the file.
+**Terminology grounding**: before revising, read the terminology table in `~/ollim-bot-docs/CLAUDE.md` (the "Terminology" section). These are canonical terms that must not be simplified or rewritten — they are consistent across code and docs.
+
+**Revise pass**: invoke `/revise` on `/tmp/release-notes.md` (audience: non-technical end users, genre: release notes, tone: match `~/ollim-bot-docs/` — direct, conversational, ADHD-aware). Constraint: preserve all terms from the terminology table exactly (e.g. "background fork", "interactive fork", "ping budget", "routine", "reminder"). This catches filler and vague language while keeping domain terminology consistent.
 
 Then use `AskUserQuestion` to show the revised draft and let the user request further edits. Update the file until approved.
 
