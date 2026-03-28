@@ -89,24 +89,16 @@ jobs:
             RANGE=""
           fi
 
-          # Collect commits by category
-          FEATS=$(git log --format="- %s (%h)" --grep="^feat:" $RANGE)
-          FIXES=$(git log --format="- %s (%h)" --grep="^fix:" $RANGE)
-          IMPROVE=$(git log --format="- %s (%h)" --grep="^improve:" --grep="^simplify:" --grep="^protect:" $RANGE)
-          OTHER=$(git log --format="- %s (%h)" --invert-grep --grep="^feat:" --grep="^fix:" --grep="^improve:" --grep="^simplify:" --grep="^protect:" --grep="^release:" --grep="^docs:" --grep="^chore:" --grep="^ci:" --grep="^auto-" --grep="^Merge" $RANGE)
+          # Collect commits by category, filtering out skill/dev-only changes
+          FEATS=$(git log --format="- %s (%h)" --grep="^feat:" $RANGE | grep -vi skill)
+          FIXES=$(git log --format="- %s (%h)" --grep="^fix:" --grep="^improve:" --grep="^simplify:" --grep="^protect:" $RANGE | grep -vi skill)
 
           BODY=""
           if [ -n "$FEATS" ]; then
             BODY="${BODY}### Features\n${FEATS}\n\n"
           fi
           if [ -n "$FIXES" ]; then
-            BODY="${BODY}### Fixes\n${FIXES}\n\n"
-          fi
-          if [ -n "$IMPROVE" ]; then
-            BODY="${BODY}### Improvements\n${IMPROVE}\n\n"
-          fi
-          if [ -n "$OTHER" ]; then
-            BODY="${BODY}### Other\n${OTHER}\n\n"
+            BODY="${BODY}### Fixes & Improvements\n${FIXES}\n\n"
           fi
 
           # Fall back to flat list if nothing matched
