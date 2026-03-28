@@ -2,7 +2,7 @@
 name: feature-development
 description: Orchestrate specialist agents to produce a refined implementation plan for a feature. Use when developing a new feature or fixing a bug that benefits from multiple specialist perspectives (context engineering, UX, prompt quality, product alignment). Triggers a full specialist review automatically.
 argument-hint: <feature description or bug to fix>
-allowed-tools: Read, Write, Grep, Glob, Bash, Agent, AskUserQuestion, EnterPlanMode, ExitPlanMode
+allowed-tools: Read, Write, Edit, Grep, Glob, Agent, AskUserQuestion, EnterPlanMode, ExitPlanMode
 ---
 
 Produce a refined implementation plan by orchestrating specialist agents. Challenge first, explore, ask, then build.
@@ -157,7 +157,7 @@ User decisions:
 
 Verify the exploration findings by reading the cited files yourself — do not trust the exploration report blindly. If you find discrepancies, use what you read directly.
 
-Then produce an implementation plan and write it to ~/.claude/plans/<feature-slug>.md using Write. Create the directory first with Bash if it does not exist. Use a slug derived from the feature name (lowercase, hyphens).
+Then produce an implementation plan as your response output. Do not write any files — return the full plan text so the caller can write it.
 
 The plan must contain these sections:
 
@@ -196,8 +196,10 @@ List each user requirement from the confirmed direction. For each, cite the impl
 
 Grounding rule: every implementation step must reference a file you actually Read in this session. If you haven't read it, read it before citing it."
 
-Tools: Read, Write, Grep, Glob, Bash
+Tools: Read, Grep, Glob
 ```
+
+Write the planning agent's output to the plan mode designated file (the path shown in the plan mode system message).
 
 ## Phase 5.5: Plan verification
 
@@ -229,7 +231,7 @@ If issues found: fix minor issues (wrong line numbers, typos) inline. For shallo
 
 ## Phase 6: Open questions checkpoint
 
-Read the plan file the planning agent wrote. Check the "Open questions" section.
+Read the plan mode file. Check the "Open questions" section.
 
 If there are open questions (section is not 'none'):
 
@@ -252,6 +254,5 @@ Call `ExitPlanMode`.
 Present a brief summary:
 - Confirmed direction and why the critic endorsed it (or what scope was cut)
 - The 3 most important implementation steps
-- Path to the plan file (e.g., `~/.claude/plans/resume-nudge.md`)
 
-Do not ask for approval. The plan is ready for implementation.
+`ExitPlanMode` presents the plan for user approval — do not duplicate it or ask separately.
