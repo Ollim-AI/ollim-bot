@@ -7,6 +7,8 @@ allowed-tools: Read, Write, Grep, Glob, Bash, Agent, AskUserQuestion, EnterPlanM
 
 Produce a refined implementation plan by orchestrating specialist agents. Challenge first, explore, ask, then build.
 
+**Placeholder rule**: Every `<ANGLE_BRACKET_PLACEHOLDER>` in agent task prompts below must be replaced with the actual value before passing to the agent. Never send literal placeholder strings.
+
 ## Phase 1: Enter plan mode and run the critic
 
 Call `EnterPlanMode` immediately.
@@ -92,7 +94,9 @@ What the feature needs that doesn't exist yet. Be specific about where new code 
 ## Unknowns
 Anything you couldn't determine from the code alone — things that require the user's domain knowledge or preference.
 
-Every claim must cite a specific file and function. Do not speculate about code you haven't read."
+Every claim must cite a specific file and function. Do not speculate about code you haven't read.
+
+Keep the report under 500 words. Summarize patterns — do not inventory every file, class, and function you found."
 
 Tools: Read, Grep, Glob, Bash
 ```
@@ -124,6 +128,8 @@ Rules for this checkpoint:
 - If the user's answer is partial, use reasonable defaults for unanswered parts and note what you assumed.
 
 Record the user's decisions.
+
+**Iterative refinement**: If the request is still ambiguous after Phase 4, or the user explicitly asked for back-and-forth discussion, use additional `AskUserQuestion` calls to narrow scope before planning. Each question should present a concrete trade-off or option discovered during exploration — not ask for approval. Stop iterating when the direction is specific enough to produce implementation steps with file paths.
 
 ## Phase 5: Planning agent
 
@@ -180,10 +186,13 @@ Specific test names and what each verifies. For runtime behavior changes: behavi
 — Complete when: names each test function, its file path, and what specific behavior it verifies. Distinguishes unit vs. behavior tests with rationale.
 
 ## Review gates
-Which review passes to run before merging: /simplify (always for code changes), /improve-prompt (for agent-facing text), context-engineer review (for information flow changes). List only the applicable ones with a one-sentence rationale for each.
+Which review passes to run before merging. For each applicable gate, specify the gate name, which files/sections it targets, and what specific risk it should catch for this feature. Gates: /simplify (always for code changes), /improve-prompt (for agent-facing text), context-engineer review (for information flow changes).
 
 ## Open questions
 Anything requiring user input before implementation can start. If none, write 'none.'
+
+## Requirements traceability
+List each user requirement from the confirmed direction. For each, cite the implementation step(s) and test(s) that address it. If a requirement has no corresponding step or test, either add one or explain why it's deferred.
 
 Grounding rule: every implementation step must reference a file you actually Read in this session. If you haven't read it, read it before citing it."
 
@@ -197,7 +206,7 @@ Read the plan file. Spawn a verification agent:
 ```
 Agent task: "You are verifying an implementation plan for ollim-bot. Read the plan at <PLAN_FILE_PATH>.
 
-Check three things:
+Check four things:
 
 1. **Grounding**: Every implementation step cites a specific file and function. Read each cited file to confirm the reference is accurate (function exists, line range is correct, behavior matches what the plan claims).
 
@@ -208,6 +217,8 @@ Check three things:
    Flag any section that falls short.
 
 3. **Direction alignment**: Compare the plan's 'Chosen direction' with the confirmed direction: <CONFIRMED_DIRECTION>. Flag any drift.
+
+4. **Requirements coverage**: Read the 'Requirements traceability' section. Verify that every requirement from the confirmed direction maps to at least one implementation step and one test. Flag any requirement with no corresponding deliverable.
 
 Output: list of issues found, or 'no issues' if the plan passes all checks."
 
