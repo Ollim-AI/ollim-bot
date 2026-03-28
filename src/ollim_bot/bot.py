@@ -392,12 +392,18 @@ def create_bot() -> commands.Bot:
 
         dm = await owner.create_dm()
         init_channel(dm)
+
+        from ollim_bot.storage import PROJECT_DIR
+        from ollim_bot.updater import format_version_string
+
+        version = await asyncio.to_thread(format_version_string, PROJECT_DIR)
+
         resumed = load_session_id() is not None
         if resumed:
-            await dm.send("hey, i'm back. picking up where we left off.")
+            await dm.send(f"hey, i'm back ({version}). picking up where we left off.")
         else:
             await dm.send(
-                f"hey {USER_NAME.lower()}, {BOT_NAME} is online. i can set up morning check-ins, "
+                f"hey {USER_NAME.lower()}, {version} is online. i can set up morning check-ins, "
                 "manage your tasks and calendar, and remind you about things before they slip.\n\n"
                 "quick setup takes 3 questions \u2014 or just start talking.",
                 view=_welcome_view(),
@@ -589,6 +595,15 @@ def create_bot() -> commands.Bot:
             return
         await agent.apply_config(key.value)
         await interaction.response.send_message(runtime_config.format_one(key.value))
+
+    @bot.tree.command(name="version", description="Show current bot version")
+    @discord.app_commands.check(_owner_check)
+    async def slash_version(interaction: discord.Interaction):
+        from ollim_bot.storage import PROJECT_DIR
+        from ollim_bot.updater import format_version_string
+
+        version = await asyncio.to_thread(format_version_string, PROJECT_DIR)
+        await interaction.response.send_message(version, ephemeral=True)
 
     @bot.tree.command(name="update", description="Check for updates and apply immediately")
     @discord.app_commands.check(_owner_check)
