@@ -64,12 +64,11 @@ Read the commits since the last tag and write human-readable release notes.
 - Keep it concise — 1-2 sentences per bullet max
 - No commit hashes in the notes
 
-**Quality check before presenting** — verify the draft meets all of:
-- Every user-visible `feat:` and `fix:` commit is represented (none dropped silently)
-- No internal jargon — a non-technical user can understand each bullet
-- Each bullet describes a behavior change, not a code change
+Write the draft to `/tmp/release-notes.md`.
 
-Write the draft to `/tmp/release-notes.md`. Use `AskUserQuestion` to show the draft and let the user request edits. Update the file until approved.
+**Revise pass**: invoke `/revise` on `/tmp/release-notes.md` (audience: non-technical end users, genre: release notes). This catches filler, vague language, and generic positives that self-review misses. Apply the revisions to the file.
+
+Then use `AskUserQuestion` to show the revised draft and let the user request further edits. Update the file until approved.
 
 Example:
 
