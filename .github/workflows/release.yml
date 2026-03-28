@@ -92,7 +92,8 @@ jobs:
           # Collect commits by category
           FEATS=$(git log --format="- %s (%h)" --grep="^feat:" $RANGE)
           FIXES=$(git log --format="- %s (%h)" --grep="^fix:" $RANGE)
-          OTHER=$(git log --format="- %s (%h)" --invert-grep --grep="^feat:" --grep="^fix:" --grep="^release:" $RANGE)
+          IMPROVE=$(git log --format="- %s (%h)" --grep="^improve:" --grep="^simplify:" --grep="^protect:" $RANGE)
+          OTHER=$(git log --format="- %s (%h)" --invert-grep --grep="^feat:" --grep="^fix:" --grep="^improve:" --grep="^simplify:" --grep="^protect:" --grep="^release:" --grep="^docs:" --grep="^chore:" --grep="^ci:" --grep="^auto-" --grep="^Merge" $RANGE)
 
           BODY=""
           if [ -n "$FEATS" ]; then
@@ -100,6 +101,9 @@ jobs:
           fi
           if [ -n "$FIXES" ]; then
             BODY="${BODY}### Fixes\n${FIXES}\n\n"
+          fi
+          if [ -n "$IMPROVE" ]; then
+            BODY="${BODY}### Improvements\n${IMPROVE}\n\n"
           fi
           if [ -n "$OTHER" ]; then
             BODY="${BODY}### Other\n${OTHER}\n\n"
