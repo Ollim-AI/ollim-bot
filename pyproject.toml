@@ -55,6 +55,9 @@ dev = [
     "ty>=0.0.18",
 ]
 
+[tool.uv]
+cache-keys = [{ file = "pyproject.toml" }]
+
 [tool.ty.src]
 exclude = [".claude/worktrees/"]
 
