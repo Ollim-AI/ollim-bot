@@ -84,13 +84,35 @@ jobs:
         run: |
           CURRENT="v${{ steps.version.outputs.current }}"
           if git rev-parse "$CURRENT" >/dev/null 2>&1; then
-            LOG=$(git log --oneline "$CURRENT..HEAD")
+            RANGE="$CURRENT..HEAD"
           else
-            LOG=$(git log --oneline)
+            RANGE=""
           fi
+
+          # Collect commits by category
+          FEATS=$(git log --format="- %s (%h)" --grep="^feat:" $RANGE)
+          FIXES=$(git log --format="- %s (%h)" --grep="^fix:" $RANGE)
+          OTHER=$(git log --format="- %s (%h)" --invert-grep --grep="^feat:" --grep="^fix:" --grep="^release:" $RANGE)
+
+          BODY=""
+          if [ -n "$FEATS" ]; then
+            BODY="${BODY}### Features\n${FEATS}\n\n"
+          fi
+          if [ -n "$FIXES" ]; then
+            BODY="${BODY}### Fixes\n${FIXES}\n\n"
+          fi
+          if [ -n "$OTHER" ]; then
+            BODY="${BODY}### Other\n${OTHER}\n\n"
+          fi
+
+          # Fall back to flat list if nothing matched
+          if [ -z "$BODY" ]; then
+            BODY=$(git log --format="- %s (%h)" $RANGE)
+          fi
+
           {
             echo "body<<CHANGELOG_EOF"
-            echo "$LOG"
+            echo -e "$BODY"
             echo "CHANGELOG_EOF"
           } >> "$GITHUB_OUTPUT"
 
@@ -104,5 +126,5 @@ jobs:
           git tag "$NEXT"
           git push origin main --tags
           gh release create "$NEXT" \
-            --title "$NEXT" \
+            --title "ollim-bot $NEXT" \
             --notes "${{ steps.changelog.outputs.body }}"
