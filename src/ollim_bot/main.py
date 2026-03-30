@@ -330,10 +330,11 @@ def main() -> None:
 
     token = os.environ["DISCORD_TOKEN"]
 
-    from ollim_bot.auth import is_authenticated
+    if not os.environ.get("ANTHROPIC_AUTH_TOKEN"):
+        from ollim_bot.auth import is_authenticated
 
-    if not is_authenticated():
-        _login_via_discord(token)
+        if not is_authenticated():
+            _login_via_discord(token)
 
     _check_already_running()
     _ensure_sdk_layout()
