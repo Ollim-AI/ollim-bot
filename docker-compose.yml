@@ -1,0 +1,19 @@
+services:
+  ollama:
+    image: ollama/ollama
+    ports:
+      - "127.0.0.1:11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+
+  ollim-bot:
+    build: .
+    env_file: .env
+    volumes:
+      - bot_data:/root/.ollim-bot
+    depends_on:
+      - ollama
+
+volumes:
+  ollama_data:
+  bot_data:
