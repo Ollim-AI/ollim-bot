@@ -1,6 +1,7 @@
 """Tests for ChatChannel duck type."""
 
 import os
+from types import SimpleNamespace
 
 import pytest
 
@@ -35,6 +36,27 @@ async def test_chat_channel_increments_id():
     assert m1.id == 1
     assert m2.id == 2
     assert len(channel.messages) == 2
+
+
+@pytest.mark.asyncio
+async def test_chat_channel_multi_turn():
+    channel = ChatChannel()
+    m1 = await channel.send("first")
+    m2 = await channel.send("second")
+    assert m1.id == 1
+    assert m2.id == 2
+    assert len(channel.messages) == 2
+    assert channel.messages[0]["content"] == "first"
+    assert channel.messages[1]["content"] == "second"
+
+
+@pytest.mark.asyncio
+async def test_chat_channel_embed_captured():
+    embed = SimpleNamespace(title="Status Update")
+    channel = ChatChannel()
+    await channel.send("with embed", embed=embed)
+    assert channel.messages[0]["embed"] is embed
+    assert channel.messages[0]["embed"].title == "Status Update"
 
 
 @pytest.mark.integration
