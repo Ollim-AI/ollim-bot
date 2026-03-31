@@ -27,7 +27,7 @@ from ollim_bot.fork_state import BgForkConfig
 from ollim_bot.google.auth import CREDENTIALS_FILE, SETUP_GUIDE_URL, is_google_connected
 from ollim_bot.scheduling.reminders import Reminder
 from ollim_bot.scheduling.routines import Routine
-from ollim_bot.storage import slugify as _slugify
+from ollim_bot.storage import slugify
 
 # Standard cron: 0=Sunday. APScheduler CronTrigger: 0=Monday.
 # Convert numeric values to named days to avoid the mismatch.
@@ -130,7 +130,7 @@ def _entry_label(item: Routine | Reminder) -> str:
 
 
 def _entry_file_path(item: Routine | Reminder) -> str:
-    slug = _slugify(item.message)
+    slug = slugify(item.message)
     if isinstance(item, Routine):
         return f"routines/{slug}.md"
     return f"reminders/{slug}.md"
