@@ -27,6 +27,7 @@ from ollim_bot.fork_state import BgForkConfig
 from ollim_bot.google.auth import CREDENTIALS_FILE, SETUP_GUIDE_URL, is_google_connected
 from ollim_bot.scheduling.reminders import Reminder
 from ollim_bot.scheduling.routines import Routine
+from ollim_bot.storage import slugify as _slugify
 
 # Standard cron: 0=Sunday. APScheduler CronTrigger: 0=Monday.
 # Convert numeric values to named days to avoid the mismatch.
@@ -129,9 +130,10 @@ def _entry_label(item: Routine | Reminder) -> str:
 
 
 def _entry_file_path(item: Routine | Reminder) -> str:
+    slug = _slugify(item.message)
     if isinstance(item, Routine):
-        return f"routines/{item.id}.md"
-    return f"reminders/{item.id}.md"
+        return f"routines/{slug}.md"
+    return f"reminders/{slug}.md"
 
 
 def build_upcoming_schedule(
@@ -376,7 +378,6 @@ def build_bg_preamble(
 def build_routine_prompt(
     routine: Routine,
     *,
-    skill_name: str,
     reminders: list[Reminder],
     routines: list[Routine],
     busy: bool = False,
@@ -385,14 +386,13 @@ def build_routine_prompt(
     if routine.background:
         schedule = build_upcoming_schedule(routines, reminders, current_id=routine.id)
         preamble = build_bg_preamble(schedule, busy=busy, bg_config=bg_config)
-        return f"/{skill_name} [routine-bg:{routine.id}] {preamble}"
-    return f"/{skill_name} [routine:{routine.id}]"
+        return f"[routine-bg:{routine.id}] {preamble}\n\nTASK:\n{routine.message}"
+    return f"[routine:{routine.id}]\n\n{routine.message}"
 
 
 def build_reminder_prompt(
     reminder: Reminder,
     *,
-    skill_name: str,
     reminders: list[Reminder],
     routines: list[Routine],
     busy: bool = False,
@@ -400,7 +400,7 @@ def build_reminder_prompt(
     overdue_at: datetime | None = None,
 ) -> str:
     tag = f"reminder-bg:{reminder.id}" if reminder.background else f"reminder:{reminder.id}"
-    parts = [f"/{skill_name} [{tag}]"]
+    parts = [f"[{tag}]"]
     if overdue_at is not None:
         scheduled_str = overdue_at.strftime("%I:%M %p").lstrip("0")
         parts.append(f"[late: was scheduled for {scheduled_str}, running now]")
@@ -431,4 +431,5 @@ def build_reminder_prompt(
                 f"Otherwise call report_updates."
             )
 
+    parts.append(f"\nTASK:\n{reminder.message}")
     return "\n".join(parts)

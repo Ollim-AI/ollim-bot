@@ -84,7 +84,7 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-_registered_routines: set[str] = set()
+_registered_routines: dict[str, str] = {}  # id → cron expression
 _registered_reminders: set[str] = set()
 _reported_problems: set[str] = set()
 
@@ -139,8 +139,16 @@ def _register_routine(
     agent: Agent,
     routine: Routine,
 ) -> None:
-    if routine.id in _registered_routines:
-        return
+    existing_cron = _registered_routines.get(routine.id)
+    if existing_cron is not None:
+        if existing_cron == routine.cron:
+            return
+        # Cron changed — remove old job and re-register
+        job = scheduler.get_job(f"routine_{routine.id}")
+        if job:
+            job.remove()
+        del _registered_routines[routine.id]
+        log.info("Routine %s cron changed: %s → %s", routine.id, existing_cron, routine.cron)
 
     async def _fire() -> None:
         busy = agent.lock().locked()
@@ -156,10 +164,9 @@ def _register_routine(
                 return
             reminders = list_reminders()
             routines = list_routines()
-        sname = ensure_skill(routine)
+        ensure_skill(routine)
         prompt = build_routine_prompt(
             routine,
-            skill_name=sname,
             reminders=reminders,
             routines=routines,
             busy=busy,
@@ -208,7 +215,7 @@ def _register_routine(
                 append_update(f"Routine **{routine.id}** failed to register — invalid cron `{routine.cron}`")
             )
         return
-    _registered_routines.add(routine.id)
+    _registered_routines[routine.id] = routine.cron
 
 
 def _register_reminder(
@@ -234,10 +241,9 @@ def _register_reminder(
                 return
             all_reminders = list_reminders()
             all_routines = list_routines()
-        sname = ensure_skill(reminder)
+        ensure_skill(reminder)
         prompt = build_reminder_prompt(
             reminder,
-            skill_name=sname,
             reminders=all_reminders,
             routines=all_routines,
             busy=busy,
@@ -344,12 +350,12 @@ def setup_scheduler(bot: discord.Client, agent: Agent, owner: discord.User) -> A
         _check_corrupt_files(len(current_routines), "routine", routine_files)
         for routine in current_routines:
             _register_routine(scheduler, owner, agent, routine)
-        stale_routine_ids = _registered_routines - current_routine_ids
+        stale_routine_ids = _registered_routines.keys() - current_routine_ids
         for stale_id in stale_routine_ids:
             job = scheduler.get_job(f"routine_{stale_id}")
             if job:
                 job.remove()
-            _registered_routines.discard(stale_id)
+            del _registered_routines[stale_id]
             _reported_problems.discard(f"routine_reg_{stale_id}")
 
         reminder_files = sorted(REMINDERS_DIR.glob("*.md")) if REMINDERS_DIR.is_dir() else []
