@@ -51,7 +51,13 @@ from ollim_bot.fork_state import (
     touch_activity,
 )
 from ollim_bot.forks import peek_pending_updates
-from ollim_bot.hooks import auto_commit_hook, state_dir_guard, tool_error_hook, tool_failure_hook
+from ollim_bot.hooks import (
+    auto_commit_hook,
+    routine_validator,
+    state_dir_guard,
+    tool_error_hook,
+    tool_failure_hook,
+)
 from ollim_bot.permissions import (
     cancel_pending,
     clear_denied,
@@ -108,7 +114,9 @@ class Agent:
             permission_mode="default",
             hooks={
                 "Stop": [HookMatcher(hooks=[require_report_hook])],
-                "PreToolUse": [HookMatcher(matcher="Write|Edit", hooks=[state_dir_guard])],
+                "PreToolUse": [
+                    HookMatcher(matcher="Write|Edit", hooks=[state_dir_guard, routine_validator]),
+                ],
                 "PostToolUse": [
                     HookMatcher(matcher="Write|Edit", hooks=[auto_commit_hook]),
                     HookMatcher(hooks=[tool_error_hook]),

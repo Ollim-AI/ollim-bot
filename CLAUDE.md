@@ -138,6 +138,7 @@ See docs site for full mechanics. Key rules:
 
 ## Routines & reminders
 Format spec: see docs site. Key implementation details:
+- `routine_validator` PreToolUse hook validates routine files on Write/Edit (blocks missing id/cron/malformed YAML, warns on unscoped tools, dangerous combos, unknown keys)
 - Agent manages files directly (Glob/Read/Write/Edit) — no CLI required
 - Scheduler polls both directories every 10s, registers/removes APScheduler jobs
 - Background forks: `run_agent_background` creates disposable forked client (`fork_session=True`)
@@ -183,7 +184,7 @@ Before committing, every change goes through these gates:
 
 1. **One logical change per commit** — split unrelated changes into separate commits.
 2. **Review for complexity** (`/simplify`) — run on all code changes. Skip for docs-only or config-only changes.
-3. **Review agent-facing text** (`/improve-prompt`) — run when a commit adds or modifies system prompts, subagent specs, skill definitions, or MCP tool descriptions, because the bot treats these as instructions. Skip when changes don't alter agent-visible text.
+3. **Review agent-facing text** (`/improve-prompt`) — run when a commit adds or modifies system prompts, subagent specs, skill definitions, or MCP tool descriptions, because the bot treats these as instructions. For routines, use `/improve-routine`. Skip when changes don't alter agent-visible text.
 4. **Add behavior tests** — for any change that adds, removes, or alters runtime behavior. Skip for internal refactors with existing test coverage.
 
 Required env vars (set in `.env`): `DISCORD_TOKEN`, `OLLIM_USER_NAME`, `OLLIM_BOT_NAME`
@@ -246,6 +247,7 @@ Before proposing the plan (ExitPlanMode), load the `python-principles` skill and
 - `/ux-principles` -- user-facing design, notifications, proactive outreach, bot responses
 - `/async-principles` -- concurrency, fork state, locks, contextvars, file I/O atomicity
 - `/improve-prompt` -- audit and improve agent prompts, system prompts, skill definitions
+- `/improve-routine` -- diagnose and fix routine quality issues (data sources, reporting, config, prompt)
 - `/learn-skill` -- capture a workflow into a reusable SKILL.md
 - `/mermaid` -- generate architecture/flow diagrams as PNG
 - `/claude-history` -- investigate past Claude Code sessions for decisions and context
