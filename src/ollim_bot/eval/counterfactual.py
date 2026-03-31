@@ -21,6 +21,7 @@ and compare the agent's response against the original.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import re
@@ -144,34 +145,35 @@ def truncate_session(filepath: Path, rewind_uuid: str) -> tuple[Path, str]:
     """
     temp_id = str(uuid4())
     temp_path = filepath.parent / f"{temp_id}.jsonl"
-    lines_to_write: list[str] = []
     original_message: str | None = None
+    line_count = 0
 
-    with open(filepath, encoding="utf-8", errors="replace") as f:
-        for line in f:
+    with (
+        open(filepath, encoding="utf-8", errors="replace") as src,
+        open(temp_path, "w", encoding="utf-8") as dst,
+    ):
+        for line in src:
             uuid = _extract_last_uuid(line)
             if uuid == rewind_uuid:
                 record = json.loads(line)
                 content = record.get("message", {}).get("content", "")
                 original_message = extract_content_text(content)
                 break
-            lines_to_write.append(line)
+            dst.write(line)
+            line_count += 1
 
     if original_message is None:
-        # Scan for available user message UUIDs to help the caller
+        temp_path.unlink(missing_ok=True)
         available = _scan_user_uuids(filepath)
-        hint = ", ".join(available[:10]) if available else "(none found)"
+        hint = ", ".join(available) if available else "(none found)"
         msg = f"UUID '{rewind_uuid}' not found in {filepath.name}. Available user message UUIDs: {hint}"
         raise ValueError(msg)
 
-    with open(temp_path, "w", encoding="utf-8") as f:
-        f.writelines(lines_to_write)
-
-    log.info("Truncated session to %d lines at %s -> %s", len(lines_to_write), rewind_uuid[:8], temp_path.name)
+    log.info("Truncated session to %d lines at %s -> %s", line_count, rewind_uuid[:8], temp_path.name)
     return temp_path, original_message
 
 
-def _scan_user_uuids(filepath: Path) -> list[str]:
+def _scan_user_uuids(filepath: Path, limit: int = 10) -> list[str]:
     """Quick scan for user message UUIDs (for error messages)."""
     uuids: list[str] = []
     with open(filepath, encoding="utf-8", errors="replace") as f:
@@ -181,6 +183,8 @@ def _scan_user_uuids(filepath: Path) -> list[str]:
             uuid = _extract_last_uuid(line)
             if uuid:
                 uuids.append(uuid)
+                if len(uuids) >= limit:
+                    break
     return uuids
 
 
@@ -345,17 +349,23 @@ async def run_counterfactual(
     fork_session_ids: list[str] = []
     try:
         message = intervention.message_override or original_message
+        variant_opts = _build_options(intervention, cwd_path)
 
         baseline: ResponseSummary | None = None
-        if not skip_baseline:
-            log.info("Running baseline query...")
-            baseline = await _run_query(temp_session_id, message, _build_options(None, cwd_path))
-            if baseline.session_id:
-                fork_session_ids.append(baseline.session_id)
+        if skip_baseline:
+            log.info("Running variant query...")
+            variant = await _run_query(temp_session_id, message, variant_opts)
+        else:
+            log.info("Running baseline + variant queries in parallel...")
+            baseline_opts = _build_options(None, cwd_path)
+            baseline, variant = await asyncio.gather(
+                _run_query(temp_session_id, message, baseline_opts),
+                _run_query(temp_session_id, message, variant_opts),
+            )
             log.info("Baseline done (cost=$%.4f)", baseline.total_cost_usd or 0)
 
-        log.info("Running variant query...")
-        variant = await _run_query(temp_session_id, message, _build_options(intervention, cwd_path))
+        if baseline and baseline.session_id:
+            fork_session_ids.append(baseline.session_id)
         if variant.session_id:
             fork_session_ids.append(variant.session_id)
         log.info("Variant done (cost=$%.4f)", variant.total_cost_usd or 0)
