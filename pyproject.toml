@@ -56,6 +56,9 @@ dev = [
     "ty>=0.0.18",
 ]
 
+[tool.pytest.ini_options]
+markers = ["integration: requires real model backend"]
+
 [tool.uv]
 cache-keys = [{ file = "pyproject.toml" }]
 
