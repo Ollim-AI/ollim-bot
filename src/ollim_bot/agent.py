@@ -245,6 +245,10 @@ class Agent:
             mode = "default" if cfg.permission_mode == "dontAsk" else cfg.permission_mode
             await self.set_permission_mode(mode)
 
+    async def close(self) -> None:
+        """Public shutdown: tear down the active client."""
+        await self._drop_client()
+
     async def _drop_client(self) -> None:
         """Teardown: interrupt + disconnect.
 

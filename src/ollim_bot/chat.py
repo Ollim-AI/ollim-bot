@@ -108,7 +108,7 @@ async def run_chat(model: str | None = None) -> None:
     except KeyboardInterrupt:
         pass
 
-    await agent._drop_client()
+    await agent.close()
     print("\nchat ended.")
 
 
