@@ -15,8 +15,8 @@ RUN uv sync --frozen --no-dev
 COPY docker-entrypoint.sh /usr/local/bin/
 
 RUN useradd --create-home bot \
-    && mkdir -p /home/bot/.ollim-bot \
-    && chown bot:bot /home/bot/.ollim-bot
+    && mkdir -p /home/bot/.ollim-bot /home/bot/.claude \
+    && chown bot:bot /home/bot/.ollim-bot /home/bot/.claude
 USER bot
 
 ENTRYPOINT ["docker-entrypoint.sh"]

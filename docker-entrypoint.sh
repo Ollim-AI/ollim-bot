@@ -33,4 +33,7 @@ except Exception as e:
     fi
 fi
 
+# Ensure CLI config exists (suppresses "configuration file not found" warnings)
+[ -f "$HOME/.claude.json" ] || echo '{}' >"$HOME/.claude.json"
+
 exec "$@"

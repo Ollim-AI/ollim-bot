@@ -78,10 +78,8 @@ async def run_chat(model: str | None = None) -> None:
     init_channel(channel)
 
     from ollim_bot.agent import Agent
-    from ollim_bot.sessions import delete_session_id
     from ollim_bot.streamer import StreamStatus
 
-    delete_session_id()
     agent = Agent()
     overrides: dict[str, Any] = {"permission_mode": "bypassPermissions"}
     if model:

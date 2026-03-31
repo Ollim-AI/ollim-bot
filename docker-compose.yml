@@ -16,6 +16,7 @@ services:
     env_file: .env
     volumes:
       - bot_data:/home/bot/.ollim-bot
+      - cli_data:/home/bot/.claude
     depends_on:
       ollama:
         condition: service_healthy
@@ -23,3 +24,4 @@ services:
 volumes:
   ollama_data:
   bot_data:
+  cli_data:
