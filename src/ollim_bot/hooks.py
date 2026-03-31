@@ -212,12 +212,8 @@ def validate_routine(content: str) -> tuple[list[str], list[str]]:
     # Delegation + unscoped writes
     tool_bases = {t.split("(")[0].strip() for t in tools}
     has_delegation = bool(tool_bases & _DELEGATION_TOOLS)
-    has_unscoped_write = any(
-        _BROAD_TOOLS_RE.match(t.split("(")[0].strip())
-        and "(" not in t
-        and t.split("(")[0].strip() in ("Write", "Edit", "MultiEdit")
-        for t in tools
-    )
+    _WRITE_TOOLS = {"Write", "Edit", "MultiEdit"}
+    has_unscoped_write = any(t.split("(")[0].strip() in _WRITE_TOOLS and "(" not in t for t in tools)
     if has_delegation and has_unscoped_write:
         warnings.append(
             "Delegation + unscoped Write/Edit — subagent output may be written to shared files "
@@ -264,7 +260,7 @@ async def routine_validator(
     if tool_name == "Write":
         content = tool_input.get("content", "")
     elif tool_name == "Edit" and resolved.exists():
-        original = resolved.read_text()
+        original = await asyncio.to_thread(resolved.read_text)
         old = tool_input.get("old_string", "")
         new = tool_input.get("new_string", "")
         if not old or old not in original:
