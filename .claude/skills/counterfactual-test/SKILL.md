@@ -45,12 +45,15 @@ Combine fields freely. Safety caps default to 5 turns and $0.50 per run.
 
 ### 3. Run the test
 
-**CLI** (preferred):
+**CLI** (preferred — same conventions as `claude-history`):
 ```bash
-uv run python -m tests.counterfactual_cli <session_id> <rewind_uuid> --append "Your instruction"
+counterfactual <session> <rewind_uuid> --append "Your instruction"
 ```
 
+Session accepts UUID prefixes, `prev`, `prev-N`, or slug names — same as `claude-history transcript`.
+
 Common flags:
+- `--cwd` / `--project` — same as claude-history (default: `~/.ollim-bot`)
 - `--append "text"` — append to system prompt
 - `--replace-prompt "text"` — replace system prompt entirely
 - `--model haiku` — use a different model
@@ -64,7 +67,7 @@ Common flags:
 **Python API** (for programmatic use):
 ```python
 import asyncio
-from tests.counterfactual import run_counterfactual, Intervention
+from ollim_bot.eval.counterfactual import run_counterfactual, Intervention
 
 result = asyncio.run(run_counterfactual(
     session_id="<session_id>",

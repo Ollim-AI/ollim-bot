@@ -38,6 +38,7 @@ Issues = "https://github.com/Ollim-AI/ollim-bot/issues"
 [project.scripts]
 ollim-bot = "ollim_bot.main:main"
 claude-history = "claude_history.cli:main"
+counterfactual = "ollim_bot.eval.counterfactual_cli:main"
 
 [build-system]
 requires = ["hatchling"]
