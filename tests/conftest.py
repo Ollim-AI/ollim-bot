@@ -45,7 +45,10 @@ def data_dir(tmp_path, monkeypatch):
     monkeypatch.setattr(sessions_mod, "FORK_MESSAGES_FILE", state_dir / "fork_messages.json")
     monkeypatch.setattr(forks_mod, "_UPDATES_FILE", state_dir / "pending_updates.json")
 
+    import ollim_bot.profile as profile_mod
     import ollim_bot.webhook as webhook_mod
 
+    monkeypatch.setattr(profile_mod, "IDENTITY_FILE", tmp_path / "IDENTITY.md")
+    monkeypatch.setattr(profile_mod, "USER_FILE", tmp_path / "USER.md")
     monkeypatch.setattr(webhook_mod, "WEBHOOKS_DIR", tmp_path / "webhooks")
     return tmp_path
