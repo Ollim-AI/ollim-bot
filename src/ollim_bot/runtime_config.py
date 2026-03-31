@@ -26,7 +26,8 @@ from ollim_bot.storage import STATE_DIR, atomic_write, safe_json_load
 CONFIG_FILE: Path = STATE_DIR / "config.json"
 
 _MODELS = {"opus", "sonnet", "haiku"}
-_PERMISSION_MODES = {"dontAsk", "default", "acceptEdits", "bypassPermissions"}
+BYPASS_PERMISSIONS = "bypassPermissions"
+_PERMISSION_MODES = {"dontAsk", "default", "acceptEdits", BYPASS_PERMISSIONS}
 _BOOL_TRUE = {"on", "true", "1", "yes"}
 _BOOL_FALSE = {"off", "false", "0", "no"}
 _THINKING_NAMED = {"off", "adaptive"}

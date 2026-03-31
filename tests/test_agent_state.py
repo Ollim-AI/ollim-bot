@@ -8,6 +8,7 @@ from claude_agent_sdk import ClaudeAgentOptions, CLIConnectionError
 
 from ollim_bot.agent import _with_thinking
 from ollim_bot.fork_state import ForkExitAction
+from ollim_bot.runtime_config import BYPASS_PERMISSIONS
 
 
 def _run(coro):
@@ -251,8 +252,8 @@ class TestSetPermissionMode:
         assert agent.options.permission_mode == "default"
 
     def test_updates_options_when_no_client(self, agent):
-        _run(agent.set_permission_mode("bypassPermissions"))
-        assert agent.options.permission_mode == "bypassPermissions"
+        _run(agent.set_permission_mode(BYPASS_PERMISSIONS))
+        assert agent.options.permission_mode == BYPASS_PERMISSIONS
 
 
 # ---------------------------------------------------------------------------

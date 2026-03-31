@@ -6,6 +6,7 @@ import pytest
 
 import ollim_bot.runtime_config as runtime_config_mod
 from ollim_bot.runtime_config import (
+    BYPASS_PERMISSIONS,
     VALID_KEYS,
     RuntimeConfig,
     format_all,
@@ -72,7 +73,7 @@ def test_load_ignores_unknown_keys(data_dir):
         ("bg_fork_timeout", "3600", 3600),
         ("fork_idle_timeout", "5", 5),
         ("permission_mode", "default", "default"),
-        ("permission_mode", "bypassPermissions", "bypassPermissions"),
+        ("permission_mode", BYPASS_PERMISSIONS, BYPASS_PERMISSIONS),
     ],
 )
 def test_set_value_valid(data_dir, key, raw, expected):

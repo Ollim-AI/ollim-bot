@@ -48,6 +48,7 @@ from claude_history.models import extract_content_text
 from claude_history.resolve import get_project_dir
 
 from ollim_bot.prompts import build_system_prompt
+from ollim_bot.runtime_config import BYPASS_PERMISSIONS
 
 log = logging.getLogger(__name__)
 
@@ -249,7 +250,7 @@ def _build_options(intervention: Intervention | None, cwd: Path) -> ClaudeAgentO
     i = intervention or Intervention()
     return ClaudeAgentOptions(
         cwd=str(cwd),
-        permission_mode="bypassPermissions",
+        permission_mode=BYPASS_PERMISSIONS,
         system_prompt=_build_system_prompt(intervention),
         setting_sources=["project"],
         mcp_servers={

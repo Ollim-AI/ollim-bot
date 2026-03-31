@@ -45,6 +45,7 @@ from ollim_bot.fork_state import (
     touch_activity,
 )
 from ollim_bot.prompts import fork_resume_notice
+from ollim_bot.runtime_config import BYPASS_PERMISSIONS
 from ollim_bot.scheduling import setup_scheduler
 from ollim_bot.sessions import (
     cancel_message_collector,
@@ -524,7 +525,7 @@ def create_bot() -> commands.Bot:
             discord.app_commands.Choice(name="dontAsk", value="dontAsk"),
             discord.app_commands.Choice(name="default", value="default"),
             discord.app_commands.Choice(name="acceptEdits", value="acceptEdits"),
-            discord.app_commands.Choice(name="bypassPermissions", value="bypassPermissions"),
+            discord.app_commands.Choice(name=BYPASS_PERMISSIONS, value=BYPASS_PERMISSIONS),
         ]
     )
     async def slash_permissions(interaction: discord.Interaction, mode: discord.app_commands.Choice[str] | None = None):

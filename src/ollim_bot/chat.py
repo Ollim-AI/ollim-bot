@@ -22,6 +22,8 @@ import sys
 from dataclasses import replace
 from typing import Any
 
+from ollim_bot.runtime_config import BYPASS_PERMISSIONS
+
 
 class FakeMessage:
     """Minimal duck type for discord.Message — satisfies track_message(msg.id)."""
@@ -81,7 +83,7 @@ async def run_chat(model: str | None = None) -> None:
     from ollim_bot.streamer import StreamStatus
 
     agent = Agent()
-    overrides: dict[str, Any] = {"permission_mode": "bypassPermissions"}
+    overrides: dict[str, Any] = {"permission_mode": BYPASS_PERMISSIONS}
     if model:
         overrides["model"] = model
     agent.options = replace(agent.options, **overrides)
