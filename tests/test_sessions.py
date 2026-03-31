@@ -15,6 +15,7 @@ from ollim_bot.sessions import (
     session_start_time,
     set_swap_in_progress,
     start_message_collector,
+    track_fork_message,
     track_message,
 )
 
@@ -241,3 +242,24 @@ def test_duplicate_track_resolves_correctly(fork_messages):
 
     assert lookup_fork_session(300).session_id == "fork-dup"
     assert lookup_fork_session(400).session_id == "fork-dup"
+
+
+def test_track_fork_message_standalone(fork_messages):
+    """track_fork_message writes directly without a collector (e.g. exit embeds)."""
+    track_fork_message(500, "fork-exit", "parent-exit")
+
+    result = lookup_fork_session(500)
+    assert result.session_id == "fork-exit"
+    assert not result.expired
+
+
+def test_track_fork_message_appends_to_existing(fork_messages):
+    """track_fork_message preserves existing records."""
+    start_message_collector()
+    track_message(100)
+    flush_message_collector("fork-abc", "parent-xyz")
+
+    track_fork_message(500, "fork-abc", "parent-xyz")
+
+    assert lookup_fork_session(100).session_id == "fork-abc"
+    assert lookup_fork_session(500).session_id == "fork-abc"

@@ -52,6 +52,7 @@ from ollim_bot.sessions import (
     load_session_id,
     lookup_fork_session,
     start_message_collector,
+    track_fork_message,
     track_message,
 )
 from ollim_bot.storage import save_attachment
@@ -219,10 +220,14 @@ def create_bot() -> commands.Bot:
             await _check_fork_transitions(channel)
             return
 
+        fork_sid = agent.fork_session_id
+        parent_sid = load_session_id()
         result = await agent.pop_fork_exit()
         if result:
             action, summary = result
-            await channel.send(embed=fork_exit_embed(action, summary))
+            msg = await channel.send(embed=fork_exit_embed(action, summary))
+            if fork_sid:
+                track_fork_message(msg.id, fork_sid, parent_sid)
 
     @bot.tree.command(name="clear", description="Clear conversation and start fresh")
     @discord.app_commands.check(_owner_check)

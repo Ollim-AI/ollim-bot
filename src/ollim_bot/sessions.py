@@ -157,6 +157,23 @@ def track_message(message_id: int) -> None:
         collector.append(message_id)
 
 
+def track_fork_message(message_id: int, fork_session_id: str, parent_session_id: str | None) -> None:
+    """Track a single message for fork resumption (outside the collector lifecycle).
+
+    Used for messages sent after the collector has been flushed — e.g. fork exit embeds.
+    """
+    records = _read_fork_messages()
+    records.append(
+        _ForkMessageRecord(
+            message_id=message_id,
+            fork_session_id=fork_session_id,
+            parent_session_id=parent_session_id,
+            ts=time.time(),
+        )
+    )
+    _write_fork_messages(records)
+
+
 def flush_message_collector(fork_session_id: str, parent_session_id: str | None) -> None:
     collector = _msg_collector.get()
     _msg_collector.set(None)

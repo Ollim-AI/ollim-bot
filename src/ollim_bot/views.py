@@ -45,6 +45,7 @@ from ollim_bot.sessions import (
     load_session_id,
     lookup_fork_session,
     start_message_collector,
+    track_fork_message,
     track_message,
 )
 from ollim_bot.streamer import stream_to_channel
@@ -172,10 +173,14 @@ async def _handle_agent_inquiry(interaction: discord.Interaction, inquiry_id: st
                 cancel_message_collector()
         if enter_fork_requested():
             pop_enter_fork()  # drain; fork entry requires the bot.py loop
+        fork_sid = _agent.fork_session_id
+        parent_sid = load_session_id()
         result = await _agent.pop_fork_exit()
         if result:
             action, summary = result
-            await channel.send(embed=fork_exit_embed(action, summary))
+            msg = await channel.send(embed=fork_exit_embed(action, summary))
+            if fork_sid:
+                track_fork_message(msg.id, fork_sid, parent_sid)
         elif fork_session_id:
             touch_activity()
             clear_prompted()
@@ -214,10 +219,14 @@ async def _do_fork_save(interaction: discord.Interaction, *, delete_trigger: boo
         if not in_interactive_fork():
             await interaction.followup.send("fork already ended.", ephemeral=True)
             return
+        fork_sid = _agent.fork_session_id
+        parent_sid = load_session_id()
         saved = await _agent.exit_interactive_fork(ForkExitAction.SAVE)
     summary = "context saved" if saved else "fork discarded (no session to save)"
     action = ForkExitAction.SAVE if saved else ForkExitAction.EXIT
-    await interaction.followup.send(embed=fork_exit_embed(action, summary))
+    msg = await interaction.followup.send(embed=fork_exit_embed(action, summary), wait=True)
+    if fork_sid:
+        track_fork_message(msg.id, fork_sid, parent_sid)
 
 
 async def _handle_fork_report(interaction: discord.Interaction, _data: str) -> None:
@@ -248,9 +257,13 @@ async def _handle_fork_report(interaction: discord.Interaction, _data: str) -> N
             ),
         )
         new_updates = [u for u in peek_pending_updates() if u.ts not in seen_ts]
+        fork_sid = _agent.fork_session_id
+        parent_sid = load_session_id()
         await _agent.exit_interactive_fork(ForkExitAction.REPORT)
     summary = new_updates[-1].message if new_updates else "no summary reported"
-    await interaction.followup.send(embed=fork_exit_embed(ForkExitAction.REPORT, summary))
+    msg = await interaction.followup.send(embed=fork_exit_embed(ForkExitAction.REPORT, summary), wait=True)
+    if fork_sid:
+        track_fork_message(msg.id, fork_sid, parent_sid)
 
 
 async def _handle_fork_exit(interaction: discord.Interaction, _data: str) -> None:
@@ -265,5 +278,9 @@ async def _handle_fork_exit(interaction: discord.Interaction, _data: str) -> Non
         if not in_interactive_fork():
             await interaction.followup.send("fork already ended.", ephemeral=True)
             return
+        fork_sid = _agent.fork_session_id
+        parent_sid = load_session_id()
         await _agent.exit_interactive_fork(ForkExitAction.EXIT)
-    await interaction.followup.send(embed=fork_exit_embed(ForkExitAction.EXIT))
+    msg = await interaction.followup.send(embed=fork_exit_embed(ForkExitAction.EXIT), wait=True)
+    if fork_sid:
+        track_fork_message(msg.id, fork_sid, parent_sid)

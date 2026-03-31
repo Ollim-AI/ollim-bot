@@ -74,6 +74,7 @@ from ollim_bot.sessions import (
     flush_message_collector,
     load_session_id,
     start_message_collector,
+    track_fork_message,
 )
 from ollim_bot.skills import cleanup_stale_skills, ensure_skill
 from ollim_bot.streamer import stream_to_channel
@@ -423,14 +424,17 @@ def setup_scheduler(bot: discord.Client, agent: Agent, owner: discord.User) -> A
             await dm.typing()
             await stream_to_channel(dm, agent.stream_chat(prompt))
             sid = agent.fork_session_id
+            parent_sid = load_session_id()
             if sid:
-                flush_message_collector(sid, load_session_id())
+                flush_message_collector(sid, parent_sid)
             else:
                 cancel_message_collector()
             result = await agent.pop_fork_exit()
             if result:
                 action, summary = result
-                await dm.send(embed=fork_exit_embed(action, summary))
+                msg = await dm.send(embed=fork_exit_embed(action, summary))
+                if sid:
+                    track_fork_message(msg.id, sid, parent_sid)
             else:
                 touch_activity()
 
