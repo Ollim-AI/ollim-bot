@@ -1,31 +1,34 @@
 ---
 name: e2e-docker-test
-description: End-to-end test ollim-bot in Docker. Use when verifying containerized deployment, testing model backends, or validating session persistence.
-argument-hint: <ollama|claude> [model-name]
-allowed-tools: Bash(docker *), Bash(rm *), Read
+description: Spin up ollim-bot in Docker with a real model backend, run tests, clean up. Use when verifying behavior in a containerized environment.
+argument-hint: <what to test> [--model ollama:qwen3.5:2b | claude:haiku]
+allowed-tools: Bash(docker *), Bash(rm *), Bash(printf *), Read
 disable-model-invocation: true
 ---
 
 # E2E Docker Test
 
-Verify ollim-bot works in a container with a real model backend.
+Spin up the bot in Docker, test what the user asked, tear down.
 
-## Setup
+## 1. Start the environment
 
 ```bash
 docker compose build ollim-bot
 docker compose up -d ollama
-# Wait for healthy (entrypoint auto-pulls the model)
+# Wait for healthy
+for i in $(seq 1 12); do
+  docker compose ps --format "{{.Status}}" ollama 2>/dev/null | grep -q "healthy" && break
+  sleep 5
+done
 ```
 
-## Test matrix
+## 2. Send messages
 
-Run each applicable path. The entrypoint handles model pulling automatically.
+Parse the model from the argument (default: `claude:haiku`). The entrypoint auto-pulls Ollama models.
 
-### Ollama path
-
+**Ollama:**
 ```bash
-printf 'Say exactly: PONG\n' | docker compose run --rm -T \
+printf '<message>\n' | docker compose run --rm -T \
   -e OLLIM_USER_NAME=TestUser -e OLLIM_BOT_NAME=TestBot \
   -e ANTHROPIC_AUTH_TOKEN=skip \
   -e ANTHROPIC_BASE_URL=http://ollama:11434 \
@@ -33,52 +36,26 @@ printf 'Say exactly: PONG\n' | docker compose run --rm -T \
   ollim-bot uv run --no-dev ollim-bot chat --model <model>
 ```
 
-### Claude path
-
+**Claude:**
 ```bash
-printf 'Say exactly: PONG\n' | docker compose run --rm -T \
+printf '<message>\n' | docker compose run --rm -T \
   -v "$HOME/.claude:/home/bot/.claude:rw" \
   -e OLLIM_USER_NAME=TestUser -e OLLIM_BOT_NAME=TestBot \
-  ollim-bot uv run --no-dev ollim-bot chat --model haiku
+  ollim-bot uv run --no-dev ollim-bot chat --model <model>
 ```
 
-### Auth failure path
+Send as many messages as the test requires. Each `docker compose run` is a separate session but resumes the previous conversation (session state persists in volumes).
 
-```bash
-docker compose run --rm -T \
-  -e OLLIM_USER_NAME=TestUser -e OLLIM_BOT_NAME=TestBot \
-  ollim-bot uv run --no-dev ollim-bot chat
-# Expect: "not logged in to claude" + exit 1
-```
+## 3. Clean up
 
-## Session persistence test (BANANA test)
-
-Two-run test that proves session transcript replay works — not filesystem bypass.
-
-**Run 1:** Set the secret word.
-```bash
-printf 'The secret word is BANANA. Do not write it to any file. Just remember it.\n' | docker compose run --rm -T <env-vars> ollim-bot uv run --no-dev ollim-bot chat --model <model>
-```
-
-**Run 2:** Recall it.
-```bash
-printf 'What is the secret word?\n' | docker compose run --rm -T <env-vars> ollim-bot uv run --no-dev ollim-bot chat --model <model>
-```
-
-**Verify:** Response contains "BANANA". Then confirm no filesystem bypass:
-```bash
-docker compose run --rm -T <env-vars> ollim-bot \
-  find /home/bot/.claude/projects -name "*.md" -path "*/memory/*"
-# Expect: empty (no memory files written)
-```
-
-### Known limitation
-
-Session resume fails with small models (qwen3.5:2b) — the system prompt (~25k tokens) fills the context window, so the CLI auto-compacts conversation history away. Use Claude or a large-context model for this test.
-
-## Cleanup
+Always run cleanup when testing is done:
 
 ```bash
 docker compose down -v
-rm -rf "$HOME/.claude/projects/-home-bot--ollim-bot"  # only if Claude path was tested
+rm -rf "$HOME/.claude/projects/-home-bot--ollim-bot"  # Claude path only
 ```
+
+## Gotchas
+
+- **Session resume fails with small models** — system prompt (~25k tokens) fills the context window. Use Claude or large-context models for multi-run tests.
+- **Switching between Ollama and Claude** requires `docker compose down -v` first (incompatible session state).

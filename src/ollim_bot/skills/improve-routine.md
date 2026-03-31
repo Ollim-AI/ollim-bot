@@ -50,11 +50,11 @@ Execute these sub-scans in order:
 
 **3b-i. Data source scan (D)**: For each D code, state whether it applies or N/A. For presence-based findings, quote the routine text. For absence-based findings, state what's missing. Classify as OBSERVED or INFERRED. Output a findings table.
 
-**3b-ii. Reporting scan (R)**: Same process for R codes.
+**3b-ii. Reporting scan (R)**: Same process (per-code evidence, OBSERVED/INFERRED, findings table) for R codes.
 
-**3b-iii. Configuration scan (C)**: Same process for C codes.
+**3b-iii. Configuration scan (C)**: Same process (per-code evidence, OBSERVED/INFERRED, findings table) for C codes.
 
-**3b-iv. Prompt quality scan (P)**: Same process for P codes.
+**3b-iv. Prompt quality scan (P)**: Same process (per-code evidence, OBSERVED/INFERRED, findings table) for P codes.
 
 **3b-v. Diagnostic filter**: For each finding marked "applies," ultrathink: construct a concrete scenario — specific trigger → specific agent behavior with this problem present vs. absent. Drop findings where the delta isn't demonstrable. Present surviving findings with one-line scenario justification.
 
@@ -74,7 +74,7 @@ Use `AskUserQuestion`: Present the failure report. Ask:
 
 ### 5. Fetch relevant docs
 
-`WebFetch` https://docs.ollim.ai/routines for the routine format spec. Then conditionally:
+`WebFetch` https://docs.ollim.ai/routines for the routine format spec. If fetch fails, use `SearchOllimBot` for "routine format" instead. Then conditionally:
 
 | Failure involves... | Fetch |
 |--------------------|------|
@@ -113,7 +113,7 @@ Execute approved fixes with Edit. Priority: **Correctness > Substance > Brevity*
 
 Spawn 2 parallel critic subagents via `Agent`:
 
-**Critic 1 — Completeness**: "Read the failure report below and the rewritten routine at [path]. Run `git diff HEAD -- [path]`. For each diagnosed failure, find the changed lines that address it. Report MISSING or PRESENT with diff evidence."
+**Critic 1 — Completeness**: "Read the failure report below and the rewritten routine at [path]. Run `git diff HEAD -- [path]`. For each diagnosed failure, explain how the changed lines prevent the failure scenario from the report. Report ADDRESSED (with mechanism), INSUFFICIENT (change exists but doesn't demonstrably prevent the failure), or MISSING (no relevant change)."
 
 **Critic 2 — Regression**: "Read the Failure Modes Reference in this skill and the rewritten routine at [path]. Run `git diff HEAD -- [path]`. For each failure mode code, check if the diff introduces that failure where it didn't exist before. Report NEW or OK."
 
