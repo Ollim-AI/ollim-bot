@@ -75,6 +75,7 @@ from ollim_bot.sessions import (
     load_session_id,
     start_message_collector,
     track_fork_message,
+    track_message,
 )
 from ollim_bot.skills import cleanup_stale_skills, ensure_skill
 from ollim_bot.streamer import stream_to_channel
@@ -420,7 +421,8 @@ def setup_scheduler(bot: discord.Client, agent: Agent, owner: discord.User) -> A
 
         async with agent.lock():
             start_message_collector()
-            await dm.send("-# fork idle — checking in...")
+            idle_msg = await dm.send("-# fork idle — checking in...")
+            track_message(idle_msg.id)
             await dm.typing()
             await stream_to_channel(dm, agent.stream_chat(prompt))
             sid = agent.fork_session_id
