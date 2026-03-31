@@ -292,7 +292,7 @@ def test_inline_list_in_frontmatter():
 
 def test_boolean_values_parsed():
     content = "---\nid: abc12345\ncron: 0 9 * * *\ndescription: test\nbackground: true\nallow-ping: false\n---\nBody"
-    blocks, warnings = validate_routine(content)
+    blocks, _warnings = validate_routine(content)
     assert not blocks
 
 
