@@ -86,9 +86,9 @@ The **baseline** (when enabled with `--with-baseline`) re-runs with original set
 ### 5. Cost awareness
 
 - Default caps: $0.50/run, $1.00 total for baseline+variant
-- `skip_baseline=True` halves cost
-- `Intervention(max_turns=1)` for quick smoke tests
-- `Intervention(model="haiku")` for cheap exploration
+- Omitting `--with-baseline` (the default) halves cost
+- `--max-turns 1` for quick smoke tests
+- `--model haiku` for cheap exploration
 
 ## Known divergences from production
 
@@ -97,3 +97,4 @@ The re-run environment is standalone (bot not running), so:
 - **Hooks**: No `state_dir_guard` or `auto_commit_hook`. The re-run can write to state/.
 - **Permissions**: `bypassPermissions` mode — tools denied in production will succeed.
 - **Non-determinism**: LLM responses vary between runs. Use the baseline to measure drift vs. intervention effect.
+- **Profile drift**: The system prompt is built from current `IDENTITY.md` and `USER.md`. If these changed since the original session, both baseline and variant use the new versions — differences may reflect profile changes, not non-determinism.
