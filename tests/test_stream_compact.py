@@ -4,39 +4,9 @@ import asyncio
 from collections.abc import AsyncGenerator
 
 import pytest
+from conftest import FakeChannel
 
 from ollim_bot.streamer import StreamStatus, stream_to_channel
-
-
-class FakeMessage:
-    _next_id = 1
-
-    def __init__(self, content: str):
-        self.id = FakeMessage._next_id
-        FakeMessage._next_id += 1
-        self.content = content
-        self.deleted = False
-
-    async def edit(self, *, content: str) -> None:
-        self.content = content
-
-    async def delete(self) -> None:
-        self.deleted = True
-
-
-class FakeChannel:
-    """Records all messages sent, edited, and deleted."""
-
-    def __init__(self) -> None:
-        self.messages: list[FakeMessage] = []
-
-    async def send(self, content: str, **_kwargs) -> FakeMessage:
-        msg = FakeMessage(content)
-        self.messages.append(msg)
-        return msg
-
-    async def typing(self) -> None:
-        pass
 
 
 async def _stream(ch: FakeChannel, deltas: AsyncGenerator[str | StreamStatus, None]) -> None:

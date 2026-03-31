@@ -7,6 +7,48 @@ os.environ.setdefault("OLLIM_BOT_NAME", "test-bot")
 
 import pytest
 
+# ---------------------------------------------------------------------------
+# Shared test doubles for Discord channel/message (used by streamer tests)
+# ---------------------------------------------------------------------------
+
+
+class FakeMessage:
+    """Minimal Discord Message stand-in for streamer tests."""
+
+    _next_id = 1
+
+    def __init__(self, content: str):
+        self.id = FakeMessage._next_id
+        FakeMessage._next_id += 1
+        self.content = content
+        self.deleted = False
+
+    async def edit(self, *, content: str) -> None:
+        self.content = content
+
+    async def delete(self) -> None:
+        self.deleted = True
+
+
+class FakeChannel:
+    """Minimal Discord TextChannel stand-in — records sent messages."""
+
+    def __init__(self) -> None:
+        self.messages: list[FakeMessage] = []
+
+    async def send(self, content: str, **_kwargs: object) -> FakeMessage:
+        msg = FakeMessage(content)
+        self.messages.append(msg)
+        return msg
+
+    async def typing(self) -> None:
+        pass
+
+
+# ---------------------------------------------------------------------------
+# Fixtures
+# ---------------------------------------------------------------------------
+
 
 @pytest.fixture(autouse=True)
 def _reset_bg_tracking():
@@ -45,10 +87,7 @@ def data_dir(tmp_path, monkeypatch):
     monkeypatch.setattr(sessions_mod, "FORK_MESSAGES_FILE", state_dir / "fork_messages.json")
     monkeypatch.setattr(forks_mod, "_UPDATES_FILE", state_dir / "pending_updates.json")
 
-    import ollim_bot.profile as profile_mod
     import ollim_bot.webhook as webhook_mod
 
-    monkeypatch.setattr(profile_mod, "IDENTITY_FILE", tmp_path / "IDENTITY.md")
-    monkeypatch.setattr(profile_mod, "USER_FILE", tmp_path / "USER.md")
     monkeypatch.setattr(webhook_mod, "WEBHOOKS_DIR", tmp_path / "webhooks")
     return tmp_path
