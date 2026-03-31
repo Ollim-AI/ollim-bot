@@ -1,6 +1,7 @@
 """Tests for the routine_validator PreToolUse hook in hooks.py."""
 
 import asyncio
+from pathlib import Path
 from typing import cast
 from unittest.mock import patch
 
@@ -15,7 +16,15 @@ def _run(coro):
     return asyncio.get_event_loop().run_until_complete(coro)
 
 
-def _make_input(file_path: str, content: str) -> HookInput:
+def _make_input(
+    file_path: str,
+    content: str,
+    *,
+    tool_name: str = "Write",
+    tool_input: dict | None = None,
+) -> HookInput:
+    if tool_input is None:
+        tool_input = {"file_path": file_path, "content": content}
     return cast(
         HookInput,
         PreToolUseHookInput(
@@ -25,8 +34,8 @@ def _make_input(file_path: str, content: str) -> HookInput:
             agent_id="test",
             agent_type="main",
             hook_event_name="PreToolUse",
-            tool_name="Write",
-            tool_input={"file_path": file_path, "content": content},
+            tool_name=tool_name,
+            tool_input=tool_input,
             tool_use_id="test",
         ),
     )
@@ -201,3 +210,101 @@ def test_hook_warns_with_additional_context(data_dir):
     ctx = result.get("hookSpecificOutput", {}).get("additionalContext", "")
     assert "routine-validator" in ctx
     assert "warning" in ctx
+
+
+# --- Edit tool path ---
+
+
+def test_hook_validates_edit_to_routine(data_dir):
+    """Edit that breaks a routine (removes id) should be blocked."""
+    routines_dir = data_dir / "routines"
+    routines_dir.mkdir(exist_ok=True)
+    routine_file = routines_dir / "test.md"
+    routine_file.write_text(VALID_ROUTINE)
+    path = str(routine_file)
+    inp = _make_input(
+        path,
+        "",
+        tool_name="Edit",
+        tool_input={
+            "file_path": path,
+            "old_string": "id: abc12345\n",
+            "new_string": "",
+        },
+    )
+    with patch("ollim_bot.hooks.ROUTINES_DIR", routines_dir):
+        result = _run(routine_validator(inp, None, _CTX))
+    assert result.get("hookSpecificOutput", {}).get("permissionDecision") == "deny"
+
+
+def test_hook_passes_valid_edit(data_dir):
+    """Edit that keeps routine valid should pass."""
+    routines_dir = data_dir / "routines"
+    routines_dir.mkdir(exist_ok=True)
+    routine_file = routines_dir / "test.md"
+    routine_file.write_text(VALID_ROUTINE)
+    path = str(routine_file)
+    inp = _make_input(
+        path,
+        "",
+        tool_name="Edit",
+        tool_input={
+            "file_path": path,
+            "old_string": "Morning check-in",
+            "new_string": "Updated morning check-in",
+        },
+    )
+    with patch("ollim_bot.hooks.ROUTINES_DIR", routines_dir):
+        result = _run(routine_validator(inp, None, _CTX))
+    assert result == {}
+
+
+# --- Cron edge cases ---
+
+
+def test_valid_cron_with_ranges():
+    content = "---\nid: abc12345\ncron: 0 9-17 * * 1-5\ndescription: test\nbackground: true\n---\nBody"
+    blocks, _ = validate_routine(content)
+    assert not blocks
+
+
+def test_valid_cron_with_steps():
+    content = "---\nid: abc12345\ncron: */15 * * * *\ndescription: test\nbackground: true\n---\nBody"
+    blocks, _ = validate_routine(content)
+    assert not blocks
+
+
+def test_valid_cron_with_lists():
+    content = "---\nid: abc12345\ncron: 0 9,12,18 * * *\ndescription: test\nbackground: true\n---\nBody"
+    blocks, _ = validate_routine(content)
+    assert not blocks
+
+
+# --- Frontmatter parsing edge cases ---
+
+
+def test_inline_list_in_frontmatter():
+    content = "---\nid: abc12345\ncron: 0 9 * * *\ndescription: test\nbackground: true\nallowed-tools: [Read, Glob, Grep]\n---\nBody"
+    blocks, warnings = validate_routine(content)
+    assert not blocks
+    assert not warnings
+
+
+def test_boolean_values_parsed():
+    content = "---\nid: abc12345\ncron: 0 9 * * *\ndescription: test\nbackground: true\nallow-ping: false\n---\nBody"
+    blocks, warnings = validate_routine(content)
+    assert not blocks
+
+
+# --- False positive audit against real routines ---
+
+
+def test_no_blocks_on_real_routines():
+    """All real routines in ~/.ollim-bot/routines/ must pass without blocks."""
+    routines_dir = Path.home() / ".ollim-bot" / "routines"
+    if not routines_dir.is_dir():
+        return  # skip if no routines dir (CI, other users)
+    for f in routines_dir.glob("*.md"):
+        content = f.read_text()
+        blocks, _ = validate_routine(content)
+        assert not blocks, f"{f.name} unexpectedly blocked: {blocks}"
