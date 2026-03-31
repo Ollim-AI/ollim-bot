@@ -299,6 +299,16 @@ def test_boolean_values_parsed():
 # --- False positive audit against real routines ---
 
 
+def test_hook_passes_when_routines_dir_missing():
+    """Hook doesn't crash on fresh installs where ROUTINES_DIR doesn't exist."""
+    missing_dir = Path("/tmp/nonexistent-routines-dir")
+    path = str(missing_dir / "test.md")
+    inp = _make_input(path, VALID_ROUTINE)
+    with patch("ollim_bot.hooks.ROUTINES_DIR", missing_dir):
+        result = _run(routine_validator(inp, None, _CTX))
+    assert result == {}
+
+
 def test_no_blocks_on_real_routines():
     """All real routines in ~/.ollim-bot/routines/ must pass without blocks."""
     routines_dir = Path.home() / ".ollim-bot" / "routines"
