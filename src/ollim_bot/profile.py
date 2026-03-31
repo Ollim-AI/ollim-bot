@@ -15,14 +15,24 @@
 """User profile files: IDENTITY.md (bot persona) and USER.md (user context)."""
 
 import logging
+from pathlib import Path
 
+import ollim_bot.storage as storage
 from ollim_bot.config import USER_NAME
-from ollim_bot.storage import DATA_DIR, atomic_write
+from ollim_bot.storage import atomic_write
 
 log = logging.getLogger(__name__)
 
-IDENTITY_FILE = DATA_DIR / "IDENTITY.md"
-USER_FILE = DATA_DIR / "USER.md"
+
+def identity_file() -> Path:
+    """Resolve IDENTITY.md path lazily from current DATA_DIR."""
+    return storage.DATA_DIR / "IDENTITY.md"
+
+
+def user_file() -> Path:
+    """Resolve USER.md path lazily from current DATA_DIR."""
+    return storage.DATA_DIR / "USER.md"
+
 
 _IDENTITY_TEMPLATE = """\
 # Identity
@@ -59,17 +69,18 @@ they requested.
 
 def bootstrap_identity() -> None:
     """Write default IDENTITY.md if it doesn't exist yet."""
-    if IDENTITY_FILE.exists():
+    path = identity_file()
+    if path.exists():
         return
     content = _IDENTITY_TEMPLATE.format(user_name=USER_NAME)
-    atomic_write(IDENTITY_FILE, content.encode())
-    log.info("Bootstrapped %s", IDENTITY_FILE)
+    atomic_write(path, content.encode())
+    log.info("Bootstrapped %s", path)
 
 
 def load_profile() -> str:
     """Read IDENTITY.md and USER.md, return combined content for the system prompt."""
     parts: list[str] = []
-    for path in (IDENTITY_FILE, USER_FILE):
+    for path in (identity_file(), user_file()):
         if path.exists():
             content = path.read_text(encoding="utf-8").strip()
             if content:
