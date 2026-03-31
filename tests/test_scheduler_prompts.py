@@ -7,6 +7,7 @@ from ollim_bot.fork_state import BgForkConfig
 from ollim_bot.scheduling.preamble import (
     ScheduleEntry,
     _convert_dow,
+    _entry_file_path,
     _routine_next_fire,
     build_bg_preamble,
     build_reminder_prompt,
@@ -15,6 +16,7 @@ from ollim_bot.scheduling.preamble import (
 )
 from ollim_bot.scheduling.reminders import Reminder
 from ollim_bot.scheduling.routines import Routine
+from ollim_bot.storage import slugify
 
 
 def test_routine_prompt_foreground():
@@ -665,3 +667,48 @@ def test_bg_preamble_google_not_configured(monkeypatch, tmp_path):
     result = build_bg_preamble([])
     assert "not configured" in result
     assert "google-integration" in result
+
+
+# --- _entry_file_path matches write_md slug ---
+
+
+def test_entry_file_path_matches_write_md_routine():
+    routine = Routine(id="abc", message="Morning briefing", cron="0 8 * * *")
+
+    path = _entry_file_path(routine)
+
+    assert path == f"routines/{slugify(routine.message)}.md"
+
+
+def test_entry_file_path_matches_write_md_reminder():
+    reminder = Reminder(id="r1", message="Take a break", run_at="2026-02-16T12:00:00-08:00")
+
+    path = _entry_file_path(reminder)
+
+    assert path == f"reminders/{slugify(reminder.message)}.md"
+
+
+def test_entry_file_path_special_characters():
+    routine = Routine(id="sp", message="Check email & summarize!", cron="0 9 * * *")
+
+    path = _entry_file_path(routine)
+
+    assert path == f"routines/{slugify('Check email & summarize!')}.md"
+    assert path == "routines/check-email-summarize.md"
+
+
+def test_entry_file_path_ignores_slug_collisions():
+    """_entry_file_path returns base slug — doesn't account for write_md's collision suffix.
+
+    This is a known limitation: if two routines slugify to the same name,
+    _entry_file_path returns the same path for both. In practice this is
+    rare since routine messages are unique.
+    """
+    routine_a = Routine(id="a1", message="Check tasks!", cron="0 8 * * *")
+    routine_b = Routine(id="b2", message="Check tasks?", cron="0 9 * * *")
+
+    path_a = _entry_file_path(routine_a)
+    path_b = _entry_file_path(routine_b)
+
+    assert slugify(routine_a.message) == slugify(routine_b.message)
+    assert path_a == path_b
