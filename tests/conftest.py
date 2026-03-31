@@ -51,6 +51,12 @@ class FakeChannel:
 
 
 @pytest.fixture(autouse=True)
+def _reset_test_doubles():
+    """Reset shared test double state between tests."""
+    FakeMessage._next_id = 1
+
+
+@pytest.fixture(autouse=True)
 def _reset_bg_tracking():
     """Reset bg fork tracking between tests (production gets per-task ContextVar scope)."""
     import ollim_bot.fork_state as fork_state_mod

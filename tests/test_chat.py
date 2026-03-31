@@ -5,6 +5,7 @@ import os
 import pytest
 
 from ollim_bot.chat import ChatChannel
+from ollim_bot.runtime_config import BYPASS_PERMISSIONS
 
 
 @pytest.mark.asyncio
@@ -56,7 +57,7 @@ async def test_chat_round_trip(data_dir):
     init_channel(channel)
 
     agent = Agent()
-    agent.options = replace(agent.options, model=model, permission_mode="bypassPermissions")
+    agent.options = replace(agent.options, model=model, permission_mode=BYPASS_PERMISSIONS)
 
     chunks = []
     async for chunk in agent.stream_chat("Say exactly: PONG. Nothing else."):
