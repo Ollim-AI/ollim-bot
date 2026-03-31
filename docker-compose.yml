@@ -10,7 +10,7 @@ services:
     build: .
     env_file: .env
     volumes:
-      - bot_data:/root/.ollim-bot
+      - bot_data:/home/bot/.ollim-bot
     depends_on:
       - ollama
 

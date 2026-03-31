@@ -12,4 +12,7 @@ RUN uv sync --frozen --no-dev --no-install-project
 COPY . .
 RUN uv sync --frozen --no-dev
 
+RUN useradd --create-home bot
+USER bot
+
 CMD ["uv", "run", "--no-dev", "ollim-bot"]
