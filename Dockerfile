@@ -12,4 +12,4 @@ RUN uv sync --frozen --no-dev --no-install-project
 COPY . .
 RUN uv sync --frozen --no-dev
 
-CMD ["uv", "run", "ollim-bot"]
+CMD ["uv", "run", "--no-dev", "ollim-bot"]
