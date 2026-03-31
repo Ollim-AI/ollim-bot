@@ -5,65 +5,43 @@ argument-hint: <feature description or bug to fix>
 allowed-tools: Read, Write, Edit, Grep, Glob, Agent, AskUserQuestion, EnterPlanMode, ExitPlanMode
 ---
 
-Produce a refined implementation plan by orchestrating specialist agents. Challenge first, explore, ask, then build.
+Produce a refined implementation plan by orchestrating specialist agents. Assess risks, explore, ask, then build.
 
 **Placeholder rule**: Every `<ANGLE_BRACKET_PLACEHOLDER>` in agent task prompts below must be replaced with the actual value before passing to the agent. Never send literal placeholder strings.
 
-## Phase 1: Enter plan mode and run the critic
+## Phase 1: Enter plan mode and run the risk advisor
 
 Call `EnterPlanMode` immediately.
 
-Run the critic agent before any exploration:
+Run the risk advisor agent before any exploration:
 
 ```
-Agent task: "You are a product critic for ollim-bot. Your job is to challenge feature requests before the team invests in elaboration.
+Agent task: "You are a risk advisor for ollim-bot feature development. Your job is to identify what could go wrong and how to measure success — not to gatekeep.
 
-Read the product philosophy section from /home/julius/ollim-bot/CLAUDE.md (the section starting with 'Product philosophy'). Pay particular attention to the 4 core beliefs and their priority order.
+Read the product philosophy section from /home/julius/ollim-bot/CLAUDE.md (the section starting with 'Product philosophy'). Use it as context for assessing risks, not as a filter for whether to proceed.
 
 Feature request:
 <FEATURE_DESCRIPTION>
 
-Challenge this feature on 5 dimensions:
+Produce three outputs:
 
-1. **Problem framing**: Is this actually the problem, or a symptom? What is the real user experience failure?
-2. **Solution fit**: Is the proposed solution the minimum effective intervention? Are there simpler alternatives?
-3. **Product philosophy alignment**: Score each of the 4 core beliefs (1-5, where 5 = perfect fit). Show your scoring.
-4. **Scope risk**: What is the smallest version of this fix? What is the biggest this could grow into?
-5. **Verdict**: One of: (a) proceed as described, (b) proceed with scope reduction [specify what to cut], (c) reconsider — here is a better framing [provide reframe]
+1. **Assumptions**: What must be true for this feature to work as intended? List each assumption and how it could be checked (code inspection, user observation, or testing).
 
-Be direct. A good critic finds the flaw in the obvious solution. A great critic also shows what the right solution is when the obvious one misses."
+2. **Risks**: What could go wrong? For each risk, state severity (low/medium/high) and whether it's detectable before or only after deployment. Focus on risks grounded in the product philosophy or the feature's interaction with existing systems — not abstract concerns.
+
+3. **Measurement criteria**: How will the user know post-implementation if this feature was worth it? Suggest concrete observation criteria: what to watch for in the first week, what would indicate success, what would indicate the feature should be revised or removed. Think A/B comparisons, usage patterns, user friction signals.
+
+Do not produce a verdict or score. The feature will be built — your job is to make the team aware of risks and give them tools to evaluate the result."
 
 Tools: Read
 ```
 
-Read the critic's output. Extract:
-- The verdict (proceed / reduce scope / reconsider)
-- The recommended framing (if different from the original)
-- The scope boundaries (minimum viable version vs. maximum risk version)
+Read the risk advisor's output. Extract:
+- Key assumptions that need validation
+- High-severity risks (if any)
+- Measurement criteria for post-implementation evaluation
 
-## Phase 2: Conditional user gate
-
-If the critic's verdict is **proceed as described**: skip this gate. Record the feature as stated.
-
-If the critic's verdict is **reduce scope** or **reconsider**: present the challenge to the user:
-
-```
-AskUserQuestion: "Before building the plan, the product critic flagged a concern:
-
-[critic's verdict and reframe, concise — 3-5 sentences]
-
-Options:
-- Proceed as originally described
-- [paste critic's scope reduction if they suggested one]
-- Use the critic's reframe: [paste critic's alternative framing]
-- Describe your own direction"
-```
-
-If the user response is ambiguous or auto-approved with no meaningful answer, default to the critic's recommended framing.
-
-Record the confirmed direction.
-
-## Phase 3: Codebase exploration
+## Phase 2: Codebase exploration
 
 Run an exploration agent to ground the plan in real code before making decisions.
 
@@ -73,7 +51,6 @@ Agent task: "You are exploring the ollim-bot codebase to ground an implementatio
 Read /home/julius/ollim-bot/CLAUDE.md for architecture context.
 
 Feature: <FEATURE_DESCRIPTION>
-Confirmed direction: <CONFIRMED_DIRECTION_FROM_PHASE_2>
 
 Explore the codebase systematically:
 1. Use Grep to find all files related to the feature (search for function names, config keys, module names from the description)
@@ -101,9 +78,9 @@ Keep the report under 500 words. Summarize patterns — do not inventory every f
 Tools: Read, Grep, Glob, Bash
 ```
 
-## Phase 4: Exploration-based user checkpoint
+## Phase 3: Exploration-based user checkpoint
 
-Read the exploration agent's report. Cross-check the critic's verdict from Phase 1: does the exploration support or undermine each concern? A critic concern about complexity that the codebase already handles is not a real concern — note any contradictions.
+Read the exploration agent's report. Cross-check the risk advisor's output from Phase 1: does the exploration confirm or refute any identified risks? A risk about complexity that the codebase already handles is not a real risk — note any that the code evidence resolves.
 
 Extract the design decisions and unknowns.
 
@@ -129,9 +106,9 @@ Rules for this checkpoint:
 
 Record the user's decisions.
 
-**Iterative refinement**: If the request is still ambiguous after Phase 4, or the user explicitly asked for back-and-forth discussion, use additional `AskUserQuestion` calls to narrow scope before planning. Each question should present a concrete trade-off or option discovered during exploration — not ask for approval. Stop iterating when the direction is specific enough to produce implementation steps with file paths.
+**Iterative refinement**: If the request is still ambiguous after Phase 3, or the user explicitly asked for back-and-forth discussion, use additional `AskUserQuestion` calls to narrow scope before planning. Each question should present a concrete trade-off or option discovered during exploration — not ask for approval. Stop iterating when the direction is specific enough to produce implementation steps with file paths.
 
-## Phase 5: Planning agent
+## Phase 4: Planning agent
 
 Launch the planning agent with the full context including exploration findings and user decisions. ultrathink
 
@@ -146,14 +123,14 @@ Start by reading:
 3. /home/julius/.claude/skills/improve-prompt/SKILL.md
 
 Feature: <FEATURE_DESCRIPTION>
-Confirmed direction: <CONFIRMED_DIRECTION_FROM_PHASE_2>
-Critic notes: <CRITIC_KEY_POINTS>
+Confirmed direction: <CONFIRMED_DIRECTION_FROM_PHASE_3>
+Risk assessment: <RISK_ADVISOR_OUTPUT> (assumptions, risks, measurement criteria from Phase 1)
 
 Exploration findings:
 <PASTE_EXPLORATION_REPORT>
 
 User decisions:
-<PASTE_USER_DECISIONS_FROM_PHASE_4_OR_'none — feature was unambiguous'>
+<PASTE_USER_DECISIONS_FROM_PHASE_3_OR_'none — feature was unambiguous'>
 
 Verify the exploration findings by reading the cited files yourself — do not trust the exploration report blindly. If you find discrepancies, use what you read directly.
 
@@ -185,6 +162,10 @@ Any SKILL.md, agent definition, MCP tool description, or system prompt section t
 Specific test names and what each verifies. For runtime behavior changes: behavior tests. For pure logic: unit tests. Include the test file path and a one-line description of each test.
 — Complete when: names each test function, its file path, and what specific behavior it verifies. Distinguishes unit vs. behavior tests with rationale.
 
+## Validation strategy
+How to verify post-implementation that the feature was worth building. Informed by the risk advisor's measurement criteria. Include: what to observe in the first week of use, what signals success, what signals the feature should be revised or removed. If applicable, suggest A/B comparison approaches (e.g., use the feature for a week, then disable it — did behavior improve?). This section addresses product-level validation, not code-level testing.
+— Complete when: lists concrete observable criteria, timeframe, and decision triggers (keep/revise/remove).
+
 ## Review gates
 Which review passes to run before merging. For each applicable gate, specify the gate name, which files/sections it targets, and what specific risk it should catch for this feature. Gates: /simplify (always for code changes), /improve-prompt (for agent-facing text), context-engineer review (for information flow changes).
 
@@ -201,7 +182,7 @@ Tools: Read, Grep, Glob
 
 Write the planning agent's output to the plan mode designated file (the path shown in the plan mode system message).
 
-## Phase 5.5: Plan verification
+## Phase 4.5: Plan verification
 
 Read the plan file. Spawn a verification agent:
 
@@ -229,7 +210,7 @@ Tools: Read, Grep, Glob
 
 If issues found: fix minor issues (wrong line numbers, typos) inline. For shallow sections, re-generate with a focused agent call.
 
-## Phase 6: Open questions checkpoint
+## Phase 5: Open questions checkpoint
 
 Read the plan mode file. Check the "Open questions" section.
 
@@ -247,12 +228,13 @@ After receiving answers, update the plan file: resolve the open questions in the
 
 If the "Open questions" section is 'none': skip this checkpoint.
 
-## Phase 7: Deliver
+## Phase 6: Deliver
 
 Call `ExitPlanMode`.
 
 Present a brief summary:
-- Confirmed direction and why the critic endorsed it (or what scope was cut)
+- Confirmed direction and key risks identified by the risk advisor
 - The 3 most important implementation steps
+- The validation strategy (how to measure post-implementation success)
 
 `ExitPlanMode` presents the plan for user approval — do not duplicate it or ask separately.
