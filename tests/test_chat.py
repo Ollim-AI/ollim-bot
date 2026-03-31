@@ -1,5 +1,7 @@
 """Tests for ChatChannel duck type."""
 
+import os
+
 import pytest
 
 from ollim_bot.chat import ChatChannel
@@ -32,3 +34,35 @@ async def test_chat_channel_increments_id():
     assert m1.id == 1
     assert m2.id == 2
     assert len(channel.messages) == 2
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_chat_round_trip(data_dir):
+    """Full agent pipeline with real model — requires OLLIM_CHAT_MODEL env var."""
+    model = os.environ.get("OLLIM_CHAT_MODEL")
+    if not model:
+        pytest.skip("OLLIM_CHAT_MODEL not set")
+
+    from dataclasses import replace
+
+    from ollim_bot.agent import Agent
+    from ollim_bot.channel import init_channel
+    from ollim_bot.main import _ensure_sdk_layout
+    from ollim_bot.streamer import StreamStatus
+
+    _ensure_sdk_layout()
+    channel = ChatChannel()
+    init_channel(channel)
+
+    agent = Agent()
+    agent.options = replace(agent.options, model=model, permission_mode="bypassPermissions")
+
+    chunks = []
+    async for chunk in agent.stream_chat("Say exactly: PONG. Nothing else."):
+        if not isinstance(chunk, StreamStatus):
+            chunks.append(chunk)
+
+    await agent.close()
+    text = "".join(chunks)
+    assert "PONG" in text.upper(), f"Expected PONG in response, got: {text[:200]}"
