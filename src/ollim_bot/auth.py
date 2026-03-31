@@ -47,6 +47,13 @@ def is_authenticated() -> bool:
     return bool(status.get("loggedIn"))
 
 
+def check_auth() -> bool:
+    """Return True if ANTHROPIC_AUTH_TOKEN is set or the CLI reports logged-in."""
+    if os.environ.get("ANTHROPIC_AUTH_TOKEN"):
+        return True
+    return is_authenticated()
+
+
 def start_login() -> tuple[str, subprocess.Popen[bytes]]:
     """Start login flow with browser suppressed.
 
