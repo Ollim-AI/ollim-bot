@@ -20,8 +20,11 @@ import json
 
 import pytest
 
+import ollim_bot.eval.counterfactual as cf_mod
 from ollim_bot.eval.counterfactual import (
     Intervention,
+    _build_options,
+    _build_system_prompt,
     _extract_last_uuid,
     _scan_user_uuids,
     extract_original_response,
@@ -77,8 +80,6 @@ def fake_projects(tmp_path, monkeypatch):
     project_dir = tmp_path / "project"
     project_dir.mkdir()
 
-    import ollim_bot.eval.counterfactual as cf_mod
-
     monkeypatch.setattr(cf_mod, "get_project_dir", lambda _cwd: project_dir)
     return tmp_path, project_dir
 
@@ -111,8 +112,6 @@ def test_find_session_file_not_found(fake_projects):
 
 
 def test_find_session_file_no_project_dir(tmp_path, monkeypatch):
-    import ollim_bot.eval.counterfactual as cf_mod
-
     monkeypatch.setattr(cf_mod, "get_project_dir", lambda _cwd: None)
 
     with pytest.raises(FileNotFoundError, match="No Claude project directory"):
@@ -331,3 +330,175 @@ def test_intervention_allows_replace_alone():
 
     assert i.system_prompt_replace == "full"
     assert i.system_prompt_append is None
+
+
+# ---------------------------------------------------------------------------
+# _build_system_prompt
+# ---------------------------------------------------------------------------
+
+_FAKE_BASE_PROMPT = "base system prompt"
+
+
+@pytest.fixture()
+def _patch_build_prompt(monkeypatch):
+    monkeypatch.setattr(cf_mod, "build_system_prompt", lambda: _FAKE_BASE_PROMPT)
+
+
+@pytest.mark.usefixtures("_patch_build_prompt")
+def test_build_system_prompt_default_uses_preset():
+    result = _build_system_prompt(None)
+
+    assert isinstance(result, dict)  # SystemPromptPreset is a TypedDict
+    assert result["type"] == "preset"
+    assert result["preset"] == "claude_code"
+    assert result["append"] == _FAKE_BASE_PROMPT
+
+
+@pytest.mark.usefixtures("_patch_build_prompt")
+def test_build_system_prompt_append_adds_to_base():
+    intervention = Intervention(system_prompt_append="extra instruction")
+
+    result = _build_system_prompt(intervention)
+
+    assert isinstance(result, dict)
+    assert result["append"] == f"{_FAKE_BASE_PROMPT}\n\nextra instruction"
+
+
+@pytest.mark.usefixtures("_patch_build_prompt")
+def test_build_system_prompt_replace_returns_string():
+    intervention = Intervention(system_prompt_replace="custom prompt")
+
+    result = _build_system_prompt(intervention)
+
+    assert result == "custom prompt"
+    assert isinstance(result, str)
+
+
+# ---------------------------------------------------------------------------
+# _build_options
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.usefixtures("_patch_build_prompt")
+def test_build_options_applies_model(tmp_path):
+    opts = _build_options(Intervention(model="haiku"), tmp_path)
+
+    assert opts.model == "haiku"
+
+
+@pytest.mark.usefixtures("_patch_build_prompt")
+def test_build_options_applies_disallowed_tools(tmp_path):
+    opts = _build_options(Intervention(disallowed_tools=["Bash"]), tmp_path)
+
+    assert opts.disallowed_tools == ["Bash"]
+
+
+@pytest.mark.usefixtures("_patch_build_prompt")
+def test_build_options_applies_allowed_tools(tmp_path):
+    opts = _build_options(Intervention(allowed_tools=["Read"]), tmp_path)
+
+    assert opts.allowed_tools == ["Read"]
+
+
+@pytest.mark.usefixtures("_patch_build_prompt")
+def test_build_options_applies_budget_and_turns(tmp_path):
+    opts = _build_options(Intervention(max_turns=2, max_budget_usd=0.10), tmp_path)
+
+    assert opts.max_turns == 2
+    assert opts.max_budget_usd == 0.10
+
+
+@pytest.mark.usefixtures("_patch_build_prompt")
+def test_build_options_defaults_include_docs_mcp(tmp_path):
+    opts = _build_options(None, tmp_path)
+
+    assert isinstance(opts.mcp_servers, dict)
+    assert "docs" in opts.mcp_servers
+
+
+# ---------------------------------------------------------------------------
+# truncate_session — compaction boundary
+# ---------------------------------------------------------------------------
+
+
+def test_truncate_preserves_compact_boundary(tmp_path):
+    filepath = tmp_path / "session.jsonl"
+    compact_record = json.dumps(
+        {
+            "type": "system",
+            "subtype": "compact_boundary",
+            "uuid": "cb-1",
+            "sessionId": "sess-001",
+        },
+        separators=(",", ":"),
+    )
+    summary_record = json.dumps(
+        {
+            "type": "user",
+            "uuid": "summary-1",
+            "sessionId": "sess-001",
+            "isCompactSummary": True,
+            "message": {"role": "user", "content": "Summary of prior conversation."},
+        },
+        separators=(",", ":"),
+    )
+    lines = [
+        compact_record,
+        summary_record,
+        _record(type_="assistant", uuid="a1", parent_uuid="summary-1", content="ok"),
+        _record(type_="user", uuid="u2", content="new question"),
+    ]
+    _write_session(filepath, lines)
+
+    temp_path, message = truncate_session(filepath, "u2")
+
+    assert message == "new question"
+    truncated = temp_path.read_text().strip().splitlines()
+    assert len(truncated) == 3
+    assert "compact_boundary" in truncated[0]
+    assert "isCompactSummary" in truncated[1]
+    temp_path.unlink()
+
+
+# ---------------------------------------------------------------------------
+# truncate_session — cleanup and placement
+# ---------------------------------------------------------------------------
+
+
+def test_truncate_cleans_temp_on_uuid_not_found(tmp_path):
+    filepath = tmp_path / "session.jsonl"
+    _write_session(filepath, [_record(type_="user", uuid="u1", content="hi")])
+
+    with pytest.raises(ValueError):
+        truncate_session(filepath, "nonexistent")
+
+    # No orphaned temp files should remain
+    remaining = list(tmp_path.glob("*.jsonl"))
+    assert remaining == [filepath]
+
+
+def test_truncate_temp_in_same_directory(tmp_path):
+    subdir = tmp_path / "projects"
+    subdir.mkdir()
+    filepath = subdir / "session.jsonl"
+    lines = [
+        _record(type_="user", uuid="u1", content="first"),
+        _record(type_="user", uuid="u2", content="second"),
+    ]
+    _write_session(filepath, lines)
+
+    temp_path, _ = truncate_session(filepath, "u2")
+
+    assert temp_path.parent == subdir
+    temp_path.unlink()
+
+
+# ---------------------------------------------------------------------------
+# Intervention.message_override
+# ---------------------------------------------------------------------------
+
+
+def test_message_override_stored():
+    i = Intervention(message_override="different question")
+
+    assert i.message_override == "different question"
