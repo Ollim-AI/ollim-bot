@@ -44,6 +44,7 @@ Never write working data into the source repo or source code into `~/.ollim-bot/
 - `agent_tools.py` -- MCP tools for the `discord` server (12 tools — pings, embeds, forks, reminders, context)
 - `reminder_tools.py` -- MCP tool implementations for reminder management (add, list, cancel)
 - `hooks.py` -- Agent SDK hooks: `state_dir_guard` (PreToolUse — blocks Write/Edit to state/), `auto_commit_hook` (PostToolUse — auto-commits .md file changes in DATA_DIR)
+- `chat.py` -- Discord-free chat REPL (ChatChannel duck type, `ollim-bot chat --model`)
 - `channel.py` -- DM channel reference, set once at startup (`init_channel`/`get_channel`)
 - `webhook.py` -- Webhook HTTP server for external triggers (aiohttp, auth, validation, Haiku screening, dispatch)
 - `fork_state.py` -- Pure fork state: enums (`ForkExitAction`), dataclasses (`BgForkConfig`), contextvars, accessors (zero internal imports — leaf dependency)
@@ -179,6 +180,7 @@ uv run pytest              # Run tests
 uv run ruff check          # Lint
 uv run ruff format         # Format
 uv run ty check            # Type check
+uv run ollim-bot chat      # Chat without Discord (--model <name> to override)
 counterfactual             # Counterfactual trajectory test CLI (registered entry point)
 ```
 
