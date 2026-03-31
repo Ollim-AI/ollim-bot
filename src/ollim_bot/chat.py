@@ -16,8 +16,8 @@
 
 from __future__ import annotations
 
+import argparse
 import asyncio
-import os
 import sys
 from dataclasses import replace
 from typing import Any
@@ -58,27 +58,19 @@ class ChatChannel:
 async def run_chat(model: str | None = None) -> None:
     from dotenv import load_dotenv
 
-    from ollim_bot.storage import DATA_DIR, PROJECT_DIR
+    from ollim_bot.storage import PROJECT_DIR
 
     load_dotenv(PROJECT_DIR / ".env")
 
-    # Auth check — same logic as main.py:333
-    if not os.environ.get("ANTHROPIC_AUTH_TOKEN"):
-        from ollim_bot.auth import is_authenticated
+    from ollim_bot.auth import check_auth
 
-        if not is_authenticated():
-            print("not logged in to claude. run: ollim-bot auth login", file=sys.stderr)
-            raise SystemExit(1)
+    if not check_auth():
+        print("not logged in to claude. run: ollim-bot auth login", file=sys.stderr)
+        raise SystemExit(1)
 
     from ollim_bot.main import _ensure_sdk_layout
 
     _ensure_sdk_layout()
-
-    # Fix import-time path binding in profile.py
-    import ollim_bot.profile as profile_mod
-
-    profile_mod.IDENTITY_FILE = DATA_DIR / "IDENTITY.md"
-    profile_mod.USER_FILE = DATA_DIR / "USER.md"
 
     from ollim_bot.channel import init_channel
 
@@ -89,9 +81,10 @@ async def run_chat(model: str | None = None) -> None:
     from ollim_bot.streamer import StreamStatus
 
     agent = Agent()
+    overrides: dict[str, Any] = {"permission_mode": "bypassPermissions"}
     if model:
-        agent.options = replace(agent.options, model=model)
-    agent.options = replace(agent.options, permission_mode="bypassPermissions")
+        overrides["model"] = model
+    agent.options = replace(agent.options, **overrides)
 
     display_model = model or agent.options.model or "default"
     print(f"ollim-bot chat \u00b7 model: {display_model}\n")
@@ -119,18 +112,7 @@ async def run_chat(model: str | None = None) -> None:
 
 
 def run_chat_command(args: list[str]) -> None:
-    model: str | None = None
-    i = 0
-    while i < len(args):
-        if args[i] == "--model" and i + 1 < len(args):
-            model = args[i + 1]
-            i += 2
-        elif args[i] in ("help", "--help", "-h"):
-            print("usage: ollim-bot chat [--model <name>]")
-            print("  Chat with the agent directly (no Discord)")
-            return
-        else:
-            print(f"unknown argument: {args[i]}", file=sys.stderr)
-            raise SystemExit(1)
-
-    asyncio.run(run_chat(model=model))
+    parser = argparse.ArgumentParser(prog="ollim-bot chat", description="Chat with the agent directly (no Discord)")
+    parser.add_argument("--model", default=None, help="model name (e.g. opus, qwen3.5:2b)")
+    ns = parser.parse_args(args)
+    asyncio.run(run_chat(model=ns.model))
