@@ -354,8 +354,7 @@ async def save_context(args: dict[str, Any]) -> dict[str, Any]:
         )
 
     channel = get_channel()
-    msg = await channel.send(embed=save_context_embed(), view=save_context_view())
-    track_message(msg.id)
+    await channel.send(embed=save_context_embed(), view=save_context_view())
     return _resp(
         "Confirmation sent. The user must click Confirm to promote the fork, "
         "Report Instead to summarize, or Dismiss to continue. "
