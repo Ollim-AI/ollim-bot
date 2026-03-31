@@ -45,6 +45,23 @@ Combine fields freely. Safety caps default to 5 turns and $0.50 per run.
 
 ### 3. Run the test
 
+**CLI** (preferred):
+```bash
+uv run python -m tests.counterfactual_cli <session_id> <rewind_uuid> --append "Your instruction"
+```
+
+Common flags:
+- `--append "text"` — append to system prompt
+- `--replace-prompt "text"` — replace system prompt entirely
+- `--model haiku` — use a different model
+- `--message "text"` — send a different message than the original
+- `--disallow Bash` — disallow a tool (repeatable)
+- `--max-turns 1` — limit turns (default: 5)
+- `--max-budget 0.25` — limit cost per run in USD (default: 0.50)
+- `--with-baseline` — also run with original settings (doubles cost)
+- `-v` — verbose logging
+
+**Python API** (for programmatic use):
 ```python
 import asyncio
 from tests.counterfactual import run_counterfactual, Intervention
@@ -52,23 +69,16 @@ from tests.counterfactual import run_counterfactual, Intervention
 result = asyncio.run(run_counterfactual(
     session_id="<session_id>",
     rewind_uuid="<uuid>",
-    intervention=Intervention(
-        system_prompt_append="Always prefer Read over Bash for file reading.",
-    ),
-    cwd="~/.ollim-bot",  # Must match the bot's working directory
+    intervention=Intervention(system_prompt_append="Prefer Read over Bash."),
+    cwd="~/.ollim-bot",
 ))
 ```
 
-Set `skip_baseline=True` to halve cost (only runs the variant, not baseline).
-
 ### 4. Interpret results
 
-Compare `result.original` vs `result.variant`:
-- **`.text`** — what the agent said
-- **`.tool_calls`** — which tools it used and with what inputs
-- **`.total_cost_usd`** — cost of the run
+The CLI shows a formatted side-by-side comparison of original vs variant, including text, tool calls, and cost.
 
-The **baseline** (when not skipped) re-runs with original settings. Differences between original and baseline indicate non-determinism (sampling noise). Differences between baseline and variant indicate the intervention's effect.
+The **baseline** (when enabled with `--with-baseline`) re-runs with original settings. Differences between original and baseline indicate non-determinism (sampling noise). Differences between baseline and variant indicate the intervention's effect.
 
 ### 5. Cost awareness
 
