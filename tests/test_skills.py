@@ -156,6 +156,26 @@ def test_cleanup_stale_skills(data_dir, monkeypatch):
     assert not (data_dir / "skills" / "routine-bbb").exists()
 
 
+def test_install_bundled_skills_improve_routine(data_dir, monkeypatch):
+    import ollim_bot.skills as skills_mod
+
+    monkeypatch.setattr(skills_mod, "SKILLS_DIR", data_dir / "skills")
+
+    skills_mod.install_bundled_skills()
+
+    skill_file = data_dir / "skills" / "improve-routine" / "SKILL.md"
+    assert skill_file.exists()
+    content = skill_file.read_text(encoding="utf-8")
+    assert content.startswith("---"), "Bundled skill should start with YAML frontmatter"
+
+    # Overwrite with sentinel to verify idempotency
+    skill_file.write_text("custom content", encoding="utf-8")
+    skills_mod.install_bundled_skills()
+    assert skill_file.read_text(encoding="utf-8") == "custom content", (
+        "install_bundled_skills must not overwrite existing files"
+    )
+
+
 def test_cleanup_ignores_non_generated_skills(data_dir, monkeypatch):
     import ollim_bot.skills as skills_mod
 
