@@ -73,6 +73,9 @@ Never write working data into the source repo or source code into `~/.ollim-bot/
   - `scheduler.py` -- Proactive scheduling via APScheduler (syncs routines + reminders every 10s)
   - `routine_cmd.py` -- Routines CLI (`ollim-bot routine`)
   - `reminder_cmd.py` -- Reminders CLI (`ollim-bot reminder`)
+- `eval/` -- Evaluation sub-package
+  - `counterfactual.py` -- Counterfactual trajectory tests: JSONL truncation, SDK fork replay, response comparison
+  - `counterfactual_cli.py` -- `counterfactual` CLI entry point (aligned with `claude-history` conventions)
 
 ## License
 - `LICENSE.md` — GPL-3.0 with Section 7 AI training restriction (no ML training without written permission)
@@ -176,6 +179,7 @@ uv run pytest              # Run tests
 uv run ruff check          # Lint
 uv run ruff format         # Format
 uv run ty check            # Type check
+counterfactual             # Counterfactual trajectory test CLI (registered entry point)
 ```
 
 Pre-commit hooks via [prek](https://github.com/j178/prek) (ruff lint, ruff format, ty) run automatically on commit.
