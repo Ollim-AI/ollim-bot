@@ -372,7 +372,11 @@ async def save_context(args: dict[str, Any]) -> dict[str, Any]:
         "properties": {
             "message": {
                 "type": "string",
-                "description": "Short summary of what was found",
+                "description": (
+                    "Summary of what was found or done — name the source for each claim. "
+                    "If a source returned nothing, report what you checked, not that the "
+                    "thing didn't happen. Omit rather than guess."
+                ),
             },
         },
         "required": ["message"],
@@ -465,15 +469,16 @@ async def require_report_hook(
     if mode == "always" and (not tracking or not tracking.reported):
         return SyncHookJSONOutput(
             systemMessage=(
-                "You haven't called report_updates yet. Summarize what you found or did to update the main session."
+                "You haven't called report_updates yet. Summarize what you found — "
+                "name sources, flag what you couldn't verify. Omit rather than guess."
             ),
         )
     if mode == "on_ping" and tracking and tracking.output_sent:
         return SyncHookJSONOutput(
             systemMessage=(
                 "You sent visible output (ping/embed) but haven't called "
-                "report_updates. Call it now to update the main session on "
-                "what happened."
+                "report_updates. Summarize what you found — name sources so "
+                "the main session has context for your outreach."
             ),
         )
     return {}

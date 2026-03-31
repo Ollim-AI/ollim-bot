@@ -242,7 +242,8 @@ async def _handle_fork_report(interaction: discord.Interaction, _data: str) -> N
             _agent.stream_chat(
                 f"[system] {USER_NAME} clicked Report to exit this fork. "
                 "You MUST call report_updates with a concise summary of "
-                "what happened in this fork. Do NOT use any other tools. "
+                "what happened in this fork — name findings and sources. "
+                "Do NOT use any other tools. "
                 "The fork ends immediately after your response."
             ),
         )

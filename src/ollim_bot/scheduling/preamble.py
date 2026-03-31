@@ -204,6 +204,17 @@ def build_upcoming_schedule(
     return entries
 
 
+_REPORT_QUALITY = (
+    "Report quality: name the source for each claim — use the source's "
+    "words, not your interpretation. No results = no visibility, not proof "
+    "nothing happened. If results seem wrong, flag it; don't report bad "
+    "data as findings.\n"
+    "Bad: 'Nothing new this week.'\n"
+    "Good: 'Tasks API: 2 overdue (groceries, dentist). practice-log.md: "
+    "no entries since Mar 14 (may be incomplete).'\n\n"
+)
+
+
 def build_bg_preamble(
     schedule: list[ScheduleEntry],
     *,
@@ -233,7 +244,7 @@ def build_bg_preamble(
             "This runs on a forked session -- by default everything is discarded.\n"
             "You MUST call `report_updates(message)` before finishing to update "
             "the main session on what happened.\n\n"
-        )
+        ) + _REPORT_QUALITY
     elif mode == "freely":
         update_section = (
             "This runs on a forked session -- by default everything is discarded.\n"
@@ -241,7 +252,7 @@ def build_bg_preamble(
             "session on what happened -- or just finish without it.\n"
             "If you pinged the user, also call `report_updates` so the main "
             "session has context for your outreach.\n\n"
-        )
+        ) + _REPORT_QUALITY
     elif mode == "blocked":
         if config.allow_ping:
             update_section = (
@@ -260,7 +271,7 @@ def build_bg_preamble(
             "happened (fork discarded).\n"
             "- If you send a ping or embed, you MUST also call `report_updates`.\n"
             "- Call nothing if nothing useful happened.\n\n"
-        )
+        ) + _REPORT_QUALITY
 
     busy_line = (
         "User is mid-conversation. Do NOT use `ping_user` or `discord_embed` "

@@ -268,6 +268,50 @@ def test_bg_preamble_default_config_unchanged():
     assert "what happened" in result
 
 
+# --- Report quality guidance ---
+
+
+def test_bg_preamble_update_always_includes_report_quality():
+    config = BgForkConfig(update_main_session="always")
+
+    result = build_bg_preamble([], bg_config=config)
+
+    assert "name the source for each claim" in result
+
+
+def test_bg_preamble_update_freely_includes_report_quality():
+    config = BgForkConfig(update_main_session="freely")
+
+    result = build_bg_preamble([], bg_config=config)
+
+    assert "name the source for each claim" in result
+
+
+def test_bg_preamble_update_on_ping_includes_report_quality():
+    config = BgForkConfig()  # default is on_ping
+
+    result = build_bg_preamble([], bg_config=config)
+
+    assert "name the source for each claim" in result
+
+
+def test_bg_preamble_update_blocked_excludes_report_quality():
+    config = BgForkConfig(update_main_session="blocked")
+
+    result = build_bg_preamble([], bg_config=config)
+
+    assert "name the source for each claim" not in result
+
+
+def test_bg_preamble_report_quality_has_good_bad_example():
+    config = BgForkConfig()
+
+    result = build_bg_preamble([], bg_config=config)
+
+    assert "Bad:" in result
+    assert "Good:" in result
+
+
 # --- Preamble prompt quality ---
 
 

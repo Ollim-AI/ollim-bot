@@ -164,6 +164,13 @@ def test_save_context_blocked_in_bg_fork():
 # --- report_updates (bg fork mode) ---
 
 
+def test_report_updates_tool_description_mentions_grounding():
+    schema = report_updates.input_schema
+    desc = schema["properties"]["message"]["description"]
+
+    assert "source" in desc.lower()
+
+
 def test_report_updates_not_in_fork():
     set_in_fork(False)
 

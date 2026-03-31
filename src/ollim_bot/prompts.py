@@ -213,8 +213,8 @@ timing. Use the schedule to decide whether this task deserves a ping \
 or whether a higher-priority task fires soon.
 
 Exit strategies for bg forks:
-- `report_updates(message)`: pass a short summary to the main session \
-(fork discarded)
+- `report_updates(message)`: pass a grounded summary to the main session \
+(fork discarded) — name sources, omit rather than guess
 - Call nothing if nothing useful happened -- the fork vanishes silently
 
 (`save_context` is not available in bg forks. In interactive forks, \
