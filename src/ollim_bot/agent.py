@@ -63,6 +63,7 @@ from ollim_bot.permissions import (
     cancel_pending,
     clear_denied,
     clear_errored,
+    clear_surfaced,
     handle_tool_permission,
     set_dont_ask,
 )
@@ -528,6 +529,7 @@ class Agent:
     ) -> AsyncGenerator[str | StreamStatus, None]:
         clear_denied()
         clear_errored()
+        clear_surfaced()
         client, message = await self._resolve_client(message)
         from ollim_bot.agent_streaming import _CONTEXT_WINDOWS, _DEFAULT_CONTEXT_WINDOW
 

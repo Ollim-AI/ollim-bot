@@ -2,7 +2,7 @@
 
 import pytest
 
-from ollim_bot.permissions import _denied_labels, _errored_labels, is_denied, reset
+from ollim_bot.permissions import _denied_labels, _errored_labels, _surfaced_labels, is_denied, reset
 from ollim_bot.streamer import StreamParser, StreamStatus
 
 
@@ -308,3 +308,41 @@ async def test_interleaved_thinking_and_text():
     await _collect(parser, _block_start("text"))
     items = await _collect(parser, _text_delta("Here's more."))
     assert items == ["Here's more."]
+
+
+# --- Surfaced label suppression ---
+
+
+@pytest.mark.asyncio
+async def test_surfaced_label_skipped_in_drain():
+    """Labels already surfaced via interactive approval are not rendered."""
+    reset()
+    _surfaced_labels.add("Read(b/c.md)")
+    parser = StreamParser()
+
+    await _collect(parser, _block_start("tool_use", name="Read", id="1"))
+    await _collect(parser, _input_delta('{"file_path": "/a/b/c.md"}'))
+    await _collect(parser, _block_stop())
+
+    items = await _collect(parser, _block_start("text"))
+
+    labels = [i for i in items if isinstance(i, str) and "Read" in i]
+    assert labels == []
+
+
+@pytest.mark.asyncio
+async def test_surfaced_and_denied_label_skipped():
+    """Surfaced takes precedence over denied — label skipped entirely."""
+    reset()
+    _surfaced_labels.add("Read(b/c.md)")
+    _denied_labels.add("Read(b/c.md)")
+    parser = StreamParser()
+
+    await _collect(parser, _block_start("tool_use", name="Read", id="1"))
+    await _collect(parser, _input_delta('{"file_path": "/a/b/c.md"}'))
+    await _collect(parser, _block_stop())
+
+    items = await _collect(parser, _block_start("text"))
+
+    labels = [i for i in items if isinstance(i, str) and "Read" in i]
+    assert labels == []

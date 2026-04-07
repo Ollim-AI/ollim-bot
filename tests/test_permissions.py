@@ -13,12 +13,15 @@ from claude_agent_sdk.types import (
 from ollim_bot.fork_state import BgForkConfig, set_bg_fork_config, set_in_fork
 from ollim_bot.permissions import (
     _PendingApproval,
+    _surfaced_labels,
     cancel_pending,
     clear_denied,
+    clear_surfaced,
     dont_ask,
     handle_tool_permission,
     is_denied,
     is_session_allowed,
+    is_surfaced,
     reset,
     resolve_approval,
     session_allow,
@@ -262,6 +265,52 @@ def test_clear_denied_removes_stale_labels():
         # clear_denied should wipe it before the next response
         clear_denied()
         assert is_denied("Bash(rm -rf /)") is False
+    finally:
+        set_dont_ask(True)
+        reset()
+
+
+# --- surfaced labels ---
+
+
+def test_surfaced_label_consumed_on_read():
+    reset()
+    _surfaced_labels.add("Read(foo.md)")
+
+    assert is_surfaced("Read(foo.md)") is True
+    assert is_surfaced("Read(foo.md)") is False
+
+
+def test_clear_surfaced():
+    reset()
+    _surfaced_labels.add("Read(foo.md)")
+
+    clear_surfaced()
+
+    assert is_surfaced("Read(foo.md)") is False
+
+
+def test_reset_clears_surfaced():
+    _surfaced_labels.add("Read(foo.md)")
+
+    reset()
+
+    assert is_surfaced("Read(foo.md)") is False
+
+
+def test_default_mode_denial_not_in_denied_labels():
+    """Interactive denial (default mode) should not add to _denied_labels."""
+    reset()
+    set_dont_ask(False)
+    from ollim_bot.channel import init_channel
+    from ollim_bot.permissions import _denied_labels
+
+    init_channel(None)
+    try:
+        with pytest.raises(AssertionError, match="init_channel"):
+            _run(handle_tool_permission("Bash", {"command": "ls"}, ToolPermissionContext()))
+        # Even though it raised, _denied_labels should not have the label
+        assert len(_denied_labels) == 0
     finally:
         set_dont_ask(True)
         reset()

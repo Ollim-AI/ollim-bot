@@ -46,6 +46,7 @@ _session_allowed: set[str] = set()
 _dont_ask: bool = True
 _denied_labels: set[str] = set()
 _errored_labels: set[str] = set()
+_surfaced_labels: set[str] = set()
 
 # Emoji constants
 APPROVE = "\N{WHITE HEAVY CHECK MARK}"
@@ -82,6 +83,11 @@ def is_denied(label: str) -> bool:
     return _check_and_consume(label, _denied_labels)
 
 
+def is_surfaced(label: str) -> bool:
+    """Consumes on read — True if label was shown via interactive approval."""
+    return _check_and_consume(label, _surfaced_labels)
+
+
 def is_errored(label: str) -> bool:
     """Consumes the error on read — returns True at most once per label."""
     return _check_and_consume(label, _errored_labels)
@@ -100,6 +106,11 @@ def clear_errored() -> None:
 def clear_denied() -> None:
     """Called before each new response."""
     _denied_labels.clear()
+
+
+def clear_surfaced() -> None:
+    """Called before each new response."""
+    _surfaced_labels.clear()
 
 
 # ---------------------------------------------------------------------------
@@ -143,6 +154,7 @@ def reset() -> None:
     _session_allowed.clear()
     _denied_labels.clear()
     _errored_labels.clear()
+    _surfaced_labels.clear()
 
 
 # ---------------------------------------------------------------------------
@@ -170,6 +182,8 @@ async def request_approval(tool_name: str, input_data: dict[str, Any]) -> Permis
         await msg.add_reaction(ALWAYS)
     except discord.DiscordException:
         return PermissionResultDeny(message="failed to send approval request")
+
+    _surfaced_labels.add(label)
 
     entry = _PendingApproval(event=anyio.Event(), result=[])
     _pending[msg.id] = entry
@@ -232,7 +246,4 @@ async def handle_tool_permission(
     if _dont_ask:
         _denied_labels.add(format_tool_label(tool_name, json.dumps(input_data)))
         return PermissionResultDeny(message=f"{tool_name} requires permission — denied silently in current mode")
-    result = await request_approval(tool_name, input_data)
-    if isinstance(result, PermissionResultDeny):
-        _denied_labels.add(format_tool_label(tool_name, json.dumps(input_data)))
-    return result
+    return await request_approval(tool_name, input_data)
