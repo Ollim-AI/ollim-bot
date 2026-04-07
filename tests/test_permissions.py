@@ -15,8 +15,7 @@ from ollim_bot.permissions import (
     _PendingApproval,
     _surfaced_labels,
     cancel_pending,
-    clear_denied,
-    clear_surfaced,
+    clear_label_state,
     dont_ask,
     handle_tool_permission,
     is_denied,
@@ -249,10 +248,10 @@ def test_bg_fork_denies_report_when_blocked():
         set_bg_fork_config(BgForkConfig())
 
 
-# --- clear_denied ---
+# --- clear_label_state ---
 
 
-def test_clear_denied_removes_stale_labels():
+def test_clear_label_state_removes_stale_labels():
     """Denied labels from a previous response don't bleed into the next one."""
     reset()
     set_dont_ask(True)
@@ -262,8 +261,8 @@ def test_clear_denied_removes_stale_labels():
 
         # Simulate a second denial that isn't consumed by the streamer
         _run(handle_tool_permission("Bash", {"command": "rm -rf /"}, ToolPermissionContext()))
-        # clear_denied should wipe it before the next response
-        clear_denied()
+        # clear_label_state should wipe it before the next response
+        clear_label_state()
         assert is_denied("Bash(rm -rf /)") is False
     finally:
         set_dont_ask(True)
@@ -281,11 +280,11 @@ def test_surfaced_label_consumed_on_read():
     assert is_surfaced("Read(foo.md)") is False
 
 
-def test_clear_surfaced():
+def test_clear_label_state_clears_surfaced():
     reset()
     _surfaced_labels.add("Read(foo.md)")
 
-    clear_surfaced()
+    clear_label_state()
 
     assert is_surfaced("Read(foo.md)") is False
 

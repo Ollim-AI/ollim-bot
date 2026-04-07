@@ -98,18 +98,10 @@ def mark_errored(tool_name: str, tool_input: dict[str, Any]) -> None:
     _errored_labels.add(format_tool_label(tool_name, json.dumps(tool_input)))
 
 
-def clear_errored() -> None:
-    """Called before each new response."""
-    _errored_labels.clear()
-
-
-def clear_denied() -> None:
+def clear_label_state() -> None:
     """Called before each new response."""
     _denied_labels.clear()
-
-
-def clear_surfaced() -> None:
-    """Called before each new response."""
+    _errored_labels.clear()
     _surfaced_labels.clear()
 
 
