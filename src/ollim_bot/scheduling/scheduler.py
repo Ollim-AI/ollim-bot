@@ -166,9 +166,10 @@ def _register_routine(
                 return
             reminders = list_reminders()
             routines = list_routines()
-        ensure_skill(routine)
+        sname = ensure_skill(routine)
         prompt = build_routine_prompt(
             routine,
+            skill_name=sname,
             reminders=reminders,
             routines=routines,
             busy=busy,
@@ -243,9 +244,10 @@ def _register_reminder(
                 return
             all_reminders = list_reminders()
             all_routines = list_routines()
-        ensure_skill(reminder)
+        sname = ensure_skill(reminder)
         prompt = build_reminder_prompt(
             reminder,
+            skill_name=sname,
             reminders=all_reminders,
             routines=all_routines,
             busy=busy,

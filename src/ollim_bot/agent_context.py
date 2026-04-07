@@ -98,6 +98,30 @@ async def prepend_context(message: str, *, clear: bool = True) -> str:
     return assembled
 
 
+async def append_context(message: str, *, clear: bool = True) -> str:
+    """Append timestamp and pending updates AFTER message.
+
+    Preserves message at position 0 — required for /command skill invocation
+    which the CLI only recognizes at the start of the query.
+    """
+    from ollim_bot.forks import peek_pending_updates, pop_pending_updates
+
+    ts = timestamp()
+    updates = (await pop_pending_updates()) if clear else peek_pending_updates()
+    if updates:
+        lines = [f"- ({relative_time(u.ts)}) {u.message}" for u in updates]
+        if clear:
+            label = "RECENT BACKGROUND UPDATES (mention key findings in your response)"
+        else:
+            label = "RECENT BACKGROUND UPDATES (read-only — main session will also see these)"
+        header = f"{label}:\n" + "\n".join(lines)
+        assembled = f"{message}\n\n{ts} {header}"
+    else:
+        assembled = f"{message}\n\n{ts}" if message else ts
+    log.debug("assembled context (appended): %.500s", assembled)
+    return assembled
+
+
 def thinking_mode(enabled: bool) -> str:
     return "adaptive" if enabled else "off"
 

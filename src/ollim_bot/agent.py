@@ -34,6 +34,7 @@ from claude_agent_sdk import (
 from ollim_bot import runtime_config, tool_policy
 from ollim_bot.agent_context import (
     ModelName,
+    append_context,
     format_compact_stats,
     prepend_context,
     timestamp,
@@ -411,7 +412,7 @@ class Agent:
     async def run_on_client(self, client: ClaudeSDKClient, message: str, *, prepend_updates: bool = True) -> str:
         """Discards streaming output -- only the session_id is captured."""
         if prepend_updates:
-            message = await prepend_context(message, clear=False)
+            message = await append_context(message, clear=False)
         else:
             message = f"{timestamp()} {message}"
         log.debug("run_on_client prompt: %.500s", message)

@@ -22,30 +22,29 @@ from ollim_bot.storage import slugify
 def test_routine_prompt_foreground():
     routine = Routine(id="abc", message="Morning briefing", cron="0 8 * * *")
 
-    prompt = build_routine_prompt(routine, reminders=[], routines=[])
+    prompt = build_routine_prompt(routine, skill_name="routine-abc", reminders=[], routines=[])
 
-    assert prompt.startswith("[routine:abc]")
-    assert "Morning briefing" in prompt
+    assert prompt == "/routine-abc [routine:abc]"
 
 
 def test_routine_prompt_background():
     routine = Routine(id="def", message="Silent check", cron="0 8 * * *", background=True)
 
-    prompt = build_routine_prompt(routine, reminders=[], routines=[])
+    prompt = build_routine_prompt(routine, skill_name="routine-def", reminders=[], routines=[])
 
-    assert prompt.startswith("[routine-bg:def]")
+    assert prompt.startswith("/routine-def [routine-bg:def]")
     assert "ping_user" in prompt
-    assert "Silent check" in prompt  # body inlined in prompt
+    assert "Silent check" not in prompt  # message is in SKILL.md, not prompt
 
 
 def test_reminder_prompt_plain():
     reminder = Reminder(id="r1", message="Take a break", run_at="2026-02-16T12:00:00-08:00", background=False)
 
-    prompt = build_reminder_prompt(reminder, reminders=[], routines=[])
+    prompt = build_reminder_prompt(reminder, skill_name="reminder-r1", reminders=[], routines=[])
 
     assert "[reminder:r1]" in prompt
-    assert prompt.startswith("[reminder:r1]")
-    assert "Take a break" in prompt  # body inlined in prompt
+    assert prompt.startswith("/reminder-r1")
+    assert "Take a break" not in prompt  # message is in SKILL.md
     assert "CHAIN" not in prompt
 
 
@@ -57,11 +56,10 @@ def test_reminder_prompt_background():
         background=True,
     )
 
-    prompt = build_reminder_prompt(reminder, reminders=[], routines=[])
+    prompt = build_reminder_prompt(reminder, skill_name="reminder-r2", reminders=[], routines=[])
 
     assert "[reminder-bg:r2]" in prompt
     assert "ping_user" in prompt
-    assert "Check tasks" in prompt
 
 
 def test_reminder_prompt_chain_mid():
@@ -73,7 +71,7 @@ def test_reminder_prompt_chain_mid():
         max_chain=3,
     )
 
-    prompt = build_reminder_prompt(reminder, reminders=[], routines=[])
+    prompt = build_reminder_prompt(reminder, skill_name="reminder-r3", reminders=[], routines=[])
 
     assert "CHAIN CONTEXT" in prompt
     assert "check 2 of 4" in prompt
@@ -91,7 +89,7 @@ def test_reminder_prompt_chain_final():
         max_chain=2,
     )
 
-    prompt = build_reminder_prompt(reminder, reminders=[], routines=[])
+    prompt = build_reminder_prompt(reminder, skill_name="reminder-r4", reminders=[], routines=[])
 
     assert "CHAIN CONTEXT" in prompt
     assert "FINAL check" in prompt
@@ -108,7 +106,7 @@ def test_reminder_prompt_chain_first():
         max_chain=2,
     )
 
-    prompt = build_reminder_prompt(reminder, reminders=[], routines=[])
+    prompt = build_reminder_prompt(reminder, skill_name="reminder-r5", reminders=[], routines=[])
 
     assert "check 1 of 3" in prompt
     assert "follow_up_chain" in prompt
@@ -117,7 +115,7 @@ def test_reminder_prompt_chain_first():
 def test_bg_routine_prompt_includes_budget(data_dir):
     routine = Routine(id="abc", message="Check tasks", cron="0 8 * * *", background=True)
 
-    prompt = build_routine_prompt(routine, reminders=[], routines=[routine])
+    prompt = build_routine_prompt(routine, skill_name="routine-abc", reminders=[], routines=[routine])
 
     assert "Ping budget" in prompt
     assert "budget:" in prompt
@@ -131,7 +129,7 @@ def test_bg_reminder_prompt_includes_budget(data_dir):
         background=True,
     )
 
-    prompt = build_reminder_prompt(reminder, reminders=[reminder], routines=[])
+    prompt = build_reminder_prompt(reminder, skill_name="reminder-r1", reminders=[reminder], routines=[])
 
     assert "Ping budget" in prompt
     assert "budget:" in prompt
@@ -140,10 +138,9 @@ def test_bg_reminder_prompt_includes_budget(data_dir):
 def test_fg_routine_prompt_unchanged(data_dir):
     routine = Routine(id="abc", message="Morning briefing", cron="0 8 * * *")
 
-    prompt = build_routine_prompt(routine, reminders=[], routines=[])
+    prompt = build_routine_prompt(routine, skill_name="routine-abc", reminders=[], routines=[])
 
-    assert prompt.startswith("[routine:abc]")
-    assert "Morning briefing" in prompt
+    assert prompt == "/routine-abc [routine:abc]"
     assert "budget" not in prompt.lower()
 
 
@@ -194,7 +191,7 @@ def test_bg_preamble_busy_includes_quiet_instruction():
 def test_bg_routine_prompt_busy(data_dir):
     routine = Routine(id="abc", message="Check tasks", cron="0 8 * * *", background=True)
 
-    prompt = build_routine_prompt(routine, reminders=[], routines=[], busy=True)
+    prompt = build_routine_prompt(routine, skill_name="routine-abc", reminders=[], routines=[], busy=True)
 
     assert "mid-conversation" in prompt
 
@@ -207,7 +204,7 @@ def test_bg_reminder_prompt_busy(data_dir):
         background=True,
     )
 
-    prompt = build_reminder_prompt(reminder, reminders=[], routines=[], busy=True)
+    prompt = build_reminder_prompt(reminder, skill_name="reminder-r1", reminders=[], routines=[], busy=True)
 
     assert "mid-conversation" in prompt
 
@@ -386,7 +383,7 @@ def test_reminder_prompt_bg_with_allowed_tools():
     )
     config = BgForkConfig(allowed_tools=reminder.allowed_tools)
 
-    prompt = build_reminder_prompt(reminder, reminders=[], routines=[], bg_config=config)
+    prompt = build_reminder_prompt(reminder, skill_name="reminder-r1", reminders=[], routines=[], bg_config=config)
 
     assert "TOOL RESTRICTIONS" in prompt
     assert "Bash(ollim-bot gmail *)" in prompt
@@ -578,16 +575,16 @@ def test_routine_prompt_with_skills_no_longer_in_prompt():
     """Skills instruction moved to SKILL.md body — prompt has no REQUIRED SKILLS."""
     routine = Routine(id="abc", message="Morning review", cron="0 8 * * *", skills=["email-triage"])
 
-    prompt = build_routine_prompt(routine, reminders=[], routines=[])
+    prompt = build_routine_prompt(routine, skill_name="routine-abc", reminders=[], routines=[])
 
     assert "REQUIRED SKILLS" not in prompt
-    assert prompt.startswith("[routine:abc]")
+    assert prompt.startswith("/routine-abc")
 
 
 def test_routine_prompt_without_skills():
     routine = Routine(id="abc", message="Morning review", cron="0 8 * * *")
 
-    prompt = build_routine_prompt(routine, reminders=[], routines=[])
+    prompt = build_routine_prompt(routine, skill_name="routine-abc", reminders=[], routines=[])
 
     assert "REQUIRED SKILLS" not in prompt
 
@@ -599,7 +596,7 @@ def test_reminder_prompt_overdue_injects_late_notice():
     reminder = Reminder(id="r1", message="Call doctor", run_at="2026-02-16T15:00:00-08:00")
     overdue_at = datetime(2026, 2, 16, 15, 0, 0, tzinfo=UTC)
 
-    prompt = build_reminder_prompt(reminder, reminders=[], routines=[], overdue_at=overdue_at)
+    prompt = build_reminder_prompt(reminder, skill_name="reminder-r1", reminders=[], routines=[], overdue_at=overdue_at)
 
     assert "[late:" in prompt
     assert "running now" in prompt
@@ -608,7 +605,7 @@ def test_reminder_prompt_overdue_injects_late_notice():
 def test_reminder_prompt_no_overdue_no_late_notice():
     reminder = Reminder(id="r1", message="Call doctor", run_at="2026-02-16T15:00:00-08:00")
 
-    prompt = build_reminder_prompt(reminder, reminders=[], routines=[])
+    prompt = build_reminder_prompt(reminder, skill_name="reminder-r1", reminders=[], routines=[])
 
     assert "[late:" not in prompt
 
