@@ -94,7 +94,6 @@ def build_webhook_prompt(
     spec: WebhookSpec,
     data: dict[str, Any],
     *,
-    skill_name: str,
     busy: bool = False,
 ) -> str:
     from ollim_bot.fork_state import BgForkConfig
@@ -110,7 +109,7 @@ def build_webhook_prompt(
     preamble = build_bg_preamble(schedule, busy=busy, bg_config=bg_config)
 
     json_payload = json_mod.dumps(data)
-    return f"/{skill_name} {json_payload}\n[webhook:{spec.id}] {preamble}"
+    return f"[webhook:{spec.id}] {preamble}\n\nPAYLOAD:\n{json_payload}\n\nTASK:\n{spec.message}"
 
 
 def verify_auth(auth_header: str, secret: str) -> bool:
@@ -259,8 +258,8 @@ async def _handle_webhook(request: web.Request) -> web.Response:
 
     from ollim_bot.skills import ensure_skill
 
-    sname = ensure_skill(spec)
-    prompt = build_webhook_prompt(spec, data, skill_name=sname, busy=busy)
+    ensure_skill(spec)
+    prompt = build_webhook_prompt(spec, data, busy=busy)
     process_fn: Callable = request.app[_KEY_PROCESS_FN]
     owner = request.app.get(_KEY_OWNER)
 

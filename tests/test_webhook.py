@@ -208,10 +208,11 @@ def test_build_webhook_prompt_has_tag(data_dir):
         fields={"type": "object", "properties": {"repo": {"type": "string"}}},
     )
 
-    prompt = build_webhook_prompt(spec, {"repo": "ollim-bot"}, skill_name="webhook-test-hook")
+    prompt = build_webhook_prompt(spec, {"repo": "ollim-bot"})
 
     assert "[webhook:test-hook]" in prompt
-    assert prompt.startswith("/webhook-test-hook")
+    assert prompt.startswith("[webhook:test-hook]")
+    assert "Check repo." in prompt
 
 
 def test_build_webhook_prompt_json_payload(data_dir):
@@ -227,11 +228,12 @@ def test_build_webhook_prompt_json_payload(data_dir):
         },
     )
 
-    prompt = build_webhook_prompt(spec, {"repo": "myrepo", "status": "failure"}, skill_name="webhook-ci")
+    prompt = build_webhook_prompt(spec, {"repo": "myrepo", "status": "failure"})
 
-    assert prompt.startswith("/webhook-ci")
+    assert prompt.startswith("[webhook:ci]")
     assert '"repo": "myrepo"' in prompt
     assert '"status": "failure"' in prompt
+    assert "Check build." in prompt
 
 
 def test_build_webhook_prompt_includes_preamble(data_dir):
@@ -241,7 +243,7 @@ def test_build_webhook_prompt_includes_preamble(data_dir):
         fields={"type": "object", "properties": {}},
     )
 
-    prompt = build_webhook_prompt(spec, {}, skill_name="webhook-ci")
+    prompt = build_webhook_prompt(spec, {})
 
     assert "ping_user" in prompt or "discarded" in prompt
 
