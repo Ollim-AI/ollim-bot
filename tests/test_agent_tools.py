@@ -265,6 +265,19 @@ def test_exit_fork_blocked_on_first_turn():
     set_interactive_fork(False)
 
 
+def test_exit_fork_after_idle_timeout_bump():
+    """Regression: idle timeout bumps turn count so exit_fork succeeds."""
+    set_interactive_fork(True, idle_timeout=10)
+    bump_fork_turn()  # initial /fork response
+    bump_fork_turn()  # idle timeout prompt
+
+    result = _run(_exit({}))
+
+    assert "discarded" in result["content"][0]["text"].lower()
+    assert pop_exit_action() is ForkExitAction.EXIT
+    set_interactive_fork(False)
+
+
 def test_report_updates_blocked_on_first_turn_interactive(data_dir):
     set_in_fork(False)
     set_interactive_fork(True, idle_timeout=10)
