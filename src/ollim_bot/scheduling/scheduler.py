@@ -49,6 +49,7 @@ from ollim_bot.config import TZ, USER_NAME
 from ollim_bot.embeds import fork_exit_embed
 from ollim_bot.fork_state import (
     BgForkConfig,
+    bump_fork_turn,
     idle_timeout,
     in_interactive_fork,
     is_idle,
@@ -426,6 +427,7 @@ def setup_scheduler(bot: discord.Client, agent: Agent, owner: discord.User) -> A
             idle_msg = await dm.send("-# fork idle — checking in...")
             track_message(idle_msg.id)
             await dm.typing()
+            bump_fork_turn()
             await stream_to_channel(dm, agent.stream_chat(prompt))
             sid = agent.fork_session_id
             parent_sid = load_session_id()

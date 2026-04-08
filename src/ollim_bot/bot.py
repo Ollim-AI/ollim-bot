@@ -215,6 +215,7 @@ def create_bot() -> commands.Bot:
             start_message_collector()
             await _send_fork_enter(channel, topic, upgraded_model=upgraded)
             prompt = _fork_topic_prompt(topic) if topic else _FORK_NO_TOPIC_PROMPT
+            bump_fork_turn()
             await _dispatch(channel, prompt)
             _flush_fork_messages()
             touch_activity()
@@ -276,6 +277,7 @@ def create_bot() -> commands.Bot:
             await _send_fork_enter(channel, topic, upgraded_model=upgraded)
             await interaction.delete_original_response()
             prompt = _fork_topic_prompt(topic) if topic else _FORK_NO_TOPIC_PROMPT
+            bump_fork_turn()
             await _dispatch(channel, prompt)
             _flush_fork_messages()
             touch_activity()
