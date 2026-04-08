@@ -87,7 +87,7 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-_registered_routines: dict[str, str] = {}  # id → cron expression
+_registered_routines: dict[str, Routine] = {}  # id → last-registered Routine
 _registered_reminders: set[str] = set()
 _reported_problems: set[str] = set()
 
@@ -142,16 +142,19 @@ def _register_routine(
     agent: Agent,
     routine: Routine,
 ) -> None:
-    existing_cron = _registered_routines.get(routine.id)
-    if existing_cron is not None:
-        if existing_cron == routine.cron:
+    existing = _registered_routines.get(routine.id)
+    if existing is not None:
+        if existing == routine:
             return
-        # Cron changed — remove old job and re-register
+        # Routine changed — remove old job and re-register
         job = scheduler.get_job(f"routine_{routine.id}")
         if job:
             job.remove()
         del _registered_routines[routine.id]
-        log.info("Routine %s cron changed: %s → %s", routine.id, existing_cron, routine.cron)
+        if existing.cron != routine.cron:
+            log.info("Routine %s cron changed: %s → %s", routine.id, existing.cron, routine.cron)
+        else:
+            log.info("Routine %s config changed, re-registering", routine.id)
 
     async def _fire() -> None:
         busy = agent.lock().locked()
@@ -219,7 +222,7 @@ def _register_routine(
                 append_update(f"Routine **{routine.id}** failed to register — invalid cron `{routine.cron}`")
             )
         return
-    _registered_routines[routine.id] = routine.cron
+    _registered_routines[routine.id] = routine
 
 
 def _register_reminder(
