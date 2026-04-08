@@ -145,3 +145,50 @@ def test_valid_keys_matches_dataclass():
 
     field_names = {f.name for f in fields(RuntimeConfig)}
     assert field_names == VALID_KEYS
+
+
+# --- google config keys ---
+
+
+def test_google_calendars_default(data_dir):
+    config = load()
+    assert config.google_calendars == "primary"
+
+
+def test_google_calendars_set(data_dir):
+    config = set_value("google_calendars", "primary,work@group.calendar.google.com")
+    assert config.google_calendars == "primary,work@group.calendar.google.com"
+    assert load().google_calendars == "primary,work@group.calendar.google.com"
+
+
+def test_google_calendars_empty_rejected(data_dir):
+    with pytest.raises(ValueError, match="must not be empty"):
+        set_value("google_calendars", "")
+
+
+def test_google_task_list_default(data_dir):
+    config = load()
+    assert config.google_task_list == "@default"
+
+
+def test_google_task_list_set(data_dir):
+    config = set_value("google_task_list", "MyTasks")
+    assert config.google_task_list == "MyTasks"
+    assert load().google_task_list == "MyTasks"
+
+
+def test_google_task_list_empty_rejected(data_dir):
+    with pytest.raises(ValueError, match="must not be empty"):
+        set_value("google_task_list", "")
+
+
+def test_google_calendars_in_format_all(data_dir):
+    text = format_all()
+    assert "google.calendars" in text
+    assert "primary" in text
+
+
+def test_google_task_list_in_format_all(data_dir):
+    text = format_all()
+    assert "google.task_list" in text
+    assert "@default" in text

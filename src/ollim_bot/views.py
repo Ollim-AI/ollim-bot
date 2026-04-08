@@ -123,9 +123,14 @@ async def _handle_task_delete(interaction: discord.Interaction, task_id: str) ->
     await interaction.response.send_message("deleted", ephemeral=True)
 
 
-async def _handle_event_delete(interaction: discord.Interaction, event_id: str) -> None:
+async def _handle_event_delete(interaction: discord.Interaction, data: str) -> None:
+    parts = data.split("/", 1)
+    if len(parts) == 2:
+        calendar_id, event_id = parts
+    else:
+        calendar_id, event_id = "primary", data
     try:
-        summary = await asyncio.to_thread(delete_event, event_id)
+        summary = await asyncio.to_thread(delete_event, event_id, calendar_id)
     except HttpError as e:
         await interaction.response.send_message(f"failed: {e.reason}", ephemeral=True)
         return

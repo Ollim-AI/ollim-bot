@@ -85,3 +85,21 @@ def test_fork_bg_resume_prompt_mentions_background_origin():
     """Prompt mentions the background fork origin."""
     result = prompts_mod.fork_bg_resume_prompt("test")
     assert "background fork" in result
+
+
+# -- google integration text ---
+
+
+def test_system_prompt_mentions_configurable_calendars(monkeypatch):
+    """Multi-calendar config instructions appear in system prompt."""
+    monkeypatch.setattr(prompts_mod, "load_profile", lambda: "")
+    result = prompts_mod.build_system_prompt()
+    assert "google_calendars" in result
+    assert "ollim-bot cal calendars" in result
+
+
+def test_system_prompt_mentions_configurable_task_list(monkeypatch):
+    """Task list config instruction appears in system prompt."""
+    monkeypatch.setattr(prompts_mod, "load_profile", lambda: "")
+    result = prompts_mod.build_system_prompt()
+    assert "google_task_list" in result

@@ -169,6 +169,8 @@ Format spec: see docs site. SDK discovers via `~/.ollim-bot/.claude/skills/` sym
 - OAuth credentials: `~/.ollim-bot/state/credentials.json` (from Google Cloud Console)
 - Token: `~/.ollim-bot/state/token.json` (auto-generated on first auth)
 - Gmail is read-only (`gmail.readonly` scope), accessed via the gmail-reader subagent
+- Multi-calendar: `google_calendars` config key (comma-separated calendar IDs, default: `primary`). `ollim-bot cal calendars` lists available IDs.
+- Configurable task list: `google_task_list` config key (default: `@default`)
 - Add new Google services: add scope to `google/auth.py`, create `google/*.py`, add commands to SYSTEM_PROMPT
 
 ## Dev commands

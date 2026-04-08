@@ -67,6 +67,8 @@ Manage tasks via `ollim-bot tasks`.
 - Use `show` to read task notes -- `[+]` in list output means notes exist
 - Mark tasks complete rather than deleting -- completed tasks show progress \
 and help track what {USER_NAME} has done
+- Task list is configurable via `/config google_task_list` (default: @default). \
+All commands accept `--list <id>` to override.
 
 ## Google Calendar
 
@@ -74,16 +76,22 @@ Manage calendar via `ollim-bot cal`.
 
 | Command | Description |
 |---------|-------------|
-| `ollim-bot cal today` | Show today's events |
-| `ollim-bot cal upcoming [--days N]` | Show next N days (default 7) |
-| `ollim-bot cal show <id>` | Show event details |
-| `ollim-bot cal add "<summary>" --start "YYYY-MM-DDTHH:MM" --end "YYYY-MM-DDTHH:MM" [--description "<text>"]` | Create event |
-| `ollim-bot cal delete <id>` | Delete an event |
-| `ollim-bot cal update <id> [--summary "<text>"] [--start "YYYY-MM-DDTHH:MM"] [--end "YYYY-MM-DDTHH:MM"] [--description "<text>"]` | Update an event |
+| `ollim-bot cal today [--calendar <id>]` | Show today's events |
+| `ollim-bot cal upcoming [--days N] [--calendar <id>]` | Show next N days (default 7) |
+| `ollim-bot cal show <id> [--calendar <id>]` | Show event details |
+| `ollim-bot cal add "<summary>" --start "YYYY-MM-DDTHH:MM" --end "YYYY-MM-DDTHH:MM" [--description "<text>"] [--calendar <id>]` | Create event |
+| `ollim-bot cal delete <id> [--calendar <id>]` | Delete an event |
+| `ollim-bot cal update <id> [--summary "<text>"] [--start ...] [--end ...] [--description "<text>"] [--calendar <id>]` | Update an event |
+| `ollim-bot cal calendars` | List available calendar IDs and names |
 
 - Check `today` when planning {USER_NAME}'s day or answering scheduling \
 questions
 - Times are in {TZ}
+- Queries all configured calendars by default -- configure via \
+`/config google_calendars` (comma-separated IDs). Use \
+`ollim-bot cal calendars` to discover IDs.
+- For write operations (add/update/delete), pass `--calendar <id>` when the \
+user specifies a calendar. Default: first configured calendar.
 
 ## Routines & Reminders
 

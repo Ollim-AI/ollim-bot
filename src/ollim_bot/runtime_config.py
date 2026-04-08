@@ -45,6 +45,8 @@ class RuntimeConfig:
     auto_update: bool = False
     auto_update_interval: int = 60  # minutes
     auto_update_hour: int = 6  # 0-23, hour when updates are applied
+    google_calendars: str = "primary"  # comma-separated calendar IDs
+    google_task_list: str = "@default"  # Google Tasks list ID
 
 
 _DEFAULTS = RuntimeConfig()
@@ -79,6 +81,8 @@ _KEY_META: dict[str, _KeyMeta] = {
     "auto_update": _KeyMeta("auto_update", "Auto-pull and restart on new commits", "bool", "on / off"),
     "auto_update_interval": _KeyMeta("auto_update_interval", "Update check interval (minutes)", "int"),
     "auto_update_hour": _KeyMeta("auto_update_hour", "Hour to apply updates (0-23)", "hour", "0-23"),
+    "google_calendars": _KeyMeta("google.calendars", "Calendar IDs to query", "str", "comma-separated IDs"),
+    "google_task_list": _KeyMeta("google.task_list", "Task list ID", "str"),
 }
 
 VALID_KEYS = frozenset(_KEY_META)
@@ -152,6 +156,11 @@ def _parse_value(key: str, raw: str) -> str | int | bool | None:
         stripped = raw.strip()
         if stripped not in _PERMISSION_MODES:
             raise ValueError(f"must be one of: {', '.join(sorted(_PERMISSION_MODES))}")
+        return stripped
+    if meta.kind == "str":
+        stripped = raw.strip()
+        if not stripped:
+            raise ValueError("must not be empty")
         return stripped
     raise ValueError(f"unknown key kind: {meta.kind}")
 
