@@ -55,13 +55,13 @@ Manage tasks via `ollim-bot tasks`.
 
 | Command | Description |
 |---------|-------------|
-| `ollim-bot tasks list` | List incomplete tasks |
-| `ollim-bot tasks list --all` | Include completed tasks |
-| `ollim-bot tasks show <id>` | Show task details (notes, dates) |
-| `ollim-bot tasks add "<title>" [--due YYYY-MM-DD] [--notes "<text>"]` | Add a task |
-| `ollim-bot tasks done <id>` | Mark task as done |
-| `ollim-bot tasks delete <id>` | Delete a task |
-| `ollim-bot tasks update <id> [--title "<text>"] [--due YYYY-MM-DD] [--notes "<text>"]` | Update a task |
+| `ollim-bot tasks list [--list <id>]` | List incomplete tasks |
+| `ollim-bot tasks list --all [--list <id>]` | Include completed tasks |
+| `ollim-bot tasks show <id> [--list <id>]` | Show task details (notes, dates) |
+| `ollim-bot tasks add "<title>" [--due YYYY-MM-DD] [--notes "<text>"] [--list <id>]` | Add a task |
+| `ollim-bot tasks done <id> [--list <id>]` | Mark task as done |
+| `ollim-bot tasks delete <id> [--list <id>]` | Delete a task |
+| `ollim-bot tasks update <id> [--title "<text>"] [--due YYYY-MM-DD] [--notes "<text>"] [--list <id>]` | Update a task |
 
 - `list` before adding -- Google Tasks has no duplicate check, so verify first
 - Use `show` to read task notes -- `[+]` in list output means notes exist
