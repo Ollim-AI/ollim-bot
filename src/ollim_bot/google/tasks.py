@@ -64,7 +64,7 @@ def run_tasks_command(argv: list[str]) -> None:
     upd_p.add_argument("--list", dest="task_list", help="Task list ID (default: configured)")
 
     args = parser.parse_args(argv)
-    tl = getattr(args, "task_list", None) or _default_task_list()
+    tl = args.task_list or _default_task_list()
 
     if args.action == "list":
         _handle_list(args, task_list=tl)

@@ -37,8 +37,7 @@ def _default_calendar_ids() -> list[str]:
 
 def _default_calendar_id() -> str:
     """First configured calendar — used as default for write operations."""
-    ids = _default_calendar_ids()
-    return ids[0] if ids else "primary"
+    return _default_calendar_ids()[0]
 
 
 def run_calendar_command(argv: list[str]) -> None:
@@ -79,20 +78,22 @@ def run_calendar_command(argv: list[str]) -> None:
 
     args = parser.parse_args(argv)
 
+    cal_flag = getattr(args, "calendar", None)
+    cal_ids = [cal_flag] if cal_flag else None
+    cal_id = cal_flag or _default_calendar_id()
+
     if args.action == "today":
-        cal_ids = [args.calendar] if args.calendar else None
         _handle_events(days=1, calendar_ids=cal_ids)
     elif args.action == "upcoming":
-        cal_ids = [args.calendar] if args.calendar else None
         _handle_events(days=args.days, calendar_ids=cal_ids)
     elif args.action == "add":
-        _handle_add(args, calendar_id=args.calendar or _default_calendar_id())
+        _handle_add(args, calendar_id=cal_id)
     elif args.action == "show":
-        _handle_show(args.id, calendar_id=args.calendar or _default_calendar_id())
+        _handle_show(args.id, calendar_id=cal_id)
     elif args.action == "delete":
-        _handle_delete(args.id, calendar_id=args.calendar or _default_calendar_id())
+        _handle_delete(args.id, calendar_id=cal_id)
     elif args.action == "update":
-        _handle_update(args, calendar_id=args.calendar or _default_calendar_id())
+        _handle_update(args, calendar_id=cal_id)
     elif args.action == "calendars":
         _handle_calendars()
     else:
@@ -112,8 +113,6 @@ def _event_sort_key(event: dict) -> datetime:
 def _handle_events(days: int, calendar_ids: list[str] | None = None) -> None:
     if calendar_ids is None:
         calendar_ids = _default_calendar_ids()
-    if not calendar_ids:
-        calendar_ids = ["primary"]
 
     multi = len(calendar_ids) > 1
     now = datetime.now(TZ)

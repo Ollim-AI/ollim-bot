@@ -90,16 +90,10 @@ class TestMultiCalendarEvents:
         events_primary = [_make_event("e1", "Lunch", "2026-04-06T12:00:00-07:00")]
         events_work = [_make_event("e2", "Standup", "2026-04-06T09:00:00-07:00")]
 
-        call_count = 0
-
-        def mock_execute():
-            nonlocal call_count
-            call_count += 1
-            if call_count == 1:
-                return {"items": events_primary, "nextPageToken": None}
-            return {"items": events_work, "nextPageToken": None}
-
-        mock_service.events().list().execute = mock_execute
+        mock_service.events().list().execute.side_effect = [
+            {"items": events_primary, "nextPageToken": None},
+            {"items": events_work, "nextPageToken": None},
+        ]
 
         output = _capture(cal_mod._handle_events, 1, calendar_ids=["primary", "work@group.calendar.google.com"])
         assert "[primary]" in output
@@ -109,16 +103,10 @@ class TestMultiCalendarEvents:
         events_primary = [_make_event("e1", "Lunch", "2026-04-06T12:00:00-07:00")]
         events_work = [_make_event("e2", "Standup", "2026-04-06T09:00:00-07:00")]
 
-        call_count = 0
-
-        def mock_execute():
-            nonlocal call_count
-            call_count += 1
-            if call_count == 1:
-                return {"items": events_primary, "nextPageToken": None}
-            return {"items": events_work, "nextPageToken": None}
-
-        mock_service.events().list().execute = mock_execute
+        mock_service.events().list().execute.side_effect = [
+            {"items": events_primary, "nextPageToken": None},
+            {"items": events_work, "nextPageToken": None},
+        ]
 
         output = _capture(cal_mod._handle_events, 1, calendar_ids=["primary", "work"])
         lines = [line for line in output.strip().split("\n") if line.strip()]
@@ -126,21 +114,13 @@ class TestMultiCalendarEvents:
         assert "Lunch" in lines[1]
 
     def test_mixed_allday_and_timed_events_sort(self, mock_service):
-        events = [
-            _make_event("e1", "Meeting", "2026-04-06T14:00:00-07:00", "2026-04-06T15:00:00-07:00"),
-            _make_event("e2", "Holiday", "2026-04-06", all_day=True),
+        mock_service.events().list().execute.side_effect = [
+            {
+                "items": [_make_event("e1", "Meeting", "2026-04-06T14:00:00-07:00", "2026-04-06T15:00:00-07:00")],
+                "nextPageToken": None,
+            },
+            {"items": [_make_event("e2", "Holiday", "2026-04-06", all_day=True)], "nextPageToken": None},
         ]
-
-        call_count = 0
-
-        def mock_execute():
-            nonlocal call_count
-            call_count += 1
-            if call_count == 1:
-                return {"items": [events[0]], "nextPageToken": None}
-            return {"items": [events[1]], "nextPageToken": None}
-
-        mock_service.events().list().execute = mock_execute
 
         output = _capture(cal_mod._handle_events, 1, calendar_ids=["primary", "work"])
         lines = [line for line in output.strip().split("\n") if line.strip()]
