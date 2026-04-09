@@ -192,7 +192,7 @@ async def _maybe_reflect(
             timed_out=timed_out,
             timeout_seconds=timeout_seconds,
         )
-    except (Exception, asyncio.CancelledError):
+    except (Exception, asyncio.CancelledError):  # CancelledError is BaseException in 3.8+
         log.warning("reflection fork failed for %s", tag, exc_info=True)
 
 

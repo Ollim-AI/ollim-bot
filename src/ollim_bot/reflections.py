@@ -93,7 +93,12 @@ async def run_reflection_fork(
     timed_out: bool = False,
     timeout_seconds: int = 0,
 ) -> None:
-    """Spawn an isolated Haiku client to write a reflection file."""
+    """Spawn an isolated Haiku client to write a reflection file.
+
+    Takes ``description`` (from Routine/Reminder), not the bg fork prompt —
+    the prompt is preamble boilerplate; skill content is loaded by the SDK
+    separately and never appears in the prompt string.
+    """
     ts = datetime.now(UTC)
     target = reflection_path(item_id, ts)
     prompt = build_reflection_prompt(

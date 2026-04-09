@@ -27,6 +27,7 @@ Two separate trees — never mix them:
 - `IDENTITY.md` — bot persona (tone, personality, relationship dynamics); bootstrapped from template, user-editable
 - `USER.md` — context about the user (work, schedule, ADHD patterns, priorities); user-created, not bootstrapped
 - `routines/`, `reminders/`, `webhooks/`, `.claude/skills/` — agent-managed markdown files
+- `reflections/` — per-routine execution traces (auto-committed, one file per bg fork run)
 - `state/` (`STATE_DIR`) — code-only infrastructure (sessions, ping budget, inquiries, tokens)
 
 Never write working data into the source repo or source code into `~/.ollim-bot/`.
@@ -49,6 +50,7 @@ Never write working data into the source repo or source code into `~/.ollim-bot/
 - `webhook.py` -- Webhook HTTP server for external triggers (aiohttp, auth, validation, Haiku screening, dispatch)
 - `fork_state.py` -- Pure fork state: enums (`ForkExitAction`), dataclasses (`BgForkConfig`), contextvars, accessors (zero internal imports — leaf dependency)
 - `forks.py` -- Fork I/O: pending updates, `run_agent_background`, `send_agent_dm` (state moved to `fork_state.py`)
+- `reflections.py` -- Structural reflections: post-fork Haiku meta-fork writes execution traces to `~/.ollim-bot/reflections/<id>/<timestamp>.md`
 - `views.py` -- Persistent button handlers via `DynamicItem` (delegates to google/, forks, and streamer)
 - `storage.py` -- Shared JSONL I/O, markdown I/O, git auto-commit, and path constants (`DATA_DIR`, `STATE_DIR`)
 - `streamer.py` -- Streams agent responses to Discord (throttled edits, 2000-char overflow, tool label rendering with denial strikethrough)
@@ -152,6 +154,7 @@ Format spec: see docs site. Key implementation details:
   - SDK enforcement via `apply_tool_restrictions()` in `tool_policy.py`
 - Quiet when busy: bg forks always run; non-critical `ping_user`/`discord_embed` return errors when `agent.lock()` held. `critical=True` bypasses.
 - Bg forks run without `agent.lock()` — channel, chain context, in_fork, busy state, and bg_fork_config scoped via `contextvars`
+
 
 ## Interactive forks
 - `/fork [topic]` or `enter_fork(topic?, idle_timeout=10)` MCP tool; forks branch from main session (never nested)
