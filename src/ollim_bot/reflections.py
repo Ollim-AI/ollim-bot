@@ -42,16 +42,15 @@ def build_reflection_prompt(
     tag: str,
     item_id: str,
     description: str,
+    target: Path,
+    ts: datetime,
     *,
     report_message: str | None = None,
     error_info: str | None = None,
     timed_out: bool = False,
     timeout_seconds: int = 0,
-) -> tuple[str, Path]:
-    """Build the Haiku reflection prompt and target file path."""
-    ts = datetime.now(UTC)
-    target = reflection_path(item_id, ts)
-
+) -> str:
+    """Build the Haiku reflection prompt text."""
     if timed_out:
         status = f"timed out after {timeout_seconds // 60} minutes"
     elif error_info:
@@ -61,7 +60,7 @@ def build_reflection_prompt(
 
     report_section = f"Report filed: {report_message}" if report_message else "No report filed."
 
-    prompt = (
+    return (
         "You are writing a structured execution trace for a background task "
         "that just completed.\n\n"
         f"Task: {tag}\n"
@@ -78,7 +77,6 @@ def build_reflection_prompt(
         "**Trace:** 1-3 sentences on what the task attempted and what happened, "
         "based on the description and outcome. Be factual.\n"
     )
-    return prompt, target
 
 
 async def run_reflection_fork(
@@ -93,10 +91,14 @@ async def run_reflection_fork(
     timeout_seconds: int = 0,
 ) -> None:
     """Spawn an isolated Haiku client to write a reflection file."""
-    prompt, target = build_reflection_prompt(
+    ts = datetime.now(UTC)
+    target = reflection_path(item_id, ts)
+    prompt = build_reflection_prompt(
         tag,
         item_id,
         description,
+        target,
+        ts,
         report_message=report_message,
         error_info=error_info,
         timed_out=timed_out,

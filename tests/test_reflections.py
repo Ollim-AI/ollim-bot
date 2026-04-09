@@ -11,6 +11,8 @@ from ollim_bot.reflections import build_reflection_prompt, reflection_path
 from ollim_bot.scheduling.reminders import Reminder
 from ollim_bot.scheduling.routines import Routine
 
+_TS = datetime(2026, 4, 8, 7, 2, 0, tzinfo=UTC)
+
 
 def _run(coro):
     return asyncio.get_event_loop().run_until_complete(coro)
@@ -32,11 +34,14 @@ def test_reflection_path_filesystem_safe(data_dir):
 # --- build_reflection_prompt ---
 
 
-def test_build_reflection_prompt_success():
-    prompt, target = build_reflection_prompt(
+def test_build_reflection_prompt_success(data_dir):
+    target = reflection_path("abc123", _TS)
+    prompt = build_reflection_prompt(
         "[routine-bg:abc123]",
         "abc123",
         "triage email, check calendar",
+        target,
+        _TS,
         report_message="3 tasks overdue",
     )
 
@@ -44,15 +49,16 @@ def test_build_reflection_prompt_success():
     assert "triage email, check calendar" in prompt
     assert "completed" in prompt
     assert "3 tasks overdue" in prompt
-    assert target.parent.name == "abc123"
-    assert target.suffix == ".md"
 
 
-def test_build_reflection_prompt_timeout():
-    prompt, _ = build_reflection_prompt(
+def test_build_reflection_prompt_timeout(data_dir):
+    target = reflection_path("abc123", _TS)
+    prompt = build_reflection_prompt(
         "[routine-bg:abc123]",
         "abc123",
         "morning routine",
+        target,
+        _TS,
         timed_out=True,
         timeout_seconds=600,
     )
@@ -60,11 +66,14 @@ def test_build_reflection_prompt_timeout():
     assert "timed out after 10 minutes" in prompt
 
 
-def test_build_reflection_prompt_failure():
-    prompt, _ = build_reflection_prompt(
+def test_build_reflection_prompt_failure(data_dir):
+    target = reflection_path("abc123", _TS)
+    prompt = build_reflection_prompt(
         "[routine-bg:abc123]",
         "abc123",
         "morning routine",
+        target,
+        _TS,
         error_info="CLIConnectionError: connection lost",
     )
 
@@ -72,8 +81,9 @@ def test_build_reflection_prompt_failure():
     assert "failed:" in prompt
 
 
-def test_build_reflection_prompt_no_report():
-    prompt, _ = build_reflection_prompt("[routine-bg:abc123]", "abc123", "morning routine")
+def test_build_reflection_prompt_no_report(data_dir):
+    target = reflection_path("abc123", _TS)
+    prompt = build_reflection_prompt("[routine-bg:abc123]", "abc123", "morning routine", target, _TS)
 
     assert "No report filed." in prompt
 
@@ -171,7 +181,7 @@ def test_bg_fork_spawns_reflection_on_success(monkeypatch, data_dir):
 
     agent = _make_agent()
 
-    with patch("ollim_bot.reflections.run_reflection_fork", new_callable=AsyncMock) as mock_reflect:
+    with patch("ollim_bot.forks.run_reflection_fork", new_callable=AsyncMock) as mock_reflect:
         _run(
             run_agent_background(
                 agent,
@@ -198,7 +208,7 @@ def test_bg_fork_spawns_reflection_on_timeout(monkeypatch, data_dir):
 
     agent = _make_agent(run_side_effect=hang_forever)
 
-    with patch("ollim_bot.reflections.run_reflection_fork", new_callable=AsyncMock) as mock_reflect:
+    with patch("ollim_bot.forks.run_reflection_fork", new_callable=AsyncMock) as mock_reflect:
         _run(
             run_agent_background(
                 agent,
@@ -224,7 +234,7 @@ def test_bg_fork_spawns_reflection_on_exception(monkeypatch, data_dir):
     agent = _make_agent(run_side_effect=raise_error)
 
     with (
-        patch("ollim_bot.reflections.run_reflection_fork", new_callable=AsyncMock) as mock_reflect,
+        patch("ollim_bot.forks.run_reflection_fork", new_callable=AsyncMock) as mock_reflect,
         contextlib.suppress(ConnectionError),
     ):
         _run(
@@ -248,7 +258,7 @@ def test_bg_fork_skips_reflection_when_disabled(monkeypatch, data_dir):
 
     agent = _make_agent()
 
-    with patch("ollim_bot.reflections.run_reflection_fork", new_callable=AsyncMock) as mock_reflect:
+    with patch("ollim_bot.forks.run_reflection_fork", new_callable=AsyncMock) as mock_reflect:
         _run(
             run_agent_background(
                 agent,
@@ -270,7 +280,7 @@ def test_reflection_failure_does_not_propagate(monkeypatch, data_dir):
     async def reflection_explodes(*args, **kwargs):
         raise RuntimeError("reflection boom")
 
-    with patch("ollim_bot.reflections.run_reflection_fork", new_callable=AsyncMock) as mock_reflect:
+    with patch("ollim_bot.forks.run_reflection_fork", new_callable=AsyncMock) as mock_reflect:
         mock_reflect.side_effect = reflection_explodes
         _run(
             run_agent_background(
@@ -294,7 +304,7 @@ def test_reflection_cancelled_error_does_not_propagate(monkeypatch, data_dir):
     async def reflection_cancelled(*args, **kwargs):
         raise asyncio.CancelledError()
 
-    with patch("ollim_bot.reflections.run_reflection_fork", new_callable=AsyncMock) as mock_reflect:
+    with patch("ollim_bot.forks.run_reflection_fork", new_callable=AsyncMock) as mock_reflect:
         mock_reflect.side_effect = reflection_cancelled
         _run(
             run_agent_background(

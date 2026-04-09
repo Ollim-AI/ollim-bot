@@ -36,6 +36,7 @@ from ollim_bot.fork_state import (
     set_busy,
     set_in_fork,
 )
+from ollim_bot.reflections import run_reflection_fork
 from ollim_bot.storage import STATE_DIR, atomic_write, safe_json_load
 
 log = logging.getLogger(__name__)
@@ -147,11 +148,7 @@ def _tag_to_human_name(tag: str) -> str:
     '[routine-bg:morning-checkin]' → 'morning checkin'
     'bg fork' → 'background task'
     """
-    inner = tag.strip("[]")
-    if ":" in inner:
-        slug = inner.split(":", 1)[1]
-    else:
-        slug = inner
+    slug = _extract_item_id(tag) or tag.strip("[]")
     return slug.replace("-", " ")
 
 
@@ -185,8 +182,6 @@ async def _maybe_reflect(
     if not item_id:
         return
     try:
-        from ollim_bot.reflections import run_reflection_fork
-
         await run_reflection_fork(
             agent,
             tag,
@@ -318,6 +313,7 @@ async def run_agent_background(
     finally:
         set_in_fork(False)
         set_busy(False)
+        cancel_message_collector()
         await _maybe_reflect(
             agent,
             tag,
@@ -328,7 +324,6 @@ async def run_agent_background(
             timed_out=_reflect_timed_out,
             timeout_seconds=bg_timeout,
         )
-        cancel_message_collector()
 
 
 async def send_agent_dm(
