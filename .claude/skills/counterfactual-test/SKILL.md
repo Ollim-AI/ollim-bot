@@ -29,72 +29,43 @@ claude-history transcript <session_id> --cwd ~/.ollim-bot
 
 Note the **UUID** of the user message you want to rewind to. This is the message whose response you want to compare under different conditions.
 
-### 2. Define the intervention
+### 2. Run the test
 
-Build an `Intervention` from the user's description. Common patterns:
-
-| Goal | Intervention |
-|------|-------------|
-| Test a system prompt change | `Intervention(system_prompt_append="New instruction here")` |
-| Test with tools restricted | `Intervention(disallowed_tools=["Bash"])` |
-| Test with a cheaper model | `Intervention(model="haiku")` |
-| Test a different message | `Intervention(message_override="Rephrased question")` |
-| Replace system prompt entirely | `Intervention(system_prompt_replace="Custom prompt")` |
-
-Combine fields freely. Safety caps default to 5 turns and $0.50 per run.
-
-### 3. Run the test
-
-**CLI** (preferred — same conventions as `claude-history`):
 ```bash
-counterfactual <session> <rewind_uuid> --append "Your instruction"
+counterfactual <session> <rewind_uuid> [flags]
 ```
 
 Session accepts UUID prefixes, `prev`, `prev-N`, or slug names — same as `claude-history transcript`.
 
-Common flags:
-- `--cwd` / `--project` — same as claude-history (default: `~/.ollim-bot`)
-- `--append "text"` — append to system prompt
-- `--replace-prompt "text"` — replace system prompt entirely
-- `--model haiku` — use a different model
-- `--message "text"` — send a different message than the original
-- `--disallow Bash` — disallow a tool (repeatable)
-- `--max-turns 1` — limit turns (default: 5)
-- `--max-budget 0.25` — limit cost per run in USD (default: 0.50)
-- `--with-baseline` — also run with original settings (doubles cost)
-- `-v` — verbose logging
+| Goal | Command |
+|------|---------|
+| Test a prompt change | `counterfactual <s> <uuid> --append "New instruction"` |
+| Restrict tools | `counterfactual <s> <uuid> --disallow Bash` |
+| Try a cheaper model | `counterfactual <s> <uuid> --model haiku` |
+| Send a different message | `counterfactual <s> <uuid> --message "Rephrased question"` |
+| Replace prompt entirely | `counterfactual <s> <uuid> --replace-prompt "Custom prompt"` |
+| Quick smoke test | `counterfactual <s> <uuid> --append "..." --max-turns 1` |
+| Measure non-determinism | `counterfactual <s> <uuid> --append "..." --with-baseline` |
 
-**Python API** (for programmatic use):
-```python
-import asyncio
-from ollim_bot.eval.counterfactual import run_counterfactual, Intervention
+Flags combine freely. `--cwd` / `--project` work the same as claude-history (default: `~/.ollim-bot`).
 
-result = asyncio.run(run_counterfactual(
-    session_id="<session_id>",
-    rewind_uuid="<uuid>",
-    intervention=Intervention(system_prompt_append="Prefer Read over Bash."),
-    cwd="~/.ollim-bot",
-))
-```
+### 3. Interpret results
 
-### 4. Interpret results
+The CLI shows original (from transcript) vs variant (with intervention) side-by-side: text, tool calls, cost.
 
-The CLI shows a formatted side-by-side comparison of original vs variant, including text, tool calls, and cost.
+With `--with-baseline`: differences between original and baseline = sampling noise. Differences between baseline and variant = intervention effect.
 
-The **baseline** (when enabled with `--with-baseline`) re-runs with original settings. Differences between original and baseline indicate non-determinism (sampling noise). Differences between baseline and variant indicate the intervention's effect.
-
-### 5. Cost awareness
+### 4. Cost awareness
 
 - Default caps: $0.50/run, $1.00 total for baseline+variant
 - Omitting `--with-baseline` (the default) halves cost
 - `--max-turns 1` for quick smoke tests
 - `--model haiku` for cheap exploration
 
-## Known divergences from production
+## Gotchas
 
-The re-run environment is standalone (bot not running), so:
-- **MCP tools**: Only the `docs` server is available. Discord MCP tools (`ping_user`, `discord_embed`, etc.) are not connected. Pick rewind points where the response didn't use discord tools.
-- **Hooks**: No `state_dir_guard` or `auto_commit_hook`. The re-run can write to state/.
-- **Permissions**: `bypassPermissions` mode — tools denied in production will succeed.
-- **Non-determinism**: LLM responses vary between runs. Use the baseline to measure drift vs. intervention effect.
-- **Profile drift**: The system prompt is built from current `IDENTITY.md` and `USER.md`. If these changed since the original session, both baseline and variant use the new versions — differences may reflect profile changes, not non-determinism.
+- **Discord MCP tools unavailable** — the bot's `ping_user`, `discord_embed`, etc. are not connected. Pick rewind points where the original response didn't use discord tools, or the comparison is invalid.
+- **No state_dir_guard** — the re-run can write to `~/.ollim-bot/state/`. Check for unexpected modifications after runs.
+- **bypassPermissions** — tools denied in production (`dontAsk` mode) succeed in re-runs, changing tool selection behavior.
+- **Profile drift** — system prompt uses current `IDENTITY.md` and `USER.md`. If these changed since the original session, baseline vs original differences may reflect profile changes, not non-determinism.
+- **Interrupted runs leave temp files** — if a run is killed, check `~/.claude/projects/` for orphaned JSONL files and delete them manually.
