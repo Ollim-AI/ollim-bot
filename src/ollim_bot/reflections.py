@@ -60,22 +60,25 @@ def build_reflection_prompt(
 
     report_section = f"Report filed: {report_message}" if report_message else "No report filed."
 
+    # Pre-fill all deterministic fields — Haiku only generates the Trace.
+    file_path = target.relative_to(REFLECTIONS_DIR.parent)
+    prefilled = (
+        f"# {item_id} \u2014 {ts.isoformat()}\n\n"
+        f"**Status:** {status}\n"
+        f"**Report filed:** {'yes' if report_message else 'no'}\n"
+        f"**Errors:** {error_info or 'none'}\n"
+    )
+
     return (
-        "You are writing a structured execution trace for a background task "
-        "that just completed.\n\n"
+        f"Write a structured execution trace to: {file_path}\n\n"
         f"Task: {tag}\n"
         f"Description: {description}\n"
         f"Status: {status}\n"
         f"{report_section}\n\n"
-        f"Write the reflection to: {target.relative_to(REFLECTIONS_DIR.parent)}\n\n"
-        "Use this exact format:\n\n"
-        f"# {item_id} \u2014 {ts.isoformat()}\n\n"
-        f"**Status:** {status}\n"
-        f"**Report filed:** {'yes' if report_message else 'no'}\n"
-        "**Tools available:** [list tool names from the description or tag context, if known]\n"
-        f"**Errors:** {error_info or 'none'}\n"
-        "**Trace:** 1-3 sentences on what the task attempted and what happened, "
-        "based on the description and outcome. Be factual.\n"
+        f"Write this content, replacing only the TRACE line:\n\n"
+        f"{prefilled}"
+        "**Trace:** <1-3 factual sentences: what the task was supposed to do "
+        "based on the description, and what the status indicates happened>\n"
     )
 
 
