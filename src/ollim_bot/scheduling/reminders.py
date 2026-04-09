@@ -46,6 +46,7 @@ class Reminder:
     allow_ping: bool = True
     allowed_tools: list[str] | None = None
     skills: list[str] | None = None
+    reflect: bool = True
 
     @staticmethod
     def new(
@@ -64,6 +65,7 @@ class Reminder:
         allow_ping: bool = True,
         allowed_tools: list[str] | None = None,
         skills: list[str] | None = None,
+        reflect: bool = True,
     ) -> "Reminder":
         run_at = (datetime.now(TZ) + timedelta(minutes=delay_minutes)).isoformat()
         rid = uuid4().hex[:8]
@@ -84,6 +86,7 @@ class Reminder:
             allow_ping=allow_ping,
             allowed_tools=allowed_tools,
             skills=skills,
+            reflect=reflect,
         )
 
 

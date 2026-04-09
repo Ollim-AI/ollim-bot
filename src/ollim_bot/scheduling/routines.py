@@ -40,6 +40,7 @@ class Routine:
     allow_ping: bool = True
     allowed_tools: list[str] | None = None
     skills: list[str] | None = None
+    reflect: bool = True
 
     @staticmethod
     def new(
@@ -55,6 +56,7 @@ class Routine:
         allow_ping: bool = True,
         allowed_tools: list[str] | None = None,
         skills: list[str] | None = None,
+        reflect: bool = True,
     ) -> "Routine":
         return Routine(
             id=uuid4().hex[:8],
@@ -69,6 +71,7 @@ class Routine:
             allow_ping=allow_ping,
             allowed_tools=allowed_tools,
             skills=skills,
+            reflect=reflect,
         )
 
 

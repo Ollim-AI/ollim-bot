@@ -188,6 +188,8 @@ def _register_routine(
                     thinking=thinking_mode(routine.thinking),
                     isolated=routine.isolated,
                     bg_config=bg_config,
+                    reflect=routine.reflect,
+                    description=routine.description,
                 )
             else:
                 if routine.model or routine.isolated:
@@ -288,6 +290,8 @@ def _register_reminder(
                     thinking=thinking_mode(reminder.thinking),
                     isolated=reminder.isolated,
                     bg_config=bg_config,
+                    reflect=reminder.reflect,
+                    description=reminder.message,
                 )
             else:
                 if reminder.model or reminder.isolated:

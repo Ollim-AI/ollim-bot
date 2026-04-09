@@ -30,6 +30,7 @@ from ollim_bot.channel import get_channel
 from ollim_bot.config import TZ
 from ollim_bot.fork_state import (
     bump_updates_generation,
+    get_bg_tracking,
     init_bg_tracking,
     set_bg_fork_config,
     set_busy,
@@ -132,6 +133,14 @@ def _extract_prompt_tag(prompt: str) -> str:
     return "bg fork"
 
 
+def _extract_item_id(tag: str) -> str | None:
+    """Extract the item id from a tag like '[routine-bg:morning-checkin]'."""
+    inner = tag.strip("[]")
+    if ":" in inner:
+        return inner.split(":", 1)[1]
+    return None
+
+
 def _tag_to_human_name(tag: str) -> str:
     """Convert a raw prompt tag to a human-readable task name.
 
@@ -158,6 +167,40 @@ async def _notify_fork_failure(
         await channel.send(msg)
 
 
+async def _maybe_reflect(
+    agent: Agent,
+    tag: str,
+    *,
+    reflect: bool,
+    description: str,
+    report_message: str | None,
+    error_info: str | None,
+    timed_out: bool,
+    timeout_seconds: int,
+) -> None:
+    """Spawn a Haiku reflection fork if enabled. Never propagates errors."""
+    if not reflect:
+        return
+    item_id = _extract_item_id(tag)
+    if not item_id:
+        return
+    try:
+        from ollim_bot.reflections import run_reflection_fork
+
+        await run_reflection_fork(
+            agent,
+            tag,
+            item_id,
+            description,
+            report_message=report_message,
+            error_info=error_info,
+            timed_out=timed_out,
+            timeout_seconds=timeout_seconds,
+        )
+    except (Exception, asyncio.CancelledError):
+        log.warning("reflection fork failed for %s", tag, exc_info=True)
+
+
 async def run_agent_background(
     agent: Agent,
     prompt: str,
@@ -166,6 +209,8 @@ async def run_agent_background(
     thinking: str = "adaptive",
     isolated: bool = False,
     bg_config: BgForkConfig | None = None,
+    reflect: bool = True,
+    description: str = "",
 ) -> None:
     """Run agent on a disposable forked session — no lock needed.
 
@@ -200,6 +245,10 @@ async def run_agent_background(
     if bg_config:
         set_bg_fork_config(bg_config)
     start_message_collector()
+
+    _reflect_report: str | None = None
+    _reflect_error: str | None = None
+    _reflect_timed_out = False
 
     try:
         async with asyncio.timeout(bg_timeout):
@@ -255,16 +304,30 @@ async def run_agent_background(
                 with contextlib.suppress(RuntimeError):
                     await client.disconnect()
         log.info("bg fork completed: %s", tag)
+        if tracking := get_bg_tracking():
+            _reflect_report = tracking.report_message
     except TimeoutError:
+        _reflect_timed_out = True
         log.warning("bg fork timed out after %ds: %s", bg_timeout, tag)
         await _notify_fork_failure(dm, tag, timed_out=True, timeout_seconds=bg_timeout)
-    except Exception:
+    except Exception as exc:
+        _reflect_error = f"{type(exc).__name__}: {exc}"
         log.exception("bg fork failed: %s", tag)
         await _notify_fork_failure(dm, tag)
         raise
     finally:
         set_in_fork(False)
         set_busy(False)
+        await _maybe_reflect(
+            agent,
+            tag,
+            reflect=reflect,
+            description=description,
+            report_message=_reflect_report,
+            error_info=_reflect_error,
+            timed_out=_reflect_timed_out,
+            timeout_seconds=bg_timeout,
+        )
         cancel_message_collector()
 
 

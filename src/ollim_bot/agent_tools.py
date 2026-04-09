@@ -392,6 +392,7 @@ async def report_updates(args: dict[str, Any]) -> dict[str, Any]:
         if tracking := get_bg_tracking():
             tracking.reported = True
             tracking.output_sent = False
+            tracking.report_message = args["message"]
         return _resp("Update reported -- summary will appear in main session.")
     if in_interactive_fork():
         if is_first_fork_turn():

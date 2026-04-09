@@ -583,7 +583,7 @@ def test_bg_fork_sets_busy_when_lock_held(monkeypatch, data_dir):
 
     _run(lock.acquire())
     try:
-        _run(run_agent_background(agent, "[routine-bg:test] do stuff"))
+        _run(run_agent_background(agent, "[routine-bg:test] do stuff", reflect=False))
     finally:
         lock.release()
 
@@ -608,7 +608,7 @@ def test_bg_fork_not_busy_when_lock_free(monkeypatch, data_dir):
     agent.create_forked_client = AsyncMock(return_value=client)
     agent.run_on_client = AsyncMock(side_effect=capture_busy)
 
-    _run(run_agent_background(agent, "[routine-bg:test] do stuff"))
+    _run(run_agent_background(agent, "[routine-bg:test] do stuff", reflect=False))
 
     assert observed_busy == [False]
 

@@ -54,6 +54,7 @@ class WebhookSpec:
     allow_ping: bool = True
     update_main_session: str = "on_ping"
     allowed_tools: list[str] | None = None
+    reflect: bool = True
 
 
 def list_webhooks() -> list[WebhookSpec]:
@@ -204,6 +205,8 @@ async def _default_process(
         thinking=thinking_mode(spec.thinking),
         isolated=spec.isolated,
         bg_config=bg_config,
+        reflect=spec.reflect,
+        description=spec.message,
     )
 
 

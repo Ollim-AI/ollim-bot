@@ -68,6 +68,7 @@ class BgForkTracking:
     output_sent: bool = False
     reported: bool = False
     ping_count: int = 0
+    report_message: str | None = None
 
 
 _bg_tracking: ContextVar[BgForkTracking | None] = ContextVar("_bg_tracking", default=None)
