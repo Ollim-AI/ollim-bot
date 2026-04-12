@@ -174,6 +174,31 @@ def truncate_session(filepath: Path, rewind_uuid: str) -> tuple[Path, str]:
     return temp_path, original_message
 
 
+def _resolve_uuid_prefix(filepath: Path, prefix: str) -> str:
+    """Resolve a UUID prefix to the full UUID from a JSONL file.
+
+    Raises ValueError if no match or multiple matches found.
+    """
+    matches: list[str] = []
+    with open(filepath, encoding="utf-8", errors="replace") as f:
+        for line in f:
+            uuid = _extract_last_uuid(line)
+            if uuid and uuid.startswith(prefix):
+                if uuid not in matches:
+                    matches.append(uuid)
+                    if uuid == prefix:
+                        return uuid  # Exact match, short-circuit
+    if len(matches) == 1:
+        return matches[0]
+    if not matches:
+        available = _scan_user_uuids(filepath)
+        hint = ", ".join(available) if available else "(none found)"
+        msg = f"UUID prefix '{prefix}' not found in {filepath.name}. Available user message UUIDs: {hint}"
+        raise ValueError(msg)
+    msg = f"UUID prefix '{prefix}' is ambiguous — matches {len(matches)} records: {', '.join(m[:12] for m in matches[:5])}"
+    raise ValueError(msg)
+
+
 def _scan_user_uuids(filepath: Path, limit: int = 10) -> list[str]:
     """Quick scan for user message UUIDs (for error messages)."""
     uuids: list[str] = []
@@ -342,8 +367,12 @@ async def run_counterfactual(
     filepath = find_session_file(session_id, cwd_path)
     log.info("Found session file: %s", filepath)
 
-    original = extract_original_response(filepath, rewind_uuid)
-    temp_path, original_message = truncate_session(filepath, rewind_uuid)
+    full_uuid = _resolve_uuid_prefix(filepath, rewind_uuid)
+    if full_uuid != rewind_uuid:
+        log.info("Resolved UUID prefix %s -> %s", rewind_uuid, full_uuid)
+
+    original = extract_original_response(filepath, full_uuid)
+    temp_path, original_message = truncate_session(filepath, full_uuid)
     temp_session_id = temp_path.stem
     project_dir = temp_path.parent
 

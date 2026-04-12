@@ -26,6 +26,7 @@ from ollim_bot.eval.counterfactual import (
     _build_options,
     _build_system_prompt,
     _extract_last_uuid,
+    _resolve_uuid_prefix,
     _scan_user_uuids,
     extract_original_response,
     find_session_file,
@@ -502,3 +503,52 @@ def test_message_override_stored():
     i = Intervention(message_override="different question")
 
     assert i.message_override == "different question"
+
+
+# ---------------------------------------------------------------------------
+# _resolve_uuid_prefix
+# ---------------------------------------------------------------------------
+
+
+def test_resolve_uuid_prefix_expands_short_prefix(tmp_path):
+    filepath = tmp_path / "session.jsonl"
+    lines = [
+        _record(type_="user", uuid="abcd1234-full-uuid", content="hi"),
+        _record(type_="assistant", uuid="resp-1", parent_uuid="abcd1234-full-uuid", content="hello"),
+    ]
+    _write_session(filepath, lines)
+
+    result = _resolve_uuid_prefix(filepath, "abcd1234")
+
+    assert result == "abcd1234-full-uuid"
+
+
+def test_resolve_uuid_prefix_exact_match_shortcircuits(tmp_path):
+    filepath = tmp_path / "session.jsonl"
+    lines = [_record(type_="user", uuid="exact", content="hi")]
+    _write_session(filepath, lines)
+
+    result = _resolve_uuid_prefix(filepath, "exact")
+
+    assert result == "exact"
+
+
+def test_resolve_uuid_prefix_not_found_raises(tmp_path):
+    filepath = tmp_path / "session.jsonl"
+    lines = [_record(type_="user", uuid="u1", content="hi")]
+    _write_session(filepath, lines)
+
+    with pytest.raises(ValueError, match="not found"):
+        _resolve_uuid_prefix(filepath, "zzz")
+
+
+def test_resolve_uuid_prefix_ambiguous_raises(tmp_path):
+    filepath = tmp_path / "session.jsonl"
+    lines = [
+        _record(type_="user", uuid="abc-111", content="first"),
+        _record(type_="user", uuid="abc-222", content="second"),
+    ]
+    _write_session(filepath, lines)
+
+    with pytest.raises(ValueError, match="ambiguous"):
+        _resolve_uuid_prefix(filepath, "abc")
