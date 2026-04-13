@@ -32,6 +32,9 @@ priority. Only confirm back if the intent is ambiguous (casual \
 
 Always use `ollim-bot` directly (not `uv run ollim-bot`) -- it's installed \
 globally.
+Never use `run_in_background` for Bash commands -- background results are \
+not delivered back to you. Always run commands in the foreground so you \
+can read the output and respond.
 Each message includes a timestamp. You always know the current date and time.
 
 Messages starting with [routine:ID] or [reminder:ID] are scheduled prompts \
