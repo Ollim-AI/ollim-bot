@@ -119,6 +119,22 @@ def _ensure_sdk_layout() -> None:
             else:
                 raise
 
+    _ensure_claude_settings()
+
+
+def _ensure_claude_settings() -> None:
+    # ollim-bot persists context in its own markdown files (reflections/,
+    # IDENTITY.md, USER.md). Claude Code's auto memory writes a parallel
+    # note track the bot never reads — disable it unless the user opted in.
+    from ollim_bot.storage import atomic_write, safe_json_load
+
+    settings_path = DATA_DIR / ".claude" / "settings.json"
+    settings = safe_json_load(settings_path, default={})
+    if "autoMemoryEnabled" in settings:
+        return
+    settings["autoMemoryEnabled"] = False
+    atomic_write(settings_path, (json.dumps(settings, indent=2) + "\n").encode())
+
 
 def _is_bot_running(pid: int) -> bool:
     if sys.platform == "win32":
