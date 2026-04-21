@@ -169,7 +169,9 @@ def _check_bg_budget(args: dict[str, Any]) -> dict[str, Any] | None:
                         },
                         "action": {
                             "type": "string",
-                            "description": "task_done:<task_id>, task_del:<task_id>, "
+                            "description": "task_done:<task_id> (configured list) or "
+                            "task_done:<list_id>/<task_id> (specific list), "
+                            "task_del:<task_id> or task_del:<list_id>/<task_id>, "
                             "event_del:<event_id> (primary) or "
                             "event_del:<calendar_id>/<event_id> (specific calendar), "
                             "or agent:<prompt>",

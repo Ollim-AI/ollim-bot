@@ -25,7 +25,7 @@ import discord
 from discord.ui import Button, DynamicItem, Item
 from googleapiclient.errors import HttpError
 
-from ollim_bot import inquiries
+from ollim_bot import inquiries, runtime_config
 from ollim_bot.config import USER_NAME
 from ollim_bot.embeds import fork_enter_embed, fork_enter_view, fork_exit_embed
 from ollim_bot.fork_state import (
@@ -103,9 +103,17 @@ class ActionButton(DynamicItem[Button], template=r"act:(?P<action>[a-z_]+):(?P<d
             await interaction.response.send_message("unknown action", ephemeral=True)
 
 
-async def _handle_task_done(interaction: discord.Interaction, task_id: str) -> None:
+def _split_task_data(data: str) -> tuple[str, str]:
+    parts = data.split("/", 1)
+    if len(parts) == 2:
+        return parts[0], parts[1]
+    return runtime_config.load().google_task_list, data
+
+
+async def _handle_task_done(interaction: discord.Interaction, data: str) -> None:
+    task_list, task_id = _split_task_data(data)
     try:
-        title = await asyncio.to_thread(complete_task, task_id)
+        title = await asyncio.to_thread(complete_task, task_id, task_list)
     except HttpError as e:
         await interaction.response.send_message(f"failed: {e.reason}", ephemeral=True)
         return
@@ -113,9 +121,10 @@ async def _handle_task_done(interaction: discord.Interaction, task_id: str) -> N
     await interaction.response.send_message("done ✓", ephemeral=True)
 
 
-async def _handle_task_delete(interaction: discord.Interaction, task_id: str) -> None:
+async def _handle_task_delete(interaction: discord.Interaction, data: str) -> None:
+    task_list, task_id = _split_task_data(data)
     try:
-        title = await asyncio.to_thread(delete_task, task_id)
+        title = await asyncio.to_thread(delete_task, task_id, task_list)
     except HttpError as e:
         await interaction.response.send_message(f"failed: {e.reason}", ephemeral=True)
         return
