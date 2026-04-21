@@ -32,7 +32,8 @@ def _get_calendar_service() -> Any:
 
 def _default_calendar_ids() -> list[str]:
     raw = runtime_config.load().google_calendars
-    return [c.strip() for c in raw.split(",") if c.strip()]
+    ids = [c.strip() for c in raw.split(",") if c.strip()]
+    return ids or ["primary"]
 
 
 def _default_calendar_id() -> str:
