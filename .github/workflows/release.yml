@@ -90,8 +90,8 @@ jobs:
           fi
 
           # Collect commits by category, filtering out skill/dev-only changes
-          FEATS=$(git log --format="- %s (%h)" --grep="^feat:" $RANGE | grep -vi skill)
-          FIXES=$(git log --format="- %s (%h)" --grep="^fix:" --grep="^improve:" --grep="^simplify:" --grep="^protect:" $RANGE | grep -vi skill)
+          FEATS=$(git log --format="- %s (%h)" --grep="^feat:" $RANGE | { grep -vi skill || true; })
+          FIXES=$(git log --format="- %s (%h)" --grep="^fix:" --grep="^improve:" --grep="^simplify:" --grep="^protect:" $RANGE | { grep -vi skill || true; })
 
           BODY=""
           if [ -n "$FEATS" ]; then
