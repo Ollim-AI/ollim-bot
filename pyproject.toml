@@ -1,6 +1,6 @@
 [project]
 name = "ollim-bot"
-version = "0.1.1"
+version = "0.2.0"
 description = "ADHD-friendly Discord bot with proactive reminders, powered by Claude"
 requires-python = ">=3.11"
 license = "GPL-3.0-only"
