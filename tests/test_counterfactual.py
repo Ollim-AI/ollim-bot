@@ -237,7 +237,7 @@ def test_truncate_uuid_not_found_raises(tmp_path):
         truncate_session(filepath, "missing")
 
 
-def test_truncate_first_message_produces_empty_file(tmp_path):
+def test_truncate_first_message_rejected(tmp_path):
     filepath = tmp_path / "session.jsonl"
     lines = [
         _record(type_="user", uuid="u1", content="first message"),
@@ -245,11 +245,8 @@ def test_truncate_first_message_produces_empty_file(tmp_path):
     ]
     _write_session(filepath, lines)
 
-    temp_path, message = truncate_session(filepath, "u1")
-
-    assert message == "first message"
-    assert temp_path.read_text() == ""
-    temp_path.unlink()
+    with pytest.raises(ValueError, match="first record"):
+        truncate_session(filepath, "u1")
 
 
 # ---------------------------------------------------------------------------
@@ -552,3 +549,15 @@ def test_resolve_uuid_prefix_ambiguous_raises(tmp_path):
 
     with pytest.raises(ValueError, match="ambiguous"):
         _resolve_uuid_prefix(filepath, "abc")
+
+
+def test_resolve_uuid_prefix_ignores_non_user_uuids(tmp_path):
+    filepath = tmp_path / "session.jsonl"
+    lines = [
+        _record(type_="user", uuid="user-111", content="hi"),
+        _record(type_="assistant", uuid="asst-222", parent_uuid="user-111", content="hello"),
+    ]
+    _write_session(filepath, lines)
+
+    with pytest.raises(ValueError, match="not found"):
+        _resolve_uuid_prefix(filepath, "asst")

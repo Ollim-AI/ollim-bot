@@ -170,6 +170,11 @@ def truncate_session(filepath: Path, rewind_uuid: str) -> tuple[Path, str]:
         msg = f"UUID '{rewind_uuid}' not found in {filepath.name}. Available user message UUIDs: {hint}"
         raise ValueError(msg)
 
+    if line_count == 0:
+        temp_path.unlink(missing_ok=True)
+        msg = f"UUID '{rewind_uuid}' is the first record — no prior context to fork from."
+        raise ValueError(msg)
+
     log.info("Truncated session to %d lines at %s -> %s", line_count, rewind_uuid[:8], temp_path.name)
     return temp_path, original_message
 
@@ -177,11 +182,17 @@ def truncate_session(filepath: Path, rewind_uuid: str) -> tuple[Path, str]:
 def _resolve_uuid_prefix(filepath: Path, prefix: str) -> str:
     """Resolve a UUID prefix to the full UUID from a JSONL file.
 
+    Only user-message UUIDs are considered (matching what _scan_user_uuids
+    surfaces in error hints). Assistant / tool_result UUIDs would truncate
+    at the wrong point and pass assistant text as the new prompt.
+
     Raises ValueError if no match or multiple matches found.
     """
     matches: list[str] = []
     with open(filepath, encoding="utf-8", errors="replace") as f:
         for line in f:
+            if '"type":"user"' not in line or '"type":"tool_result"' in line:
+                continue
             uuid = _extract_last_uuid(line)
             if uuid and uuid.startswith(prefix):
                 if uuid not in matches:
