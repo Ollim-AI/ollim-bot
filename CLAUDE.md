@@ -187,6 +187,7 @@ uv run ruff format         # Format
 uv run ty check            # Type check
 uv run ollim-bot chat      # Chat without Discord (--model <name> to override)
 counterfactual             # Counterfactual trajectory test CLI (registered entry point)
+docker compose up -d       # Containerized deployment (Dockerfile, docker-compose.yml, docker-entrypoint.sh)
 ```
 
 Pre-commit hooks via [prek](https://github.com/j178/prek) (ruff lint, ruff format, ty) run automatically on commit.
