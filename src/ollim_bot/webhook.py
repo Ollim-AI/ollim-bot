@@ -173,6 +173,7 @@ _KEY_SECRET = web.AppKey("secret", str)
 _KEY_AGENT = web.AppKey("agent")
 _KEY_OWNER = web.AppKey("owner")
 _KEY_PROCESS_FN = web.AppKey("process_fn")
+_KEY_BG_TASKS: web.AppKey[set[asyncio.Task]] = web.AppKey("bg_tasks", set)
 
 
 async def _default_process(
@@ -268,8 +269,9 @@ async def _handle_webhook(request: web.Request) -> web.Response:
     owner = request.app.get(_KEY_OWNER)
 
     task = asyncio.create_task(process_fn(agent, owner, spec, data, prompt))
-    request.app.setdefault("_bg_tasks", set()).add(task)
-    task.add_done_callback(request.app["_bg_tasks"].discard)
+    bg_tasks = request.app[_KEY_BG_TASKS]
+    bg_tasks.add(task)
+    task.add_done_callback(bg_tasks.discard)
     return web.json_response({"status": "accepted"}, status=202)
 
 
@@ -285,6 +287,7 @@ def create_app(
     app[_KEY_AGENT] = agent
     app[_KEY_OWNER] = owner
     app[_KEY_PROCESS_FN] = process_fn or _default_process
+    app[_KEY_BG_TASKS] = set()
     app.router.add_post("/hook/{slug}", _handle_webhook)
     return app
 
