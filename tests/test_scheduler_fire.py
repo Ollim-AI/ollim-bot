@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta
 from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
 
+from ollim_bot.config import TZ
 from ollim_bot.scheduling import scheduler as scheduler_mod
+from ollim_bot.scheduling.reminders import Reminder
 from ollim_bot.scheduling.routines import Routine
 
 
@@ -130,6 +133,38 @@ def test_register_routine_changed_allowed_tools_re_registers():
     mock_job.remove.assert_called_once()
     mock_scheduler.add_job.assert_called_once()
     assert scheduler_mod._registered_routines["test1"] == routine_v2
+
+
+@pytest.mark.asyncio
+async def test_reminder_fire_invalid_tools_cleans_up(monkeypatch):
+    """When validate_dispatch fails at fire time, the reminder file and registry entry are cleaned."""
+    mock_scheduler, mock_agent, mock_owner = _make_mocks()
+    mock_agent.lock.return_value = MagicMock(locked=MagicMock(return_value=False))
+    reminder = Reminder(
+        id="bad",
+        message="test",
+        run_at=(datetime.now(TZ) + timedelta(minutes=5)).isoformat(),
+        background=True,
+        allowed_tools=["Bash(*)"],  # invalid — too broad
+    )
+
+    remove_calls: list[str] = []
+    monkeypatch.setattr(
+        "ollim_bot.scheduling.scheduler.remove_reminder",
+        lambda rid: remove_calls.append(rid) or True,
+    )
+    scheduler_mod._registered_reminders.clear()
+    try:
+        scheduler_mod._register_reminder(mock_scheduler, mock_owner, mock_agent, reminder)
+        assert "bad" in scheduler_mod._registered_reminders
+        fire_oneshot = mock_scheduler.add_job.call_args[0][0]
+
+        await fire_oneshot()
+
+        assert remove_calls == ["bad"]
+        assert "bad" not in scheduler_mod._registered_reminders
+    finally:
+        scheduler_mod._registered_reminders.clear()
 
 
 def test_register_routine_changed_message_re_registers():

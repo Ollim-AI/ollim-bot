@@ -90,6 +90,15 @@ log = logging.getLogger(__name__)
 _registered_routines: dict[str, Routine] = {}  # id → last-registered Routine
 _registered_reminders: set[str] = set()
 _reported_problems: set[str] = set()
+# Hold refs so asyncio doesn't GC the task mid-flight (per asyncio.create_task docs).
+_background_tasks: set[asyncio.Task] = set()
+
+
+def _dispatch_update(message: str) -> None:
+    """Schedule append_update from sync context (hook listeners, register paths)."""
+    task = asyncio.get_event_loop().create_task(append_update(message))
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
 
 
 def _check_corrupt_files(
@@ -114,11 +123,9 @@ def _check_corrupt_files(
                 except (ValueError, yaml.YAMLError, TypeError, KeyError):
                     names.append(filepath.name)
             file_list = ", ".join(names) if names else f"{skipped} file(s)"
-            asyncio.get_event_loop().create_task(
-                append_update(
-                    f"**{skipped} corrupt {kind} file(s)** skipped by scheduler: {file_list} — "
-                    f"read and fix them, or delete and recreate"
-                )
+            _dispatch_update(
+                f"**{skipped} corrupt {kind} file(s)** skipped by scheduler: {file_list} — "
+                f"read and fix them, or delete and recreate"
             )
     elif problem_key in _reported_problems:
         _reported_problems.discard(problem_key)
@@ -220,9 +227,7 @@ def _register_routine(
         problem_key = f"routine_reg_{routine.id}"
         if problem_key not in _reported_problems:
             _reported_problems.add(problem_key)
-            asyncio.get_event_loop().create_task(
-                append_update(f"Routine **{routine.id}** failed to register — invalid cron `{routine.cron}`")
-            )
+            _dispatch_update(f"Routine **{routine.id}** failed to register — invalid cron `{routine.cron}`")
         return
     _registered_routines[routine.id] = routine
 
@@ -247,6 +252,8 @@ def _register_reminder(
             bg_config = BgForkConfig.from_item(reminder)
             bg_config = _merge_skill_tools(bg_config, reminder.skills)
             if not validate_dispatch(bg_config.allowed_tools, source=reminder.id):
+                await asyncio.to_thread(remove_reminder, reminder.id)
+                _registered_reminders.discard(reminder.id)
                 return
             all_reminders = list_reminders()
             all_routines = list_routines()
@@ -322,9 +329,7 @@ def _register_reminder(
         problem_key = f"reminder_reg_{reminder.id}"
         if problem_key not in _reported_problems:
             _reported_problems.add(problem_key)
-            asyncio.get_event_loop().create_task(
-                append_update(f"Reminder **{reminder.id}** failed to register — invalid run_at `{reminder.run_at}`")
-            )
+            _dispatch_update(f"Reminder **{reminder.id}** failed to register — invalid run_at `{reminder.run_at}`")
         return
     _registered_reminders.add(reminder.id)
 
@@ -345,8 +350,7 @@ def _on_job_missed(event: JobExecutionEvent) -> None:
         return
 
     scheduled = event.scheduled_run_time.astimezone(TZ).strftime("%I:%M %p").lstrip("0")
-    msg = f"Missed {kind} **{name}** (was due {scheduled})"
-    asyncio.get_event_loop().create_task(append_update(msg))
+    _dispatch_update(f"Missed {kind} **{name}** (was due {scheduled})")
 
 
 def setup_scheduler(bot: discord.Client, agent: Agent, owner: discord.User) -> AsyncIOScheduler:
